@@ -14,7 +14,7 @@ PORT=8607
 URL="http://localhost:$PORT/"
 CHROME="${CHROME_PATH:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 TASK=":composeApp:jsBrowserDevelopmentRun"
-LOG="/tmp/ordertypes-kotlin-runweb.log"
+LOG="/tmp/PoCoView-runweb.log"
 
 echo "Starting Gradle dev-server ($TASK) …  logs: $LOG   (Ctrl-C to stop)"
 ./gradlew "$TASK" >"$LOG" 2>&1 &

@@ -9,7 +9,7 @@
 #   git push origin gh-pages
 #
 # One-time setup on github.com: Settings -> Pages -> Deploy from a branch ->
-# gh-pages / (root). URL: https://manfredscheucher.github.io/ordertypes-kotlin/
+# gh-pages / (root). URL: https://manfredscheucher.github.io/PoCoView/
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

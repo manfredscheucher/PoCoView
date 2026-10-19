@@ -38,11 +38,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "org.bytefred.ordertypes.MainKt"
+        mainClass = "org.bytefred.pocoview.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "ordertypes-kotlin"
+            packageName = "PoCoView"
             packageVersion = "1.0.0"
         }
     }

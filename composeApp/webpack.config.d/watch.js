@@ -20,7 +20,7 @@ if (config.devServer) {
     })
 }
 // runWeb.sh opens Chrome itself; stop webpack from auto-opening a browser.
-// Fixed dev-server port per app (see ~/github/.dev-ports.md). ordertypes-kotlin = 8607.
+// Fixed dev-server port per app (see ~/github/.dev-ports.md). PoCoView = 8607.
 if (config.devServer) {
     config.devServer.open = false
     config.devServer.port = 8607

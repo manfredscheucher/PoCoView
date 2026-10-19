@@ -1,4 +1,4 @@
-rootProject.name = "ordertypes-kotlin"
+rootProject.name = "PoCoView"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

@@ -1,19 +1,34 @@
-# ordertypes-kotlin
+# PoCoView
 
-Interactive point-set / order type explorer (Kotlin Multiplatform + Compose), successor of
-qtvis and the pyotlib2 editor. Main target: a website; also a desktop (JVM) app.
+Point Configuration Viewer: look at, edit and analyze planar point sets and their order types,
+right in the browser.
 
-Load and save point sets (asc/psz, json, Graz `.b08/.b16/.b32` databases), move/add/delete points,
-and count or visualize convex hull, onion layers, crossings, k-holes, k-gons and triangulations
-in the modes *count*, *color* and *incident* (structures containing the selected point).
-Beautify and minimize coordinates while keeping the order type.
+**Web app:** https://manfredscheucher.github.io/PoCoView/
+
+Drag points around and watch how convex hull, onion layers, crossing number, k-holes, k-gons and the
+number of triangulations change. Lock the order type to move points only inside their cell of the
+line arrangement, restrict everything to the structures through one point, and minimize or beautify
+coordinates without changing the order type. Reads and writes the usual formats, including the
+order type database files (`.b08`, `.b16`).
+
+PoCoView is the successor of qtvis and the pyotlib2 editor. It is written in Kotlin Multiplatform
+(Compose) and also runs as a desktop app.
+
+A short explanation of all features: [doc/USER_GUIDE.md](doc/USER_GUIDE.md).
+
+## Run it locally
 
 ```
 ./scripts/runWeb.sh       # browser, http://localhost:8607/
 ./scripts/runJVM.sh       # desktop app
 ./scripts/test.sh         # unit tests
-./scripts/deployPages.sh  # build + commit to gh-pages (then: git push origin gh-pages)
 ```
 
-Example data: `data/otypes/` (all order types n=3..8), `data/posezo/`.
-Specification, decisions and test checklist: [doc/SPEC.md](doc/SPEC.md).
+Deploy to GitHub Pages: `./scripts/deployPages.sh` builds the site and commits it to the
+`gh-pages` branch; then `git push origin gh-pages`.
+
+Example data: `data/otypes/` (all order types for n = 3..8), `data/posezo/`.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
