@@ -5,18 +5,21 @@
 - **Points** have integer coordinates (y axis up). The point set should be in general position:
   points on a common line get a red ring, and the properties then show "not in general position".
 - **Line arrangement**: the line through every pair of points. Its cells are exactly the regions in
-  which a point can move without changing the order type. Lines through the selected point are
-  hidden so you can see its cell (View menu).
+  which a point can move without changing the order type. "Hide lines through the selected point"
+  is on by default so you can see the cell of the selected point; switch it off in the View menu.
 - **Tools** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
   a point). Drag empty space to pan, use the wheel or pinch to zoom.
-- **Lock OT**: points cannot be dragged out of their cell, so the order type stays the same.
-- Undo/redo are in the Edit menu; point size, selected point size, line width, colour and opacity
-  of the line arrangement in View → Settings.
+- **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
+  stays the same.
+- Undo/redo are in the Edit menu. Point size, selected point size, line width, colour and opacity
+  of the line arrangement are in View → Settings….
+
+The panel has four tabs: Properties, Points, Optimize and Data.
 
 ## Properties
 
-The Properties tab lists the properties you picked with "Select properties…". All of them depend
-only on the order type, so they are recomputed only when the order type changes.
+The Properties tab lists the properties you picked with View → Select properties…. All of them
+depend only on the order type, so they are recomputed only when the order type changes.
 
 | Property | Meaning |
 |---|---|
@@ -30,29 +33,47 @@ only on the order type, so they are recomputed only when the order type changes.
 
 Two switches control the view:
 
-- **Highlight**: draw the structures (filled polygons, crossing diagonals) of every property whose
-  switch on the right is on. Off: numbers only.
+- **Highlight**: draw the structures (filled polygons, crossing diagonals) of the properties whose
+  switch on the right is on. With Highlight off nothing is drawn; the per-property switches only
+  take effect while Highlight is on.
 - **Incident only**: count and draw only the structures that contain the selected point.
 
 At most 3000 structures per property are drawn; the panel says so if there are more. The highlight
 colour of each property can be changed in "Select properties…".
 
+## Points
+
+Delete the selected point, or generate a random point set in general position (n points on a grid
+of the given size).
+
 ## Optimize
 
-Minimize and beautify keep the order type. Each has a choice of implementation (ports of pyotlib2 and
-the old pyotlib):
+All optimizers are in the Optimize tab.
 
-- **Minimize coordinates** (M): makes the coordinates as small as possible, e.g. `minimize_coords`
-  (move points to even coordinates and halve, with random restarts).
+Minimize and beautify keep the order type. Both are ports of pyotlib2 (which took them from the old
+pyotlib):
+
+- **Minimize coordinates** (M): makes the coordinates as small as possible (`minimize_coords`: moves
+  points to even coordinates and halves, with random restarts).
 - **Beautify** (B): spreads the points nicely. Beautify 1 (`beautify_coords`) moves every coordinate
-  towards the middle of its allowed range; beautify 2 (`beautify2_coords`) optimizes a quality
+  towards the middle of its allowed range. Beautify 2 (`beautify2_coords`) optimizes a quality
   function (no thin triangles, even distances) with Nelder-Mead, hull fixed.
 
-Property optimizers may change the order type:
+The property optimizers may change the order type. Both use the property chosen in the tab:
 
-- **Random walk**: random small moves, kept if the chosen property does not get worse (min or max).
-- **qtvis minimizer** (Enter): port of the qtvis "try to minimize"; pushes points just past their
-  cell walls and stops at the first configuration with a smaller value.
+- **Random walk**: random small moves, min or max of the property.
+- **qtvis minimizer** (Enter, "Try to minimize"): port of the qtvis "try to minimize". Pushes points
+  just past their cell walls, looking for a smaller value. Enter always uses the chosen property.
+
+While a property optimizer runs, a "Searching…" dialog shows the progress and has an Abort button.
+Configurations with an equal value are taken over, worse ones are not. The search stops at the
+first improvement, unless **Loop** is on (in the tab or in the dialog); then it goes on until you
+abort.
+
+## Data
+
+The coordinates as text, one `x y` per line. Edit them and press Apply, or Revert to go back. Below
+are the λ matrix (λ[i][j] = number of points left of i→j) and the order type hash.
 
 ## Files
 
@@ -62,12 +83,31 @@ Property optimizers may change the order type:
 | `.json` | `[[x,y],...]` per set |
 | `.b08`, `.b16`, `.b32` | order type database: unsigned little-endian `x1 y1 x2 y2 ...`; n is read from the file name (`otypes05.b08`, `points_n12.b08`) |
 
-File → Import (paste)… takes the same formats as text pasted into a dialog; binary formats as a hex
-dump (`00 00 01 fe ...`) together with n.
+- File → Open… loads a file.
+- File → Import (paste)… takes the same formats as text pasted into a dialog; binary formats as a
+  hex dump (`00 00 01 fe ...`) together with n.
+- File → Save… asks for the format, and whether to save only the current set or all sets of the
+  file.
+- File → Export SVG saves a picture of the current view.
 
 Files with several sets (e.g. `otypes06.b08`) can be browsed with the arrows in the toolbar or
-PageUp/PageDown. File → Export SVG saves a picture of the current view.
+PageUp/PageDown.
 
 ## Keyboard
 
-Info → Keyboard shortcuts.
+| Key | Action |
+|---|---|
+| Esc | deselect |
+| Del | delete the selected point |
+| Ctrl+Z / Ctrl+Shift+Z | undo / redo |
+| + / - | zoom |
+| Home | fit |
+| V / A / D | tools Move / Add / Delete |
+| F | lock order type |
+| L | line arrangement |
+| H | highlight |
+| I | incident only |
+| M | minimize coordinates |
+| B | beautify |
+| Enter | qtvis minimizer |
+| PageUp / PageDown | previous / next set |

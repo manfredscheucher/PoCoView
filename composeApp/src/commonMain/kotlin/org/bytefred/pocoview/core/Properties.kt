@@ -30,7 +30,7 @@ abstract class PropertyDef(val id: String, val label: String, val hasStructures:
 /** Max number of structures drawn per property. */
 const val STRUCTURE_LIMIT = 3000
 
-class HullProperty : PropertyDef("hull", "Convex hull (size)", true) {
+class HullProperty : PropertyDef("hull", "Convex hull", true) {
     override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult {
         val h = convexHull(p)
         return PropertyResult(

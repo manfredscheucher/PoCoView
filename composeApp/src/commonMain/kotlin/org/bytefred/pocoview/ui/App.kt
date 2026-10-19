@@ -33,7 +33,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
-import org.bytefred.pocoview.core.CellHopParams
 
 /** Landscape (side panel) needs at least this width in AUTO layout mode (ktoy-style, width based). */
 private val WIDE_MIN = 760.dp
@@ -45,7 +44,9 @@ fun App() {
         val view = remember { ViewTransform() }
         val focus = remember { FocusRequester() }
 
-        Surface(Modifier.fillMaxSize()) {
+        // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
+        // they are ignored while a text field has focus
+        Surface(Modifier.fillMaxSize().onKeyEvent { state.textFieldsFocused == 0 && handleKey(it, state, view) }) {
             var dialog by remember { mutableStateOf(DialogKind.NONE) }
             Dialogs(state, dialog) { dialog = DialogKind.NONE }
             Column(Modifier.fillMaxSize()) {
@@ -59,13 +60,8 @@ fun App() {
                         LayoutMode.PORTRAIT -> false
                         LayoutMode.AUTO -> maxWidth >= WIDE_MIN
                     }
-                    // shortcuts live on the canvas, so typing in text fields never triggers them
                     val canvas = @Composable { m: Modifier ->
-                        Box(
-                            m.focusRequester(focus)
-                                .focusable()
-                                .onKeyEvent { handleKey(it, state, view) }
-                        ) {
+                        Box(m.focusRequester(focus).focusable()) {
                             // the canvas is composed inside BoxWithConstraints (subcomposition),
                             // so request the initial focus from here, once it is attached
                             LaunchedEffect(Unit) { focus.requestFocus() }
@@ -105,7 +101,7 @@ private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolea
         e.key == Key.Plus || e.key == Key.Equals || e.key == Key.NumPadAdd -> view.zoomCenter(1.2)
         e.key == Key.Minus || e.key == Key.NumPadSubtract -> view.zoomCenter(1 / 1.2)
         e.key == Key.MoveHome || e.key == Key.Zero -> state.requestFit()
-        e.key == Key.Enter || e.key == Key.NumPadEnter -> state.cellHop(state.optimizeProperty, CellHopParams())
+        e.key == Key.Enter || e.key == Key.NumPadEnter -> state.cellHop(state.optimizeProperty, state.cellHopParams)
         e.key == Key.V -> state.tool = Tool.MOVE
         e.key == Key.A -> state.tool = Tool.ADD
         e.key == Key.D -> state.tool = Tool.DELETE

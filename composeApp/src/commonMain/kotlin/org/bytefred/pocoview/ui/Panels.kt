@@ -27,13 +27,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,7 +65,7 @@ fun ToolBar(state: AppState) {
         // qtvis "fix current OT": points cannot be dragged out of their cell
         FilterChip(
             selected = state.fixOrderType, onClick = { state.fixOrderType = !state.fixOrderType },
-            label = { Text(if (state.fixOrderType) "OT locked" else "Lock OT") },
+            label = { Text("Lock order type") },
         )
         if (state.sets.size > 1) {
             TextButton(onClick = { state.showSet(state.setIndex - 1) }, enabled = state.setIndex > 0) { Text("<") }
@@ -86,11 +88,10 @@ fun StatusBar(state: AppState) {
             style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (state.busy != null) TextButton(onClick = state::abortOperation) { Text("Abort") }
     }
 }
 
-private enum class Tab(val label: String) { PROPERTIES("Properties"), EDIT("Edit"), OPTIMIZE("Optimize"), INFO("Info") }
+private enum class Tab(val label: String) { PROPERTIES("Properties"), POINTS("Points"), OPTIMIZE("Optimize"), DATA("Data") }
 
 @Composable
 fun ControlPanel(state: AppState, onSelectProperties: () -> Unit, modifier: Modifier = Modifier) {
@@ -102,9 +103,9 @@ fun ControlPanel(state: AppState, onSelectProperties: () -> Unit, modifier: Modi
         Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 4.dp)) {
             when (tab) {
                 Tab.PROPERTIES -> PropertiesTab(state, onSelectProperties)
-                Tab.EDIT -> EditTab(state)
+                Tab.POINTS -> PointsTab(state)
                 Tab.OPTIMIZE -> OptimizeTab(state)
-                Tab.INFO -> InfoTab(state)
+                Tab.DATA -> DataTab(state)
             }
         }
     }
@@ -122,6 +123,10 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
 private fun PropertiesTab(state: AppState, onSelectProperties: () -> Unit) {
     SwitchRow("Highlight", state.highlight, state::changeHighlight)
     SwitchRow("Incident only", state.incidentOnly, state::changeIncidentOnly)
+    if (!state.highlight) Text(
+        "Highlight is off: nothing is drawn; the switches on the right take effect when it is on.",
+        style = MaterialTheme.typography.bodySmall,
+    )
     if (state.incidentOnly && state.selected == null) Text(
         "Select a point: only structures containing it are counted and highlighted.",
         style = MaterialTheme.typography.bodySmall,
@@ -131,7 +136,9 @@ private fun PropertiesTab(state: AppState, onSelectProperties: () -> Unit) {
         val t = state.toggles[prop.id] ?: continue
         if (!t.count) continue
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
-            Box(Modifier.size(10.dp).background(state.colorOf(prop.id), CircleShape))
+            // colour dot only for properties that can be highlighted
+            if (prop.hasStructures) Box(Modifier.size(10.dp).background(state.colorOf(prop.id), CircleShape))
+            else Spacer(Modifier.size(10.dp))
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(prop.label, style = MaterialTheme.typography.bodyMedium)
@@ -170,32 +177,56 @@ private fun doneText(state: AppState, prop: PropertyDef, r: PropertyResult): Str
 private fun truncNote(r: PropertyResult) =
     if (r.truncated) "  ·  drawing first ${r.structures?.size}" else ""
 
+/**
+ * A number input that keeps what the user types; only parseable values are passed to
+ * [onValue], so clearing the field to retype does not turn the value into 0.
+ */
 @Composable
-private fun NumberField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+fun NumberField(
+    state: AppState, label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier,
+    decimal: Boolean = false,
+) {
+    var text by remember(value) { mutableStateOf(value) }
     OutlinedTextField(
-        value, onValueChange = { v -> onChange(v.filter { it.isDigit() }.take(10)) }, label = { Text(label) },
-        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = modifier,
+        text,
+        onValueChange = { v ->
+            text = v.filter { it.isDigit() || (decimal && it == '.') }.take(10)
+            if (text.toDoubleOrNull() != null) onValue(text)
+        },
+        label = { Text(label) }, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
+        modifier = modifier.textFocus(state),
     )
 }
 
+/** Counts focused text fields in [AppState.textFieldsFocused], so shortcuts do not fire while typing. */
+fun Modifier.textFocus(state: AppState): Modifier = composed {
+    var focused by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { if (focused) state.textFieldsFocused-- } }
+    onFocusChanged {
+        if (it.isFocused != focused) {
+            focused = it.isFocused
+            state.textFieldsFocused += if (focused) 1 else -1
+        }
+    }
+}
+
 @Composable
-private fun EditTab(state: AppState) {
+private fun PointsTab(state: AppState) {
     OutlinedButton(onClick = { state.deleteSelected() }, enabled = state.selected != null) {
         Text("Delete selected point")
     }
     Spacer(Modifier.height(12.dp))
     Text("Random point set (general position)", style = MaterialTheme.typography.titleSmall)
-    var n by remember { mutableStateOf("12") }
-    var size by remember { mutableStateOf("1000") }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        NumberField("n", n, { n = it }, Modifier.width(90.dp))
-        NumberField("grid size", size, { size = it }, Modifier.width(130.dp))
-        OutlinedButton(onClick = { state.randomSet(n.toIntOrNull() ?: 0, size.toLongOrNull() ?: 0) }) { Text("Generate") }
+        NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt() }, Modifier.width(90.dp))
+        NumberField(state, "grid size", state.randomGrid.toString(), { state.randomGrid = it.toLong() }, Modifier.width(130.dp))
+        OutlinedButton(onClick = { state.randomSet(state.randomN, state.randomGrid) }) { Text("Generate") }
     }
     Spacer(Modifier.height(12.dp))
     Text(
         "Mouse: drag a point to move it, drag empty space to pan, wheel to zoom. Tools: Move (click selects), " +
-            "Add (click empty space), Delete (click a point). Keyboard shortcuts: Info → Shortcuts.",
+            "Add (click empty space), Delete (click a point). Keys: Info → Keyboard shortcuts.",
         style = MaterialTheme.typography.bodySmall,
     )
 }
@@ -229,8 +260,8 @@ private fun OptimizeTab(state: AppState) {
     when (state.minimizeMethod) {
         MinimizeMethod.MINIMIZE_COORDS -> {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField("trials", cfg.trials.toString(), { set(cfg.copy(trials = it.toIntOrNull() ?: 0)) }, Modifier.width(90.dp))
-                NumberField("randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toIntOrNull() ?: 0)) }, Modifier.width(110.dp))
+                NumberField(state, "trials", cfg.trials.toString(), { set(cfg.copy(trials = it.toInt())) }, Modifier.width(90.dp))
+                NumberField(state, "randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
             }
             SwitchRow("Also try sheering transforms", cfg.sheering) { set(cfg.copy(sheering = it)) }
         }
@@ -243,10 +274,10 @@ private fun OptimizeTab(state: AppState) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         when (state.beautifyMethod) {
             BeautifyMethod.BEAUTIFY_COORDS ->
-                NumberField("max iter.", cfg.maxIter.toString(), { set(cfg.copy(maxIter = it.toIntOrNull() ?: 0)) }, Modifier.width(110.dp))
+                NumberField(state, "max iter.", cfg.maxIter.toString(), { set(cfg.copy(maxIter = it.toInt())) }, Modifier.width(110.dp))
             BeautifyMethod.BEAUTIFY2_COORDS -> {
-                NumberField("iter1", cfg.iter1.toString(), { set(cfg.copy(iter1 = it.toIntOrNull() ?: 0)) }, Modifier.width(90.dp))
-                NumberField("iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toIntOrNull() ?: 0)) }, Modifier.width(100.dp))
+                NumberField(state, "iter1", cfg.iter1.toString(), { set(cfg.copy(iter1 = it.toInt())) }, Modifier.width(90.dp))
+                NumberField(state, "iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
             }
         }
     }
@@ -263,55 +294,37 @@ private fun OptimizeTab(state: AppState) {
     }
     Spacer(Modifier.height(4.dp))
     Text("Random walk: random local moves, kept if the property does not get worse", style = MaterialTheme.typography.bodySmall)
-    var maximize by remember { mutableStateOf(false) }
-    var steps by remember { mutableStateOf("500") }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(selected = !maximize, onClick = { maximize = false }, label = { Text("min") })
-        FilterChip(selected = maximize, onClick = { maximize = true }, label = { Text("max") })
-        NumberField("steps", steps, { steps = it }, Modifier.width(110.dp))
+        FilterChip(selected = !state.walkMaximize, onClick = { state.walkMaximize = false }, label = { Text("min") })
+        FilterChip(selected = state.walkMaximize, onClick = { state.walkMaximize = true }, label = { Text("max") })
+        NumberField(state, "steps", state.walkSteps.toString(), { state.walkSteps = it.toInt() }, Modifier.width(110.dp))
     }
-    OutlinedButton(onClick = { state.walk(state.optimizeProperty, maximize, steps.toIntOrNull() ?: 0) }, enabled = idle) { Text("Run walk") }
+    OutlinedButton(onClick = { state.walk(state.optimizeProperty, state.walkMaximize, state.walkSteps) }, enabled = idle) {
+        Text("Run walk")
+    }
     Spacer(Modifier.height(8.dp))
     Text(
         "qtvis minimizer (Enter): pushes points just past their cell walls, accepts moves that do not increase " +
             "the property, restarts with a random point; stops at the first smaller value",
         style = MaterialTheme.typography.bodySmall,
     )
-    val d = CellHopParams()
-    var trials by remember { mutableStateOf(d.trials.toString()) }
-    var maxIt by remember { mutableStateOf(d.maxIterations.toString()) }
-    var maxFail by remember { mutableStateOf(d.maxFailIterations.toString()) }
-    var eps by remember { mutableStateOf(d.eps.toString()) }
-    var alpha by remember { mutableStateOf(d.alpha.toString()) }
-    var onlyLast by remember { mutableStateOf(d.onlyLastPoint) }
+    val c = state.cellHopParams
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        NumberField("trials", trials, { trials = it }, Modifier.width(90.dp))
-        NumberField("max iter.", maxIt, { maxIt = it }, Modifier.width(100.dp))
-        NumberField("max fail iter.", maxFail, { maxFail = it }, Modifier.width(120.dp))
-        NumberField("epsilon", eps, { eps = it }, Modifier.width(90.dp))
-        OutlinedTextField(
-            alpha, onValueChange = { v -> alpha = v.filter { it.isDigit() || it == '.' }.take(8) }, label = { Text("alpha") },
-            singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp),
-        )
+        NumberField(state, "trials", c.trials.toString(), { state.cellHopParams = c.copy(trials = it.toInt()) }, Modifier.width(90.dp))
+        NumberField(state, "max iter.", c.maxIterations.toString(), { state.cellHopParams = c.copy(maxIterations = it.toInt()) }, Modifier.width(100.dp))
+        NumberField(state, "max fail iter.", c.maxFailIterations.toString(), { state.cellHopParams = c.copy(maxFailIterations = it.toInt()) }, Modifier.width(120.dp))
+        NumberField(state, "epsilon", c.eps.toString(), { state.cellHopParams = c.copy(eps = it.toInt()) }, Modifier.width(90.dp))
+        NumberField(state, "alpha", c.alpha.toString(), { state.cellHopParams = c.copy(alpha = it.toDouble()) }, Modifier.width(90.dp), decimal = true)
     }
-    SwitchRow("Only move the last point on restarts", onlyLast) { onlyLast = it }
-    OutlinedButton(onClick = {
-        state.cellHop(
-            state.optimizeProperty,
-            CellHopParams(
-                trials = trials.toIntOrNull() ?: d.trials,
-                maxFailIterations = maxFail.toIntOrNull() ?: d.maxFailIterations,
-                maxIterations = maxIt.toIntOrNull() ?: d.maxIterations,
-                eps = eps.toIntOrNull() ?: d.eps,
-                alpha = alpha.toDoubleOrNull() ?: d.alpha,
-                onlyLastPoint = onlyLast,
-            ),
-        )
-    }, enabled = idle) { Text("Try to minimize") }
+    SwitchRow("Only move the last point on restarts", c.onlyLastPoint) { state.cellHopParams = c.copy(onlyLastPoint = it) }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { state.cellHop(state.optimizeProperty, state.cellHopParams) }, enabled = idle) { Text("Try to minimize") }
+        OutlinedButton(onClick = { state.cellHopParams = CellHopParams() }) { Text("Default parameters") }
+    }
 }
 
 @Composable
-private fun InfoTab(state: AppState) {
+private fun DataTab(state: AppState) {
     val p = state.points
     Text("n = ${p.size}, extent ${extent(p)}, ${bitsOf(p)} bits", style = MaterialTheme.typography.bodyMedium)
     Text(
@@ -322,18 +335,16 @@ private fun InfoTab(state: AppState) {
     Spacer(Modifier.height(8.dp))
     Text("Coordinates (edit and apply; one 'x y' per line)", style = MaterialTheme.typography.titleSmall)
     val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
-    // a different set or file discards an unapplied edit
-    var text by remember(state.setIndex, state.sets) { mutableStateOf(current) }
-    var edited by remember(state.setIndex, state.sets) { mutableStateOf(false) }
-    LaunchedEffect(current) { if (!edited) text = current }
+    // the draft lives in the state, so switching tabs does not lose an unapplied edit
+    val draft = state.coordinatesDraft
     OutlinedTextField(
-        text, onValueChange = { text = it; edited = true },
+        draft ?: current, onValueChange = { state.coordinatesDraft = it },
         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-        modifier = Modifier.fillMaxWidth().height(200.dp),
+        modifier = Modifier.fillMaxWidth().height(200.dp).textFocus(state),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { state.applyCoordinatesText(text); edited = false }, enabled = edited) { Text("Apply") }
-        OutlinedButton(onClick = { text = current; edited = false }, enabled = edited) { Text("Revert") }
+        OutlinedButton(onClick = { state.applyCoordinatesText(draft ?: current) }, enabled = draft != null) { Text("Apply") }
+        OutlinedButton(onClick = { state.coordinatesDraft = null }, enabled = draft != null) { Text("Revert") }
     }
     if (p.size in 1..30) {
         Spacer(Modifier.height(8.dp))

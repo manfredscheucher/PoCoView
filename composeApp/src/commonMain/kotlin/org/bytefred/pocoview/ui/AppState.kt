@@ -106,6 +106,23 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var beautifyMethod by mutableStateOf(BeautifyMethod.BEAUTIFY_COORDS)
     var coordSettings by mutableStateOf(CoordSettings())
 
+    /** qtvis minimizer parameters (Optimize tab; also used by the Enter key). */
+    var cellHopParams by mutableStateOf(CellHopParams())
+
+    /** Random walk settings (Optimize tab). */
+    var walkMaximize by mutableStateOf(false)
+    var walkSteps by mutableStateOf(500)
+
+    /** Random point set settings (Points tab). */
+    var randomN by mutableStateOf(12)
+    var randomGrid by mutableStateOf(1000L)
+
+    /** Unapplied edit of the coordinate list (Data tab); null = shows the current points. */
+    var coordinatesDraft by mutableStateOf<String?>(null)
+
+    /** Number of focused text fields: keyboard shortcuts are off while one has focus. */
+    var textFieldsFocused by mutableIntStateOf(0)
+
     /** Property chosen in the Optimize tab (walk, qtvis minimizer, Enter key). */
     var optimizeProperty by mutableStateOf("hole5")
 
@@ -137,6 +154,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         private set
     var message by mutableStateOf<String?>(null)
     var busy by mutableStateOf<String?>(null)
+        private set
+
+    /** Title of the operation dialog. */
+    var busyTitle by mutableStateOf("")
         private set
 
     /** Progress line of the running operation (shown in the operation dialog). */
@@ -194,6 +215,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     private fun pushUndo() {
+        message = null
         undoStack.addLast(points)
         if (undoStack.size > 500) undoStack.removeFirst()
         redoStack.clear()
@@ -250,7 +272,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (points.any { it.x == q.x && it.y == q.y }) return false
         // O(n^2): if no triple through i changes sign, order type and collinearities stay the same
         val sameOrderType = sameOrderTypeAfterMove(points, i, q)
-        if (fixOrderType && collinear.isEmpty() && !sameOrderType) return false
+        if (fixOrderType && !sameOrderType) {
+            if (collinear.isEmpty()) return false
+            message = "Lock order type has no effect while points are collinear"
+        }
         if (dragUndoPending) { pushUndo(); dragUndoPending = false }
         points = points.toMutableList().also { it[i] = q.copy(color = points[i].color) }
         if (!sameOrderType) onPointsChanged()
@@ -301,6 +326,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             cancelOperation()
             selected = null
             setPoints(p)
+            coordinatesDraft = null
             requestFit()
         } catch (e: Exception) {
             message = e.message ?: "Could not parse the coordinates"
@@ -331,6 +357,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     private fun load(name: String, loaded: List<List<Pt>>) {
         cancelOperation()
+        coordinatesDraft = null
         sets = loaded
         setIndex = 0
         fileName = name.substringBeforeLast('.')
@@ -346,6 +373,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (index !in sets.indices || index == setIndex) return
         cancelOperation()
         storeCurrentSet()
+        coordinatesDraft = null
         setIndex = index
         selected = null
         setPoints(sets[index], recordUndo = false)
@@ -475,12 +503,17 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      * Runs a point-changing operation in the background. All its changes form one undo
      * step (only recorded if something changed); any edit cancels it.
      */
-    private fun runOperation(label: String, block: suspend (start: List<Pt>, update: (List<Pt>) -> Unit) -> Unit) {
+    private fun runOperation(
+        label: String,
+        title: String = "Running",
+        block: suspend (start: List<Pt>, update: (List<Pt>) -> Unit) -> Unit,
+    ) {
         if (!requireGeneralPosition()) return
         cancelOperation()
         val start = points
         var changed = false
         busy = label
+        busyTitle = title
         opJob = scope.launch {
             try {
                 block(start) { p ->
@@ -527,7 +560,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     /** Runs a coordinate optimizer once, or with [loop] again and again on its result until aborted. */
     private fun runCoordOptimizer(label: String, run: suspend (List<Pt>) -> List<Pt>) =
-        runOperation("$label…") { start, update ->
+        runOperation("$label…", if (label.startsWith("Minimize")) "Minimizing coordinates" else "Beautifying") { start, update ->
             val bitsBefore = bitsOf(start)
             var cur = start
             var round = 0
@@ -548,7 +581,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun walk(propId: String, maximize: Boolean, steps: Int) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        runOperation("Random walk (${prop.label})…") { start, update ->
+        runOperation("Random walk (${prop.label})…", SEARCH_TITLE) { start, update ->
             var cur = start
             var best = evaluate(prop, cur, null, false).count
             val first = best
@@ -581,7 +614,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
         if (points.size < 3) { message = "Need at least 3 points"; return }
-        runOperation("qtvis minimizer (${prop.label})…") { start, update ->
+        runOperation("qtvis minimizer (${prop.label})…", SEARCH_TITLE) { start, update ->
             val before = evaluate(prop, start, null, false).count
             var cur = start
             var round = 0
@@ -622,6 +655,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val DEFAULT_COUNTED = setOf("hull", "onion", "crossings", "hole3", "hole4", "hole5", "hole6", "triangulations")
         val DEFAULT_DRAWN = setOf("hole5")
         private const val CACHE_SIZE = 64
+        const val SEARCH_TITLE = "Searching for a better configuration"
         val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
         const val DEFAULT_LINE_ALPHA = 0.18f
 

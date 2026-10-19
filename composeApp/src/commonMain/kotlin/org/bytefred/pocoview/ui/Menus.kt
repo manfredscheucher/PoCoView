@@ -48,7 +48,7 @@ import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
 
 /** Which dialog is open (the menu bar and the properties tab open them). */
-enum class DialogKind { NONE, PROPERTIES, SETTINGS, ABOUT, SHORTCUTS, IMPORT }
+enum class DialogKind { NONE, PROPERTIES, SETTINGS, ABOUT, SHORTCUTS, IMPORT, SAVE }
 
 @Composable
 private fun Menu(title: String, content: @Composable (close: () -> Unit) -> Unit) {
@@ -71,22 +71,13 @@ private fun CheckItem(text: String, checked: Boolean, close: () -> Unit, onToggl
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
-    val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved / downloaded $name" }
+    val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("PoCoView", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
         Menu("File") { close ->
             Item("Open…", close) { opener() }
             Item("Import (paste)…", close) { openDialog(DialogKind.IMPORT) }
-            HorizontalDivider()
-            for (fmt in PointFormat.entries) Item("Save as .${fmt.extension}", close) {
-                state.encode(fmt, allSets = false)?.let { saver(state.saveName(fmt), it) }
-            }
-            if (state.sets.size > 1) {
-                HorizontalDivider()
-                for (fmt in PointFormat.entries) Item("Save all ${state.sets.size} sets as .${fmt.extension}", close) {
-                    state.encode(fmt, allSets = true)?.let { saver(state.saveName(fmt), it) }
-                }
-            }
+            Item("Save…", close) { openDialog(DialogKind.SAVE) }
             HorizontalDivider()
             Item("Export SVG", close) { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
         }
@@ -112,6 +103,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 state.layoutMode = m
             }
             HorizontalDivider()
+            Item("Select properties…", close) { openDialog(DialogKind.PROPERTIES) }
             Item("Settings…", close) { openDialog(DialogKind.SETTINGS) }
         }
         Menu("Info") { close ->
@@ -138,9 +130,45 @@ fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
         DialogKind.SETTINGS -> SettingsDialog(state, close)
         DialogKind.IMPORT -> ImportDialog(state, close)
+        DialogKind.SAVE -> SaveDialog(state, close)
         DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT, close)
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
+}
+
+/** Save the current set (or all sets of the file) in a chosen format. */
+@Composable
+private fun SaveDialog(state: AppState, close: () -> Unit) {
+    val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
+    var format by remember { mutableStateOf(PointFormat.ASC) }
+    var all by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = close,
+        confirmButton = {
+            TextButton(onClick = {
+                state.encode(format, allSets = all)?.let { saver(state.saveName(format), it) }
+                close()
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+        title = { Text("Save point set") },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Format", Modifier.padding(end = 8.dp))
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text(".${format.extension} …") }
+                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                            for (f in PointFormat.entries) DropdownMenuItem(text = { Text(".${f.extension}") }, onClick = { format = f; menu = false })
+                        }
+                    }
+                }
+                Text("File name: ${state.saveName(format)}", style = MaterialTheme.typography.bodySmall)
+                if (state.sets.size > 1) SwitchRow("All ${state.sets.size} sets of the file", all) { all = it }
+            }
+        },
+    )
 }
 
 /** Paste point sets in one of the file formats; binary formats as a hex dump plus n. */
@@ -173,7 +201,7 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
                     }
                     if (format.isBinary) OutlinedTextField(
                         n, onValueChange = { v -> n = v.filter { it.isDigit() }.take(3) }, label = { Text("n") },
-                        singleLine = true, modifier = Modifier.width(90.dp).padding(start = 8.dp),
+                        singleLine = true, modifier = Modifier.width(90.dp).padding(start = 8.dp).textFocus(state),
                     )
                 }
                 Text(
@@ -187,7 +215,7 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
                 OutlinedTextField(
                     text, onValueChange = { text = it; error = null },
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                    modifier = Modifier.fillMaxWidth().height(220.dp).textFocus(state),
                 )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
@@ -200,7 +228,7 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
 private fun OperationDialog(state: AppState, title: String) = AlertDialog(
     onDismissRequest = {},
     confirmButton = { TextButton(onClick = state::abortOperation) { Text("Abort") } },
-    title = { Text("Searching for a better configuration") },
+    title = { Text(state.busyTitle) },
     text = {
         Column {
             Text(title.removeSuffix("…"), style = MaterialTheme.typography.bodyMedium)
@@ -221,7 +249,7 @@ private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDi
 
 /** A colour swatch; click opens a palette with a hex field (#RRGGBB). */
 @Composable
-fun ColorChooser(color: Color, onChange: (Color) -> Unit) {
+fun ColorChooser(state: AppState, color: Color, onChange: (Color) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         Box(
@@ -237,13 +265,13 @@ fun ColorChooser(color: Color, onChange: (Color) -> Unit) {
                             .clickable { onChange(c); open = false },
                     )
                 }
-                var hex by remember(color) { mutableStateOf(color.toHex()) }
+                var hex by remember(open) { mutableStateOf(color.toHex()) }
                 OutlinedTextField(
                     hex, onValueChange = { v ->
                         hex = v.take(7)
                         parseHexColor(hex)?.let(onChange)
                     },
-                    label = { Text("#RRGGBB") }, singleLine = true, modifier = Modifier.padding(top = 8.dp),
+                    label = { Text("#RRGGBB") }, singleLine = true, modifier = Modifier.padding(top = 8.dp).textFocus(state),
                 )
             }
         }
@@ -296,7 +324,7 @@ private fun PickerRow(state: AppState, p: PropertyDef) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(shown, onCheckedChange = { state.setShown(p.id, it) })
         // highlight colour, for properties that can be highlighted
-        if (p.hasStructures) ColorChooser(state.colorOf(p.id)) { state.propertyColors[p.id] = it }
+        if (p.hasStructures) ColorChooser(state, state.colorOf(p.id)) { state.propertyColors[p.id] = it }
         else Spacer(Modifier.width(26.dp))
         Spacer(Modifier.width(8.dp))
         Column {
@@ -332,7 +360,7 @@ private fun SettingsDialog(state: AppState, close: () -> Unit) = AlertDialog(
             Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Line colour", Modifier.weight(1f))
-                ColorChooser(state.lineColor) { state.lineColor = it }
+                ColorChooser(state, state.lineColor) { state.lineColor = it }
             }
             Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %")
             Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
@@ -351,17 +379,17 @@ Successor of qtvis (C++/Qt) and the pyotlib2 editor; the optimizers are ports of
 
 Kotlin Multiplatform + Compose; runs in the browser and on the desktop (JVM)."""
 
-private const val SHORTCUTS = """Esc - deselect
-Del / Backspace - delete the selected point
-Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y) - undo / redo
-+ / - - zoom, Home or 0 - fit
-V / A / D - tools move / add / delete
-F - lock order type
-M - minimize coordinates, B - beautify (implementations: Optimize tab)
-L - line arrangement
-H - highlight on/off
-I - incident only on/off
-Enter - qtvis minimizer (property of the Optimize tab)
-PageUp / PageDown (, / .) - previous / next set of the file
+private const val SHORTCUTS = """Esc: deselect
+Del / Backspace: delete the selected point
+Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo / redo
++ / -: zoom;  Home or 0: fit
+V / A / D: tools move / add / delete
+F: lock order type
+M: minimize coordinates;  B: beautify (implementations: Optimize tab)
+L: line arrangement
+H: highlight on/off
+I: incident only on/off
+Enter: qtvis minimizer (property and parameters of the Optimize tab)
+PageUp / PageDown (, / .): previous / next set of the file
 
 Mouse: drag a point to move it, drag empty space to pan, wheel or pinch to zoom."""

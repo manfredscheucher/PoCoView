@@ -1,6 +1,5 @@
 package org.bytefred.pocoview.core
 
-import kotlinx.coroutines.test.runTest
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
