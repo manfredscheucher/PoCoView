@@ -1,15 +1,9 @@
 package org.bytefred.pocoview.ui
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.Shape
 import org.bytefred.pocoview.core.Structure
-
-private fun Color.hex(): String {
-    val argb = toArgb()
-    return "#" + (argb and 0xFFFFFF).toString(16).padStart(6, '0')
-}
 
 /** SVG of the point set with the given structure layers; fits into a 1000x1000 box, y up. */
 fun pointSetSvg(points: List<Pt>, layers: List<Pair<Color, List<Structure>>>, labels: Boolean): String {
@@ -31,16 +25,16 @@ fun pointSetSvg(points: List<Pt>, layers: List<Pair<Color, List<Structure>>>, la
             when (st.shape) {
                 Shape.POLYGON -> append(
                     "<polygon points=\"${v.joinToString(" ") { "${f(x(it))},${f(y(it))}" }}\" " +
-                        "fill=\"${color.hex()}\" fill-opacity=\"0.13\" stroke=\"${color.hex()}\" stroke-width=\"1.5\"/>\n"
+                        "fill=\"${color.toHex()}\" fill-opacity=\"0.13\" stroke=\"${color.toHex()}\" stroke-width=\"1.5\"/>\n"
                 )
                 Shape.SEGMENTS -> for (i in 0 until v.size - 1 step 2) append(
                     "<line x1=\"${f(x(v[i]))}\" y1=\"${f(y(v[i]))}\" x2=\"${f(x(v[i + 1]))}\" y2=\"${f(y(v[i + 1]))}\" " +
-                        "stroke=\"${color.hex()}\" stroke-opacity=\"0.5\" stroke-width=\"1.5\"/>\n"
+                        "stroke=\"${color.toHex()}\" stroke-opacity=\"0.5\" stroke-width=\"1.5\"/>\n"
                 )
             }
         }
         points.forEachIndexed { i, p ->
-            val fill = tokenColor(p.color)?.hex() ?: "black"
+            val fill = tokenColor(p.color)?.toHex() ?: "black"
             append("<circle cx=\"${f(x(p))}\" cy=\"${f(y(p))}\" r=\"6\" fill=\"$fill\"/>\n")
             if (labels) append("<text x=\"${f(x(p) + 8)}\" y=\"${f(y(p) - 8)}\" font-size=\"14\" font-family=\"sans-serif\">$i</text>\n")
         }

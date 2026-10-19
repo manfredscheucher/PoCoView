@@ -87,6 +87,23 @@ class CrossingProperty : PropertyDef("crossings", "Crossing number", true) {
     }
 }
 
+/**
+ * Exit edges (pyotlib2 `filter_exit_edges`): the edges whose witness point can cross them alone;
+ * their orientations determine the order type. With a selected point ("incident only"): only
+ * the edges that have it as a witness. Drawn as segments.
+ */
+class ExitEdgeProperty : PropertyDef("exitedges", "Exit edges", true) {
+    override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult {
+        val w = exitEdgeWitnesses(Orientations(p))
+        val shown = if (selected == null) w.keys else w.filterValues { selected in it }.keys
+        return PropertyResult(
+            count = w.size.toLong(),
+            incident = selected?.let { shown.size.toLong() },
+            structures = shown.map { (a, b) -> Structure(intArrayOf(a, b), Shape.SEGMENTS) },
+        )
+    }
+}
+
 class TriangulationProperty : PropertyDef("triangulations", "Triangulations", false, maxN = 16) {
     override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker) =
         PropertyResult(countTriangulations(p, ticker))
@@ -97,6 +114,7 @@ val ALL_PROPERTIES: List<PropertyDef> = buildList {
     add(HullProperty())
     add(OnionProperty())
     add(CrossingProperty())
+    add(ExitEdgeProperty())
     for (k in 3..7) add(PolygonProperty(k, emptyOnly = true))
     for (k in 4..7) add(PolygonProperty(k, emptyOnly = false))
     add(TriangulationProperty())

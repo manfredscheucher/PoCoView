@@ -111,6 +111,8 @@ private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolea
         e.key == Key.D -> state.tool = Tool.DELETE
         e.key == Key.F -> state.fixOrderType = !state.fixOrderType
         e.key == Key.L -> state.showLines = !state.showLines
+        e.key == Key.M -> state.minimize()
+        e.key == Key.B -> state.beautify()
         e.key == Key.H -> state.changeHighlight(!state.highlight)
         e.key == Key.I -> state.changeIncidentOnly(!state.incidentOnly)
         e.key == Key.PageUp || e.key == Key.Comma -> state.showSet(state.setIndex - 1)

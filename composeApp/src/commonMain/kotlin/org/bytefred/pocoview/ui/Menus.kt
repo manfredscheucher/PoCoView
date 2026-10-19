@@ -1,5 +1,13 @@
 package org.bytefred.pocoview.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -112,10 +120,10 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
 }
 
 fun exportSvg(state: AppState): String {
-    val layers = if (!state.highlight) emptyList() else ALL_PROPERTIES.mapIndexedNotNull { idx, p ->
-        val t = state.toggles[p.id] ?: return@mapIndexedNotNull null
-        val r = (state.results[p.id] as? PropState.Done)?.result ?: return@mapIndexedNotNull null
-        if (t.count && t.draw && r.structures != null) propertyColor(idx) to r.structures else null
+    val layers = if (!state.highlight) emptyList() else ALL_PROPERTIES.mapNotNull { p ->
+        val t = state.toggles[p.id] ?: return@mapNotNull null
+        val r = (state.results[p.id] as? PropState.Done)?.result ?: return@mapNotNull null
+        if (t.count && t.draw && r.structures != null) state.colorOf(p.id) to r.structures else null
     }
     return pointSetSvg(state.points, layers, state.showLabels)
 }
@@ -138,6 +146,46 @@ private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDi
     title = { Text(title) },
     text = { Text(text, Modifier.verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodyMedium) },
 )
+
+/** A colour swatch; click opens a palette with a hex field (#RRGGBB). */
+@Composable
+fun ColorChooser(color: Color, onChange: (Color) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Box(
+            Modifier.size(26.dp).background(color, CircleShape).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                .clickable { open = true },
+        )
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            Column(Modifier.padding(8.dp).width(220.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (c in CHOOSER_COLORS) Box(
+                        Modifier.size(24.dp).background(c, CircleShape)
+                            .border(if (c == color) 3.dp else 1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                            .clickable { onChange(c); open = false },
+                    )
+                }
+                var hex by remember(color) { mutableStateOf(color.toHex()) }
+                OutlinedTextField(
+                    hex, onValueChange = { v ->
+                        hex = v.take(7)
+                        parseHexColor(hex)?.let(onChange)
+                    },
+                    label = { Text("#RRGGBB") }, singleLine = true, modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+fun Color.toHex(): String = "#" + (toArgb() and 0xFFFFFF).toString(16).padStart(6, '0').uppercase()
+
+fun parseHexColor(s: String): Color? {
+    val h = s.removePrefix("#")
+    if (h.length != 6) return null
+    val v = h.toLongOrNull(16) ?: return null
+    return Color(0xFF000000 or v)
+}
 
 /** Choose which properties are shown (and computed) in the Properties tab; grouped in columns. */
 @Composable
@@ -175,6 +223,10 @@ private fun PickerRow(state: AppState, p: PropertyDef) {
     val shown = state.toggles[p.id]?.count == true
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(shown, onCheckedChange = { state.setShown(p.id, it) })
+        // highlight colour, for properties that can be highlighted
+        if (p.hasStructures) ColorChooser(state.colorOf(p.id)) { state.propertyColors[p.id] = it }
+        else Spacer(Modifier.width(26.dp))
+        Spacer(Modifier.width(8.dp))
         Column {
             Text(p.label, style = MaterialTheme.typography.bodyMedium)
             val note = when (p) {
@@ -192,7 +244,10 @@ private fun SettingsDialog(state: AppState, close: () -> Unit) = AlertDialog(
     onDismissRequest = close,
     confirmButton = { TextButton(onClick = close) { Text("Close") } },
     dismissButton = {
-        TextButton(onClick = { state.pointRadius = 6f; state.selectedScalePercent = 100; state.lineWidth = 1f }) { Text("Defaults") }
+        TextButton(onClick = {
+            state.pointRadius = 6f; state.selectedScalePercent = 100; state.lineWidth = 1f
+            state.lineColor = AppState.DEFAULT_LINE_COLOR; state.lineAlpha = AppState.DEFAULT_LINE_ALPHA
+        }) { Text("Defaults") }
     },
     title = { Text("Settings") },
     text = {
@@ -203,8 +258,15 @@ private fun SettingsDialog(state: AppState, close: () -> Unit) = AlertDialog(
             Slider(state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() }, valueRange = 100f..400f)
             Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px")
             Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Line colour", Modifier.weight(1f))
+                ColorChooser(state.lineColor) { state.lineColor = it }
+            }
+            Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %")
+            Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
             Spacer(Modifier.height(4.dp))
-            Text("Line width applies to the line arrangement; structure outlines are 1.5× as wide.", style = MaterialTheme.typography.bodySmall)
+            Text("Line width, colour and opacity apply to the line arrangement; structure outlines are 1.5× as wide. " +
+                "Highlight colours: Select properties…", style = MaterialTheme.typography.bodySmall)
         }
     },
 )
@@ -223,6 +285,7 @@ Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y) - undo / redo
 + / - - zoom, Home or 0 - fit
 V / A / D - tools move / add / delete
 F - lock order type
+M - minimize coordinates, B - beautify (implementations: Optimize tab)
 L - line arrangement
 H - highlight on/off
 I - incident only on/off

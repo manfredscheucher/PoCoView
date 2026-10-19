@@ -10,7 +10,8 @@
 - **Tools** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
   a point). Drag empty space to pan, use the wheel or pinch to zoom.
 - **Lock OT**: points cannot be dragged out of their cell, so the order type stays the same.
-- Undo/redo, point size, selected point size and line width are in the Edit and View menus.
+- Undo/redo are in the Edit menu; point size, selected point size, line width, colour and opacity
+  of the line arrangement in View → Settings.
 
 ## Properties
 
@@ -22,6 +23,7 @@ only on the order type, so they are recomputed only when the order type changes.
 | Convex hull | number of points on the convex hull |
 | Onion layers | number of nested convex layers (peel the hull repeatedly) |
 | Crossing number | crossings of the complete straight-line graph = number of convex 4-gons |
+| Exit edges | edges (a, b) whose witness point c can cross them alone; their orientations determine the order type. With "incident only": the edges that have the selected point as witness |
 | k-holes | empty convex k-gons (no point inside), k = 3..7 |
 | Convex k-gons | k points in convex position, k = 4..7 |
 | Triangulations | number of triangulations (exponential, only up to n = 16) |
@@ -32,18 +34,19 @@ Two switches control the view:
   switch on the right is on. Off: numbers only.
 - **Incident only**: count and draw only the structures that contain the selected point.
 
-At most 3000 structures per property are drawn; the panel says so if there are more.
+At most 3000 structures per property are drawn; the panel says so if there are more. The highlight
+colour of each property can be changed in "Select properties…".
 
 ## Optimize
 
-Coordinate optimizers keep the order type (ports of pyotlib2):
+Minimize and beautify keep the order type. Each has a choice of implementation (ports of pyotlib2 and
+the old pyotlib):
 
-- **Minimize coordinates** (`minimize_coords`): move points to even coordinates and halve, with
-  random restarts; makes the coordinates as small as possible.
-- **Beautify, gradient descent** (`beautify_coords`): moves every coordinate towards the middle of
-  its allowed range.
-- **Beautify, Nelder-Mead** (`beautify2_coords`): optimizes a quality function (no thin triangles,
-  even distances) with the hull fixed, then minimizes.
+- **Minimize coordinates** (M): makes the coordinates as small as possible, e.g. `minimize_coords`
+  (move points to even coordinates and halve, with random restarts).
+- **Beautify** (B): spreads the points nicely. Beautify 1 (`beautify_coords`) moves every coordinate
+  towards the middle of its allowed range; beautify 2 (`beautify2_coords`) optimizes a quality
+  function (no thin triangles, even distances) with Nelder-Mead, hull fixed.
 
 Property optimizers may change the order type:
 

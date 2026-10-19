@@ -125,8 +125,16 @@ class AppStateTest {
         val s = state()
         s.randomSet(10, 1_000_000)
         val sig = orderTypeSignature(s.points)
-        for (m in CoordMethod.entries) {
-            s.optimizeCoordinates(m, CoordSettings(iter2 = 200))
+        s.coordSettings = CoordSettings(iter2 = 200)
+        for (m in MinimizeMethod.entries) {
+            s.minimizeMethod = m
+            s.minimize()
+            s.awaitIdle()
+            assertEquals(sig, orderTypeSignature(s.points), m.name)
+        }
+        for (m in BeautifyMethod.entries) {
+            s.beautifyMethod = m
+            s.beautify()
             s.awaitIdle()
             assertEquals(sig, orderTypeSignature(s.points), m.name)
         }

@@ -127,11 +127,11 @@ private fun PropertiesTab(state: AppState, onSelectProperties: () -> Unit) {
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(4.dp))
-    ALL_PROPERTIES.forEachIndexed { idx, prop ->
-        val t = state.toggles[prop.id] ?: return@forEachIndexed
-        if (!t.count) return@forEachIndexed
+    for (prop in ALL_PROPERTIES) {
+        val t = state.toggles[prop.id] ?: continue
+        if (!t.count) continue
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
-            Box(Modifier.size(10.dp).background(propertyColor(idx), CircleShape))
+            Box(Modifier.size(10.dp).background(state.colorOf(prop.id), CircleShape))
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(prop.label, style = MaterialTheme.typography.bodyMedium)
@@ -218,34 +218,41 @@ private fun OptimizeTab(state: AppState) {
     Text("Extent ${extent(p)} (max of width, height), ${bitsOf(p)} bits per coordinate", style = MaterialTheme.typography.bodyMedium)
     Spacer(Modifier.height(8.dp))
 
-    Text("Coordinates (keep the order type)", style = MaterialTheme.typography.titleSmall)
-    var method by remember { mutableStateOf(CoordMethod.MINIMIZE_COORDS) }
-    var cfg by remember { mutableStateOf(CoordSettings()) }
-    Dropdown(method.label, CoordMethod.entries, { it.label }) { method = it }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        when (method) {
-            CoordMethod.MINIMIZE_COORDS -> {
-                NumberField("trials", cfg.trials.toString(), { cfg = cfg.copy(trials = it.toIntOrNull() ?: 0) }, Modifier.width(90.dp))
-                NumberField("randomize", cfg.randomize.toString(), { cfg = cfg.copy(randomize = it.toIntOrNull() ?: 0) }, Modifier.width(110.dp))
+    val cfg = state.coordSettings
+    fun set(c: CoordSettings) { state.coordSettings = c }
+
+    Text("Minimize coordinates (M), keeps the order type", style = MaterialTheme.typography.titleSmall)
+    Dropdown(state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }
+    when (state.minimizeMethod) {
+        MinimizeMethod.MINIMIZE_COORDS -> {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NumberField("trials", cfg.trials.toString(), { set(cfg.copy(trials = it.toIntOrNull() ?: 0)) }, Modifier.width(90.dp))
+                NumberField("randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toIntOrNull() ?: 0)) }, Modifier.width(110.dp))
             }
-            CoordMethod.BEAUTIFY_COORDS ->
-                NumberField("max iter.", cfg.maxIter.toString(), { cfg = cfg.copy(maxIter = it.toIntOrNull() ?: 0) }, Modifier.width(110.dp))
-            CoordMethod.BEAUTIFY2_COORDS -> {
-                NumberField("iter1", cfg.iter1.toString(), { cfg = cfg.copy(iter1 = it.toIntOrNull() ?: 0) }, Modifier.width(90.dp))
-                NumberField("iter2", cfg.iter2.toString(), { cfg = cfg.copy(iter2 = it.toIntOrNull() ?: 0) }, Modifier.width(100.dp))
+            SwitchRow("Also try sheering transforms", cfg.sheering) { set(cfg.copy(sheering = it)) }
+        }
+    }
+    OutlinedButton(onClick = state::minimize, enabled = idle) { Text("Minimize") }
+
+    Spacer(Modifier.height(12.dp))
+    Text("Beautify (B), keeps the order type", style = MaterialTheme.typography.titleSmall)
+    Dropdown(state.beautifyMethod.label, BeautifyMethod.entries, { it.label }) { state.beautifyMethod = it }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (state.beautifyMethod) {
+            BeautifyMethod.BEAUTIFY_COORDS ->
+                NumberField("max iter.", cfg.maxIter.toString(), { set(cfg.copy(maxIter = it.toIntOrNull() ?: 0)) }, Modifier.width(110.dp))
+            BeautifyMethod.BEAUTIFY2_COORDS -> {
+                NumberField("iter1", cfg.iter1.toString(), { set(cfg.copy(iter1 = it.toIntOrNull() ?: 0)) }, Modifier.width(90.dp))
+                NumberField("iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toIntOrNull() ?: 0)) }, Modifier.width(100.dp))
             }
         }
     }
-    when (method) {
-        CoordMethod.MINIMIZE_COORDS -> SwitchRow("Also try sheering transforms", cfg.sheering) { cfg = cfg.copy(sheering = it) }
-        CoordMethod.BEAUTIFY2_COORDS -> SwitchRow("Minimize after each run", cfg.minimizeAfter) { cfg = cfg.copy(minimizeAfter = it) }
-        else -> {}
-    }
+    if (state.beautifyMethod == BeautifyMethod.BEAUTIFY2_COORDS)
+        SwitchRow("Minimize after each run", cfg.minimizeAfter) { set(cfg.copy(minimizeAfter = it)) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { state.optimizeCoordinates(method, cfg) }, enabled = idle) { Text("Run") }
-        OutlinedButton(onClick = { cfg = CoordSettings() }) { Text("Defaults") }
+        OutlinedButton(onClick = state::beautify, enabled = idle) { Text("Beautify") }
+        OutlinedButton(onClick = { set(CoordSettings()) }) { Text("Default parameters") }
     }
-
     Spacer(Modifier.height(16.dp))
     Text("Property (may change the order type)", style = MaterialTheme.typography.titleSmall)
     Dropdown(ALL_PROPERTIES.first { it.id == state.optimizeProperty }.label, ALL_PROPERTIES, { it.label }) {

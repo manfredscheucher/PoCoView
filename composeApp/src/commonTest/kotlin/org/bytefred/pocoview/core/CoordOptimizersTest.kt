@@ -36,6 +36,18 @@ class CoordOptimizersTest {
     }
 
     @Test
+    fun exitEdgePropertyCountsAndIncidentWitness() = runTest {
+        val hex = listOf(Pt(2, 0), Pt(4, 0), Pt(6, 2), Pt(4, 5), Pt(2, 5), Pt(0, 2))
+        val all = ExitEdgeProperty().evaluate(hex, null, true, Ticker())
+        assertEquals(6L, all.count)
+        assertEquals(6, all.structures!!.size)
+        // point 1 is the witness of exactly the edge (0, 2)
+        val inc = ExitEdgeProperty().evaluate(hex, 1, true, Ticker())
+        assertEquals(1L, inc.incident)
+        assertEquals(listOf(0, 2), inc.structures!!.single().vertices.toList())
+    }
+
+    @Test
     fun exitTriplesDetermineTheOrderType() {
         // every labeled order type with the same exit-triple orientations is the same order type:
         // check on random sets that the exit triples are a subset of the triples and nonempty

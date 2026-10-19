@@ -77,8 +77,14 @@ private val PALETTE = listOf(
     Color(0xFFFDD835), Color(0xFF546E7A), Color(0xFF00897B),
 )
 
-/** Stable drawing colour of a property (by its position in the registry). */
-fun propertyColor(index: Int): Color = PALETTE[index % PALETTE.size]
+/** Default highlight colour of a property (by its position in the registry). */
+fun defaultPropertyColor(index: Int): Color = PALETTE[index.coerceAtLeast(0) % PALETTE.size]
+
+/** Colours offered by the colour chooser. */
+val CHOOSER_COLORS: List<Color> = PALETTE + listOf(
+    Color(0xFF000000), Color(0xFF616161), Color(0xFF9E9E9E), Color(0xFFBDBDBD),
+    Color(0xFF880E4F), Color(0xFF1A237E), Color(0xFF004D40), Color(0xFFE65100),
+)
 
 /** Colour of a point colour token (PoSeZo bicoloured sets: B / R). */
 fun tokenColor(token: String?): Color? = when (token?.uppercase()) {
@@ -96,7 +102,6 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
     val st by rememberUpdatedState(state)
     val textMeasurer = rememberTextMeasurer()
     val onSurface = MaterialTheme.colorScheme.onSurface
-    val lineColor = onSurface.copy(alpha = 0.18f)
 
     // fit on request and once the canvas has a size; a later resize keeps the user's zoom
     val sized = view.size.width > 0 && view.size.height > 0
@@ -209,7 +214,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
         val scr = pts.map { view.toScreen(it) }
         val sel = state.selected
 
-        if (state.showLines) drawArrangement(scr, sel.takeIf { state.hideSelectedLines }, lineColor, state.lineWidth)
+        if (state.showLines) drawArrangement(scr, sel.takeIf { state.hideSelectedLines }, state.lineColor.copy(alpha = state.lineAlpha), state.lineWidth)
 
         if (state.highlight) drawStructures(state, scr)
 
@@ -246,12 +251,12 @@ private fun DrawScope.drawArrangement(scr: List<Offset>, hidden: Int?, color: Co
 }
 
 private fun DrawScope.drawStructures(state: AppState, scr: List<Offset>) {
-    ALL_PROPERTIES.forEachIndexed { idx, prop ->
-        val t = state.toggles[prop.id] ?: return@forEachIndexed
-        if (!t.count || !t.draw) return@forEachIndexed
-        val res = (state.results[prop.id] as? PropState.Done)?.result ?: return@forEachIndexed
-        val list = res.structures ?: return@forEachIndexed
-        val c = propertyColor(idx)
+    for (prop in ALL_PROPERTIES) {
+        val t = state.toggles[prop.id] ?: continue
+        if (!t.count || !t.draw) continue
+        val res = (state.results[prop.id] as? PropState.Done)?.result ?: continue
+        val list = res.structures ?: continue
+        val c = state.colorOf(prop.id)
         val width = 1.5f * state.lineWidth
         // (with "incident only", the structures are already restricted to the selected point)
         for (s in list) {

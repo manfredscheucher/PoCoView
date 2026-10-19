@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,17 +43,18 @@ import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
 import org.bytefred.pocoview.core.writePointSets
 
-/**
- * Coordinate optimizers of the Optimize tab (literal ports of pyotlib2, see core/CoordOptimizers.kt);
- * all keep the labeled order type.
- */
-enum class CoordMethod(val label: String) {
-    MINIMIZE_COORDS("Minimize coordinates (minimize_coords)"),
-    BEAUTIFY_COORDS("Beautify, gradient descent (beautify_coords)"),
-    BEAUTIFY2_COORDS("Beautify, Nelder-Mead (beautify2_coords)"),
+/** Implementations of "Minimize coordinates" (M); all keep the labeled order type. */
+enum class MinimizeMethod(val label: String) {
+    MINIMIZE_COORDS("minimize_coords (pyotlib2)"),
 }
 
-/** Parameters of the [CoordMethod]s, defaults as in the pyotlib2 CLI. */
+/** Implementations of "Beautify" (B); all keep the labeled order type. */
+enum class BeautifyMethod(val label: String) {
+    BEAUTIFY_COORDS("beautify 1: beautify_coords (pyotlib2)"),
+    BEAUTIFY2_COORDS("beautify 2: beautify2_coords (pyotlib2)"),
+}
+
+/** Parameters of the minimize / beautify implementations, defaults as in the pyotlib2 CLI. */
 data class CoordSettings(
     val trials: Int = 10,
     val randomize: Int = 10,
@@ -98,6 +100,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var tool by mutableStateOf(Tool.MOVE)
     var layoutMode by mutableStateOf(LayoutMode.AUTO)
 
+    /** Implementations and parameters chosen in the Optimize tab (also used by the M / B keys). */
+    var minimizeMethod by mutableStateOf(MinimizeMethod.MINIMIZE_COORDS)
+    var beautifyMethod by mutableStateOf(BeautifyMethod.BEAUTIFY_COORDS)
+    var coordSettings by mutableStateOf(CoordSettings())
+
     /** Property chosen in the Optimize tab (walk, qtvis minimizer, Enter key). */
     var optimizeProperty by mutableStateOf("hole5")
 
@@ -105,6 +112,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var pointRadius by mutableStateOf(6f)
     var selectedScalePercent by mutableStateOf(100)
     var lineWidth by mutableStateOf(1f)
+
+    /** Line arrangement colour and opacity (View → Settings). */
+    var lineColor by mutableStateOf(DEFAULT_LINE_COLOR)
+    var lineAlpha by mutableStateOf(DEFAULT_LINE_ALPHA)
+
+    /** Highlight colour per property id (chosen in "Select properties…"); default: [defaultPropertyColor]. */
+    val propertyColors = mutableStateMapOf<String, Color>()
+
+    fun colorOf(id: String): Color = propertyColors[id] ?: defaultPropertyColor(ALL_PROPERTIES.indexOfFirst { it.id == id })
 
     var showLines by mutableStateOf(true)
     var hideSelectedLines by mutableStateOf(true)
@@ -455,21 +471,38 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
     }
 
-    /** Runs one of the pyotlib2 coordinate optimizers on the current points. */
-    fun optimizeCoordinates(method: CoordMethod, cfg: CoordSettings) = runOperation("${method.label}…") { start, update ->
-        val bitsBefore = bitsOf(start)
-        val r = withContext(Dispatchers.Default) {
-            when (method) {
-                CoordMethod.MINIMIZE_COORDS ->
+    /** "Minimize coordinates" with the chosen implementation (M). */
+    fun minimize() {
+        val m = minimizeMethod
+        val cfg = coordSettings
+        runCoordOptimizer("Minimize, ${m.label}") { start ->
+            when (m) {
+                MinimizeMethod.MINIMIZE_COORDS ->
                     minimizeCoords(start, trials = cfg.trials, randomize = cfg.randomize, sheering = cfg.sheering)
-                CoordMethod.BEAUTIFY_COORDS -> beautifyCoords(start, maxIter = cfg.maxIter)
-                CoordMethod.BEAUTIFY2_COORDS ->
+            }
+        }
+    }
+
+    /** "Beautify" with the chosen implementation (B). */
+    fun beautify() {
+        val m = beautifyMethod
+        val cfg = coordSettings
+        runCoordOptimizer("Beautify, ${m.label}") { start ->
+            when (m) {
+                BeautifyMethod.BEAUTIFY_COORDS -> beautifyCoords(start, maxIter = cfg.maxIter)
+                BeautifyMethod.BEAUTIFY2_COORDS ->
                     beautify2Coords(start, iter1 = cfg.iter1, iter2 = cfg.iter2, minimize = cfg.minimizeAfter)
             }
         }
-        if (r != start) { update(r); requestFit() }
-        message = if (r == start) "${method.label}: no change" else "${method.label}: bits $bitsBefore → ${bitsOf(r)}"
     }
+
+    private fun runCoordOptimizer(label: String, run: suspend (List<Pt>) -> List<Pt>) =
+        runOperation("$label…") { start, update ->
+            val bitsBefore = bitsOf(start)
+            val r = withContext(Dispatchers.Default) { run(start) }
+            if (r != start) { update(r); requestFit() }
+            message = if (r == start) "$label: no change" else "$label: bits $bitsBefore → ${bitsOf(r)}"
+        }
 
     /**
      * Property walk (qtvis/pyotlib2 "property min/max"): random local moves of single
@@ -539,6 +572,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val DEFAULT_COUNTED = setOf("hull", "onion", "crossings", "hole3", "hole4", "hole5", "hole6", "triangulations")
         val DEFAULT_DRAWN = setOf("hole5")
         private const val CACHE_SIZE = 64
+        val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
+        const val DEFAULT_LINE_ALPHA = 0.18f
 
         private fun fnv64(s: String): String {
             var h = -0x340d631b7bdddcdbL // FNV-1a offset basis
