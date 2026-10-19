@@ -244,8 +244,12 @@ Manual test by Manfred (open until he gives the OK), per target **web** and **JV
    max iterations 6, max fail iterations 2, epsilon 3, alpha 1.05, only last point off). Enter key
    or "Try to minimize" in the Optimize tab, for the property chosen there (qtvis: `to_optimize`).
    Notes on the port: the qtvis canvas [0, max_val) is the bounding box of the start
-   configuration; a restart configuration that is not in general position counts as infinitely
-   bad; minimize only, as in qtvis (the random walk keeps min/max).
+   configuration (inclusive); a probe or restart configuration that is not in general position
+   counts as infinitely bad (qtvis would count and possibly accept it, but counts are undefined
+   there; to be confirmed by Manfred); minimize only, as in qtvis (the random walk keeps min/max).
+   Fresh review confirmed the rest line by line (counters, success, lineSearch reference order type
+   = last accepted configuration via itemMoved/backupLambda, start point, width 3..0 probes,
+   restore paths, maxloop); the angle step is literally 3.1415/12 as in qtvis.
 3. GitHub Pages via `scripts/deployPages.sh` + manual push: confirmed.
 4. pyotlib2: editor fixes committed (only the editor-related hunks of `cli/commands.py`; Manfred's
    unrelated work in progress stays uncommitted); "maximize" in `walk_points` fixed

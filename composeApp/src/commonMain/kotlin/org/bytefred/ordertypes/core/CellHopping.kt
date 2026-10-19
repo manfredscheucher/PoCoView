@@ -1,6 +1,5 @@
 package org.bytefred.ordertypes.core
 
-import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
@@ -27,9 +26,10 @@ private const val DIRECTION_COUNT = 12
  * `tryToMinimizeMeta`, `tryToMinimize`, `lineSearch`, `shuffle`).
  *
  * qtvis works on a canvas [0, max_val); here the canvas is the bounding box of the start
- * configuration ([box]). [count] evaluates the property to minimize; it is only called on
- * configurations in general position, except after a random restart, where a configuration
- * that is not in general position counts as infinitely bad.
+ * configuration ([box], inclusive). [count] evaluates the property to minimize; it is only
+ * called on configurations in general position: a probe or random restart that is not in
+ * general position counts as infinitely bad (qtvis would count it anyway, but the counts are
+ * undefined there).
  */
 class CellHopMinimizer(
     private val count: suspend (List<Pt>) -> Long,
@@ -93,7 +93,7 @@ class CellHopMinimizer(
         val p = start.toMutableList()
         var currentCount = count(p)
         var success = false
-        val deltaAngle = PI / DIRECTION_COUNT
+        val deltaAngle = 3.1415 / DIRECTION_COUNT // literally as in qtvis (not PI)
         for (i in p.indices) {
             val cx = p[i].x.toDouble()
             val cy = p[i].y.toDouble()

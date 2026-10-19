@@ -224,4 +224,17 @@ class AppStateTest {
         s.undo()
         assertFalse(s.canUndo)
     }
+
+    @Test
+    fun failedCellHopLeavesNoUndoStep() = runBlocking<Unit> {
+        val s = state()
+        // triangle + 2 interior points: 1 crossing, the optimum for n = 5
+        s.load(listOf(Pt(0, 0), Pt(1000, 0), Pt(500, 1000), Pt(450, 300), Pt(560, 320)))
+        val before = s.points
+        s.cellHop("crossings", CellHopParams(trials = 1))
+        s.awaitIdle()
+        assertTrue(s.message!!.contains("no configuration below 1"), s.message)
+        assertEquals(before, s.points)
+        assertFalse(s.canUndo)
+    }
 }

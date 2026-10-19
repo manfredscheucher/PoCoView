@@ -10,6 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
@@ -355,7 +357,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             val t = toggles[prop.id] ?: continue
             if (!t.count) { results.remove(prop.id); continue }
             val draw = mode != Mode.COUNT && t.draw && prop.hasStructures
-            val key = "$sig|${prop.id}|$sel|$draw|$only"
+            val key = "$sig|${prop.id}|$sel|$draw" + if (sel != null) "|$only" else ""
             results[prop.id] = when {
                 !generalPosition -> PropState.Skipped("not in general position")
                 p.size > prop.maxN -> PropState.Skipped("n > ${prop.maxN}")
@@ -413,6 +415,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                     points = p
                     onPointsChanged()
                 }
+                // e.g. a failed search that restored the start: no undo step
+                if (changed && points == start) { undoStack.removeLastOrNull(); updateUndoFlags() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                message = "$label failed: ${e.message ?: e}"
             } finally {
                 if (opJob == coroutineContext[Job]) busy = null
             }
@@ -476,13 +484,24 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (points.size < 3) { message = "Need at least 3 points"; return }
         runOperation("qtvis minimizer (${prop.label})…") { start, update ->
             val before = evaluate(prop, start, null, false).count
-            val result = CellHopMinimizer(
-                count = { evaluate(prop, it, null, false).count },
-                params = params,
-                onProgress = update,
-            ).minimize(start)
-            message = if (result == null) "${prop.label}: no configuration below $before found (start restored)"
-            else "${prop.label}: $before → ${evaluate(prop, result, null, false).count}"
+            var result: List<Pt>? = null
+            coroutineScope {
+                // the search runs off the UI thread; accepted configurations are applied in
+                // order by one consumer, a child of this operation (cancelling drops them too)
+                val progress = Channel<List<Pt>>(Channel.UNLIMITED)
+                launch { for (p in progress) update(p) }
+                result = withContext(Dispatchers.Default) {
+                    CellHopMinimizer(
+                        count = { prop.evaluate(it, null, false, Ticker()).count },
+                        params = params,
+                        onProgress = { progress.trySend(it) },
+                    ).minimize(start)
+                }
+                progress.close()
+            }
+            val r = result
+            message = if (r == null) "${prop.label}: no configuration below $before found (start restored)"
+            else "${prop.label}: $before → ${evaluate(prop, r, null, false).count}"
         }
     }
 
