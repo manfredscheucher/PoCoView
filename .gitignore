@@ -1,0 +1,30 @@
+# Gradle / KMP
+.gradle/
+build/
+**/build/
+local.properties
+*.hprof
+
+# Private, machine-local run scripts (device serials etc.) — not for the repo
+_private/
+
+# Kotlin / IntelliJ / Android Studio
+.idea/
+*.iml
+.kotlin/
+
+# Xcode / iOS
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# JS / Web
+node_modules/
+kotlin-js-store/
+
+# OS
+.DS_Store
+__pycache__/
+
+# GitHub Pages worktree (scripts/deployPages.sh)
+.gh-pages/
