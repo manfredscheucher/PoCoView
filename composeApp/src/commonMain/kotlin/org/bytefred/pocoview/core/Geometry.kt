@@ -92,15 +92,16 @@ fun orderTypeSignature(p: List<Pt>): String {
 /**
  * Orientation of every index triple, computed once (O(n^3) bytes). The counting
  * algorithms look orientations up here instead of recomputing them; on Kotlin/JS,
- * Long arithmetic is emulated and comparatively slow.
+ * Long arithmetic is emulated and comparatively slow. [orientation] defaults to [orient]
+ * (coordinates within [COORD_LIMIT]); the legacy optimizers pass a wider exact one.
  */
-class Orientations(p: List<Pt>) {
+class Orientations(p: List<Pt>, orientation: (Pt, Pt, Pt) -> Int = ::orient) {
     val n = p.size
     private val t = ByteArray(n * n * n)
 
     init {
         for (i in 0 until n) for (j in 0 until n) for (k in 0 until n)
-            if (i != j && j != k && i != k) t[(i * n + j) * n + k] = orient(p[i], p[j], p[k]).toByte()
+            if (i != j && j != k && i != k) t[(i * n + j) * n + k] = orientation(p[i], p[j], p[k]).toByte()
     }
 
     operator fun get(i: Int, j: Int, k: Int): Int = t[(i * n + j) * n + k].toInt()

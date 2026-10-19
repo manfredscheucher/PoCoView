@@ -257,15 +257,28 @@ private fun OptimizeTab(state: AppState) {
 
     Text("Minimize coordinates (M), keeps the order type", style = MaterialTheme.typography.titleSmall)
     Dropdown(state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }
-    when (state.minimizeMethod) {
-        MinimizeMethod.MINIMIZE_COORDS -> {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (state.minimizeMethod) {
+            MinimizeMethod.MINIMIZE_COORDS -> {
                 NumberField(state, "trials", cfg.trials.toString(), { set(cfg.copy(trials = it.toInt())) }, Modifier.width(90.dp))
                 NumberField(state, "randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
             }
-            SwitchRow("Also try sheering transforms", cfg.sheering) { set(cfg.copy(sheering = it)) }
+            MinimizeMethod.MINIMIZE_INTEGER_COORDINATES -> {
+                NumberField(state, "max trials", cfg.oldMaxTrials.toString(), { set(cfg.copy(oldMaxTrials = it.toInt())) }, Modifier.width(100.dp))
+                NumberField(state, "randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
+                NumberField(state, "symmetric (k)", cfg.symmetric.toString(), { set(cfg.copy(symmetric = it.toInt())) }, Modifier.width(120.dp))
+            }
+            MinimizeMethod.PATTERN_SEARCH -> {
+                NumberField(state, "max trials", cfg.psMaxTrials.toString(), { set(cfg.copy(psMaxTrials = it.toInt())) }, Modifier.width(100.dp))
+                NumberField(state, "scale", cfg.psScale.toString(), { set(cfg.copy(psScale = it.toInt())) }, Modifier.width(90.dp))
+                NumberField(state, "blowup", cfg.psBlowup.toString(), { set(cfg.copy(psBlowup = it.toInt())) }, Modifier.width(90.dp))
+            }
         }
     }
+    if (state.minimizeMethod != MinimizeMethod.PATTERN_SEARCH)
+        SwitchRow("Also try sheering transforms", cfg.sheering) { set(cfg.copy(sheering = it)) }
+    if (state.minimizeMethod == MinimizeMethod.MINIMIZE_INTEGER_COORDINATES)
+        SwitchRow("Minimize the diameter instead of the bits", cfg.minimizeDiameter) { set(cfg.copy(minimizeDiameter = it)) }
     OutlinedButton(onClick = state::minimize, enabled = idle) { Text("Minimize") }
 
     Spacer(Modifier.height(12.dp))
@@ -273,15 +286,20 @@ private fun OptimizeTab(state: AppState) {
     Dropdown(state.beautifyMethod.label, BeautifyMethod.entries, { it.label }) { state.beautifyMethod = it }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         when (state.beautifyMethod) {
-            BeautifyMethod.BEAUTIFY_COORDS ->
+            BeautifyMethod.BEAUTIFY_COORDS, BeautifyMethod.BEAUTIFY_POINT_SET ->
                 NumberField(state, "max iter.", cfg.maxIter.toString(), { set(cfg.copy(maxIter = it.toInt())) }, Modifier.width(110.dp))
             BeautifyMethod.BEAUTIFY2_COORDS -> {
                 NumberField(state, "iter1", cfg.iter1.toString(), { set(cfg.copy(iter1 = it.toInt())) }, Modifier.width(90.dp))
                 NumberField(state, "iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
             }
+            BeautifyMethod.BEAUTIFY2 -> {
+                NumberField(state, "iter1", cfg.oldIter1.toString(), { set(cfg.copy(oldIter1 = it.toInt())) }, Modifier.width(90.dp))
+                NumberField(state, "iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
+                NumberField(state, "good bits", cfg.oldGoodBits.toString(), { set(cfg.copy(oldGoodBits = it.toInt())) }, Modifier.width(100.dp))
+            }
         }
     }
-    if (state.beautifyMethod == BeautifyMethod.BEAUTIFY2_COORDS)
+    if (state.beautifyMethod == BeautifyMethod.BEAUTIFY2_COORDS || state.beautifyMethod == BeautifyMethod.BEAUTIFY2)
         SwitchRow("Minimize after each run", cfg.minimizeAfter) { set(cfg.copy(minimizeAfter = it)) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = state::beautify, enabled = idle) { Text("Beautify") }

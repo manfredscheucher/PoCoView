@@ -27,7 +27,9 @@ import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.Ticker
 import org.bytefred.pocoview.core.beautify2Coords
+import org.bytefred.pocoview.core.beautify2
 import org.bytefred.pocoview.core.beautifyCoords
+import org.bytefred.pocoview.core.beautifyPointSet
 import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
@@ -35,6 +37,8 @@ import org.bytefred.pocoview.core.extent
 import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.inRange
 import org.bytefred.pocoview.core.minimizeCoords
+import org.bytefred.pocoview.core.minimizeIntegerCoordinates
+import org.bytefred.pocoview.core.minimizePatternSearch
 import org.bytefred.pocoview.core.orderTypeSignature
 import org.bytefred.pocoview.core.randomMove
 import org.bytefred.pocoview.core.randomPointSet
@@ -47,15 +51,23 @@ import org.bytefred.pocoview.core.writePointSets
 /** Implementations of "Minimize coordinates" (M); all keep the labeled order type. */
 enum class MinimizeMethod(val label: String) {
     MINIMIZE_COORDS("minimize_coords (pyotlib2)"),
+    MINIMIZE_INTEGER_COORDINATES("minimizeIntegerCoordinates (old pyotlib): even + halve, blow up"),
+    PATTERN_SEARCH("pattern search (old pyotlib): perturb towards the centre"),
 }
 
 /** Implementations of "Beautify" (B); all keep the labeled order type. */
 enum class BeautifyMethod(val label: String) {
     BEAUTIFY_COORDS("beautify 1: beautify_coords (pyotlib2)"),
+    BEAUTIFY_POINT_SET("beautify 1: beautifyPointSet (old pyotlib)"),
     BEAUTIFY2_COORDS("beautify 2: beautify2_coords (pyotlib2)"),
+    BEAUTIFY2("beautify 2: beautify2 (old pyotlib)"),
 }
 
-/** Parameters of the minimize / beautify implementations, defaults as in the pyotlib2 CLI. */
+/**
+ * Parameters of the minimize / beautify implementations; defaults as in the pyotlib2 CLI, and
+ * for the old pyotlib variants as in its scripts (MinimizeCoords, MinimizePatternSearch,
+ * Beautify2Script: e.g. beautify2 with minimize 1, iter1 10, goodbits 30).
+ */
 data class CoordSettings(
     val trials: Int = 10,
     val randomize: Int = 10,
@@ -64,6 +76,15 @@ data class CoordSettings(
     val iter1: Int = 5,
     val iter2: Int = 2000,
     val minimizeAfter: Boolean = true,
+    // old pyotlib
+    val oldMaxTrials: Int = 1,
+    val minimizeDiameter: Boolean = false,
+    val symmetric: Int = 0,
+    val psMaxTrials: Int = 2000,
+    val psScale: Int = 1,
+    val psBlowup: Int = 0,
+    val oldIter1: Int = 10,
+    val oldGoodBits: Int = 30,
 )
 
 enum class Tool { MOVE, ADD, DELETE }
@@ -541,6 +562,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             when (m) {
                 MinimizeMethod.MINIMIZE_COORDS ->
                     minimizeCoords(start, trials = cfg.trials, randomize = cfg.randomize, sheering = cfg.sheering)
+                MinimizeMethod.MINIMIZE_INTEGER_COORDINATES -> minimizeIntegerCoordinates(
+                    start, maxTrials = cfg.oldMaxTrials, randomize = cfg.randomize, sheering = cfg.sheering,
+                    minimizeDiameter = cfg.minimizeDiameter, symmetric = cfg.symmetric,
+                )
+                MinimizeMethod.PATTERN_SEARCH ->
+                    minimizePatternSearch(start, maxTrials = cfg.psMaxTrials, scale = cfg.psScale.toLong(), blowup = cfg.psBlowup).points
             }
         }
     }
@@ -552,8 +579,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         runCoordOptimizer("Beautify, ${m.label}") { start ->
             when (m) {
                 BeautifyMethod.BEAUTIFY_COORDS -> beautifyCoords(start, maxIter = cfg.maxIter)
+                BeautifyMethod.BEAUTIFY_POINT_SET -> beautifyPointSet(start, maxIter = cfg.maxIter)
                 BeautifyMethod.BEAUTIFY2_COORDS ->
                     beautify2Coords(start, iter1 = cfg.iter1, iter2 = cfg.iter2, minimize = cfg.minimizeAfter)
+                BeautifyMethod.BEAUTIFY2 -> beautify2(
+                    start, iter1 = cfg.oldIter1, iter2 = cfg.iter2, goodBits = cfg.oldGoodBits, minimize = cfg.minimizeAfter,
+                )
             }
         }
     }
