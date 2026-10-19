@@ -5,7 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class FormatsAndOptimizeTest {
@@ -102,11 +101,5 @@ class FormatsAndOptimizeTest {
     @Test
     fun randomSetOnTooSmallGridFailsFast() {
         assertFailsWith<IllegalStateException> { randomPointSet(50, 4, Random(1)) }
-    }
-
-    @Test
-    fun randomMoveKeepsGeneralPosition() {
-        val p = randomPointSet(12, 1000, Random(9))
-        repeat(50) { assertTrue(isGeneralPosition(assertNotNull(randomMove(p, 30, Random(it))))) }
     }
 }

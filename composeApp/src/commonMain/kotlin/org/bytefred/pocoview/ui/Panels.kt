@@ -45,6 +45,7 @@ import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CellHopParams
 import org.bytefred.pocoview.core.HullProperty
 import org.bytefred.pocoview.core.OnionProperty
+import org.bytefred.pocoview.core.PROPERTY_SEARCH_FLOWS
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.bitsOf
@@ -311,14 +312,30 @@ private fun OptimizeTab(state: AppState) {
         state.optimizeProperty = it.id
     }
     Spacer(Modifier.height(4.dp))
-    Text("Random walk: random local moves, kept if the property does not get worse", style = MaterialTheme.typography.bodySmall)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(selected = !state.walkMaximize, onClick = { state.walkMaximize = false }, label = { Text("min") })
-        FilterChip(selected = state.walkMaximize, onClick = { state.walkMaximize = true }, label = { Text("max") })
-        NumberField(state, "steps", state.walkSteps.toString(), { state.walkSteps = it.toInt() }, Modifier.width(110.dp))
+    Text(
+        "Search (old pyotlib flows): moves points to find a configuration with a smaller value; equal values are " +
+            "taken over, worse ones not; stops at the first improvement unless Loop is on",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    val flow = PROPERTY_SEARCH_FLOWS.first { it.id == state.searchFlowId }
+    Dropdown(flow.label, PROPERTY_SEARCH_FLOWS, { it.label }) { state.searchFlowId = it.id }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (param in flow.params) {
+            val key = "${flow.id}.${param.name}"
+            when (val v = state.searchValue(flow, param)) {
+                is Int -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble().toInt() }, Modifier.width(110.dp))
+                is Double -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble() }, Modifier.width(110.dp), decimal = true)
+                else -> {}
+            }
+        }
     }
-    OutlinedButton(onClick = { state.walk(state.optimizeProperty, state.walkMaximize, state.walkSteps) }, enabled = idle) {
-        Text("Run walk")
+    for (param in flow.params.filter { it.default is Boolean }) {
+        val key = "${flow.id}.${param.name}"
+        SwitchRow("${param.name}: ${param.description}", state.searchValue(flow, param) as Boolean) { state.searchValues[key] = it }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = state::searchProperty, enabled = idle) { Text("Search") }
+        OutlinedButton(onClick = { flow.params.forEach { state.searchValues.remove("${flow.id}.${it.name}") } }) { Text("Default parameters") }
     }
     Spacer(Modifier.height(8.dp))
     Text(

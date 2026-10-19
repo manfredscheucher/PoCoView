@@ -6,8 +6,6 @@ import kotlin.random.Random
 fun extent(p: List<Pt>): Long =
     if (p.isEmpty()) 0 else maxOf(p.maxOf { it.x } - p.minOf { it.x }, p.maxOf { it.y } - p.minOf { it.y })
 
-private fun moved(p: List<Pt>, i: Int, q: Pt): List<Pt> = p.toMutableList().also { it[i] = q }
-
 /**
  * Random point set in general position with coordinates in [0, size). Throws
  * IllegalStateException if the grid is too small (bounded number of attempts).
@@ -30,23 +28,4 @@ fun canAdd(p: List<Pt>, q: Pt): Boolean {
         for (k in j + 1 until p.size) if (orient(p[j], p[k], q) == 0) return false
     }
     return true
-}
-
-/**
- * Random move of one point for the property walk: a uniformly chosen point is moved by
- * up to [radius] in each coordinate, keeping general position. Null if no valid move
- * was found within a few tries.
- */
-fun randomMove(p: List<Pt>, radius: Long, rnd: Random = Random.Default): List<Pt>? {
-    if (p.isEmpty()) return null
-    repeat(50) {
-        val i = rnd.nextInt(p.size)
-        val q = p[i].copy(
-            x = p[i].x + rnd.nextLong(-radius, radius + 1),
-            y = p[i].y + rnd.nextLong(-radius, radius + 1),
-        )
-        if (q != p[i] && q.inRange() && canAdd(p.filterIndexed { j, _ -> j != i }, q))
-            return moved(p, i, q)
-    }
-    return null
 }

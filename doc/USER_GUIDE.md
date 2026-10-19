@@ -53,15 +53,20 @@ All optimizers are in the Optimize tab.
 Minimize and beautify keep the order type. Both are ports of pyotlib2 (which took them from the old
 pyotlib):
 
-- **Minimize coordinates** (M): makes the coordinates as small as possible (`minimize_coords`: moves
-  points to even coordinates and halves, with random restarts).
-- **Beautify** (B): spreads the points nicely. Beautify 1 (`beautify_coords`) moves every coordinate
-  towards the middle of its allowed range. Beautify 2 (`beautify2_coords`) optimizes a quality
-  function (no thin triangles, even distances) with Nelder-Mead, hull fixed.
+- **Minimize coordinates** (M): makes the coordinates as small as possible. Implementations: move
+  points to even coordinates and halve, with random restarts (pyotlib2 `minimize_coords`, or the old
+  `minimizeIntegerCoordinates` with blow-up, sheering, diameter and symmetric options), or a pattern
+  search that perturbs the points towards their centre.
+- **Beautify** (B): spreads the points nicely. Beautify 1 moves every coordinate towards the middle
+  of its allowed range. Beautify 2 optimizes a quality function (no thin triangles, even distances)
+  with Nelder-Mead, hull fixed. Each in the pyotlib2 and in the old pyotlib version.
 
 The property optimizers may change the order type. Both use the property chosen in the tab:
 
-- **Random walk**: random small moves, min or max of the property.
+- **Search** (ports of the old pyotlib scripts): PointWalk (depth-first search over moves of single
+  points into neighbouring cells, optionally simulated annealing), PointWalkLocCr (the same, a move
+  must not be worse than the best so far), PointMove (one pass over the neighbouring configurations)
+  and BrownianMinimization (random moves, by default keeping the diameter from growing).
 - **qtvis minimizer** (Enter, "Try to minimize"): port of the qtvis "try to minimize". Pushes points
   just past their cell walls, looking for a smaller value. Enter always uses the chosen property.
 

@@ -21,10 +21,13 @@ import org.bytefred.pocoview.core.COORD_LIMIT
 import org.bytefred.pocoview.core.CellHopMinimizer
 import org.bytefred.pocoview.core.CellHopParams
 import org.bytefred.pocoview.core.FormatException
+import org.bytefred.pocoview.core.PROPERTY_SEARCH_FLOWS
 import org.bytefred.pocoview.core.PointFormat
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.PropertyResult
+import org.bytefred.pocoview.core.PropertySearchFlow
 import org.bytefred.pocoview.core.Pt
+import org.bytefred.pocoview.core.SearchParam
 import org.bytefred.pocoview.core.Ticker
 import org.bytefred.pocoview.core.beautify2Coords
 import org.bytefred.pocoview.core.beautify2
@@ -40,13 +43,13 @@ import org.bytefred.pocoview.core.minimizeCoords
 import org.bytefred.pocoview.core.minimizeIntegerCoordinates
 import org.bytefred.pocoview.core.minimizePatternSearch
 import org.bytefred.pocoview.core.orderTypeSignature
-import org.bytefred.pocoview.core.randomMove
 import org.bytefred.pocoview.core.randomPointSet
 import org.bytefred.pocoview.core.readAsc
 import org.bytefred.pocoview.core.readPointSets
 import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
 import org.bytefred.pocoview.core.writePointSets
+import kotlin.random.Random
 
 /** Implementations of "Minimize coordinates" (M); all keep the labeled order type. */
 enum class MinimizeMethod(val label: String) {
@@ -130,9 +133,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** qtvis minimizer parameters (Optimize tab; also used by the Enter key). */
     var cellHopParams by mutableStateOf(CellHopParams())
 
-    /** Random walk settings (Optimize tab). */
-    var walkMaximize by mutableStateOf(false)
-    var walkSteps by mutableStateOf(500)
+    /** Property search flow (old pyotlib PointWalk etc.) and its parameter values, keyed "flowId.param". */
+    var searchFlowId by mutableStateOf(PROPERTY_SEARCH_FLOWS.first().id)
+    val searchValues = mutableStateMapOf<String, Any>()
+
+    fun searchValue(flow: PropertySearchFlow, param: SearchParam): Any = searchValues["${flow.id}.${param.name}"] ?: param.default
 
     /** Random point set settings (Points tab). */
     var randomN by mutableStateOf(12)
@@ -606,33 +611,42 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
 
     /**
-     * Property walk (qtvis/pyotlib2 "property min/max"): random local moves of single
-     * points, accepted if the chosen property does not get worse.
+     * Runs a property search flow (ports of the old pyotlib scripts, core/PropertySearch.kt)
+     * for the chosen property. Configurations with the same value are taken over, worse ones
+     * not; the first strictly better one ends the search unless [loop] is on.
      */
-    fun walk(propId: String, maximize: Boolean, steps: Int) {
-        val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
+    fun searchProperty() {
+        val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
+        val flow = PROPERTY_SEARCH_FLOWS.firstOrNull { it.id == searchFlowId } ?: return
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        runOperation("Random walk (${prop.label})…", SEARCH_TITLE) { start, update ->
-            var cur = start
-            var best = evaluate(prop, cur, null, false).count
-            val first = best
-            var s = 0
-            while (s < steps || loop) {
-                s++
-                val radius = maxOf(1L, extent(cur) / 20)
-                val cand = randomMove(cur, radius) ?: continue
-                val v = evaluate(prop, cand, null, false).count
-                // equal values are taken over, worse ones not; a better one ends the search (unless loop)
-                if (if (maximize) v >= best else v <= best) {
-                    val improved = v != best
-                    cur = cand
-                    best = v
-                    update(cur)
-                    if (improved && !loop) break
+        if (points.size < 3) { message = "Need at least 3 points"; return }
+        val values = flow.params.associate { it.name to searchValue(flow, it) }
+        runOperation("${flow.label}, ${prop.label}…", SEARCH_TITLE) { start, update ->
+            val first = evaluate(prop, start, null, false).count
+            var current = first
+            var reports = 0
+            coroutineScope {
+                // accepted configurations are applied in order on the UI side, as children of this operation
+                val channel = Channel<Pair<List<Pt>, Long>>(Channel.UNLIMITED)
+                launch {
+                    for ((p, v) in channel) {
+                        update(p)
+                        progress = "${prop.label} = $v (start $first), $reports configurations examined"
+                    }
                 }
-                progress = "step $s, ${prop.label} = $best (start $first)"
+                withContext(Dispatchers.Default) {
+                    flow.run(start, { prop.evaluate(it, null, false, Ticker()).count }, values, Random.Default) { p, v ->
+                        reports++
+                        if (v > current) return@run true
+                        val improved = v < current
+                        current = v
+                        channel.trySend(p to v)
+                        !(improved && !loop)
+                    }
+                }
+                channel.close()
             }
-            message = "${prop.label}: $first → $best"
+            message = if (current < first) "${prop.label}: $first → $current" else "${prop.label}: no better configuration found ($first)"
         }
     }
 

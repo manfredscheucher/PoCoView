@@ -186,7 +186,10 @@ class AppStateTest {
     fun editCancelsRunningOperation() = runBlocking<Unit> {
         val s = state()
         s.randomSet(12, 1000)
-        s.walk("crossings", maximize = false, steps = 100_000)
+        s.optimizeProperty = "crossings"
+        s.searchFlowId = "brownian"
+        s.loop = true
+        s.searchProperty()
         assertTrue(s.busy != null)
         s.addPoint(Pt(100_000, 100_001))
         assertNull(s.busy)
@@ -243,5 +246,20 @@ class AppStateTest {
         assertTrue(s.message!!.contains("no configuration below 1"), s.message)
         assertEquals(before, s.points)
         assertFalse(s.canUndo)
+    }
+
+    @Test
+    fun propertySearchStopsAtFirstImprovement() = runBlocking<Unit> {
+        val s = state()
+        for (flow in listOf("pointwalk", "brownian")) {
+            // convex octagon: 70 crossings, the maximum
+            s.load(listOf(Pt(900, 500), Pt(783, 783), Pt(500, 900), Pt(217, 783), Pt(100, 500), Pt(217, 217), Pt(500, 100), Pt(783, 217)))
+            s.optimizeProperty = "crossings"
+            s.searchFlowId = flow
+            s.searchProperty()
+            s.awaitIdle()
+            assertTrue(s.message!!.startsWith("Crossing number: 70 →"), "$flow: ${s.message}")
+            assertTrue(s.canUndo)
+        }
     }
 }
