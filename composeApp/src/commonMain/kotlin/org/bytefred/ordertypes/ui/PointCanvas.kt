@@ -252,10 +252,16 @@ private fun DrawScope.drawStructures(state: AppState, scr: List<Offset>) {
         val res = (state.results[prop.id] as? PropState.Done)?.result ?: return@forEachIndexed
         val list = res.structures ?: return@forEachIndexed
         val c = propertyColor(idx)
-        val sel = state.selected
+        val sel = state.selected.takeIf { state.mode == Mode.INCIDENT }
         for (s in list) {
-            if (state.mode == Mode.INCIDENT && sel != null && sel !in s.vertices) continue
             if (s.vertices.any { it !in scr.indices }) continue
+            // incident mode "highlight": incident structures strong, the others faint
+            val incident = sel != null && sel in s.vertices
+            val faint = sel != null && !incident
+            if (faint && state.incidentOnly) continue
+            val fillAlpha = if (faint) 0.05f else if (incident && !state.incidentOnly) 0.3f else 0.13f
+            val strokeAlpha = if (faint) 0.25f else 0.7f
+            val width = if (incident && !state.incidentOnly) 2.5f else 1.5f
             when (s.shape) {
                 Shape.POLYGON -> {
                     val path = Path().apply {
@@ -263,11 +269,11 @@ private fun DrawScope.drawStructures(state: AppState, scr: List<Offset>) {
                         for (v in 1 until s.vertices.size) lineTo(scr[s.vertices[v]].x, scr[s.vertices[v]].y)
                         close()
                     }
-                    drawPath(path, c.copy(alpha = 0.13f))
-                    drawPath(path, c.copy(alpha = 0.7f), style = Stroke(1.5f))
+                    drawPath(path, c.copy(alpha = fillAlpha))
+                    drawPath(path, c.copy(alpha = strokeAlpha), style = Stroke(width))
                 }
                 Shape.SEGMENTS -> for (v in 0 until s.vertices.size - 1 step 2)
-                    drawLine(c.copy(alpha = 0.5f), scr[s.vertices[v]], scr[s.vertices[v + 1]], strokeWidth = 1.5f)
+                    drawLine(c.copy(alpha = strokeAlpha), scr[s.vertices[v]], scr[s.vertices[v + 1]], strokeWidth = width)
             }
         }
     }

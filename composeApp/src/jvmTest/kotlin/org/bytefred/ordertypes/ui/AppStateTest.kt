@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
+import org.bytefred.ordertypes.core.CellHopParams
 import org.bytefred.ordertypes.core.PointFormat
 import org.bytefred.ordertypes.core.Pt
 import org.bytefred.ordertypes.core.orderTypeSignature
@@ -193,5 +194,34 @@ class AppStateTest {
         s.applyCoordinatesText("-3\n")
         assertEquals(before, s.points)
         assertTrue(s.message != null)
+    }
+
+    @Test
+    fun incidentHighlightDrawsAllButCountsIncident() = runBlocking<Unit> {
+        val s = state()
+        s.load(pentagon + Pt(5, 6))
+        s.setToggle("hole3", PropToggle(count = true, draw = true))
+        s.changeMode(Mode.INCIDENT)
+        s.select(5)
+        s.awaitIdle()
+        val only = s.done("hole3")
+        s.changeIncidentOnly(false)
+        s.awaitIdle()
+        val all = s.done("hole3")
+        assertEquals(only.incident, all.incident)
+        assertEquals(only.incident!!.toInt(), only.structures!!.size)
+        assertEquals(all.count.toInt(), all.structures!!.size)
+        assertTrue(all.structures!!.any { 5 !in it.vertices })
+    }
+
+    @Test
+    fun cellHopMinimizerRunsAsOneUndoStep() = runBlocking<Unit> {
+        val s = state()
+        s.load(listOf(Pt(900, 500), Pt(783, 783), Pt(500, 900), Pt(217, 783), Pt(100, 500), Pt(217, 217), Pt(500, 100), Pt(783, 217)))
+        s.cellHop("crossings", CellHopParams())
+        s.awaitIdle()
+        assertTrue(s.message!!.startsWith("Crossing number: 70 →"), s.message)
+        s.undo()
+        assertFalse(s.canUndo)
     }
 }

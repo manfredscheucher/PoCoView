@@ -15,6 +15,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.bytefred.ordertypes.core.ALL_PROPERTIES
 import org.bytefred.ordertypes.core.COORD_LIMIT
+import org.bytefred.ordertypes.core.CellHopMinimizer
+import org.bytefred.ordertypes.core.CellHopParams
 import org.bytefred.ordertypes.core.FormatException
 import org.bytefred.ordertypes.core.PointFormat
 import org.bytefred.ordertypes.core.PropertyDef
@@ -66,8 +68,18 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         private set
     var mode by mutableStateOf(Mode.COLOR)
         private set
+
+    /**
+     * Incident mode: true = only the structures containing the selected point are drawn,
+     * false = all are drawn and those are highlighted (qtvis).
+     */
+    var incidentOnly by mutableStateOf(true)
+        private set
     var tool by mutableStateOf(Tool.MOVE)
     var layoutMode by mutableStateOf(LayoutMode.AUTO)
+
+    /** Property chosen in the Optimize tab (walk, qtvis minimizer, Enter key). */
+    var optimizeProperty by mutableStateOf("hole5")
 
     var showLines by mutableStateOf(true)
     var hideSelectedLines by mutableStateOf(true)
@@ -314,6 +326,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         recompute()
     }
 
+    fun changeIncidentOnly(only: Boolean) {
+        incidentOnly = only
+        if (mode == Mode.INCIDENT) recompute()
+    }
+
     private fun onPointsChanged() {
         collinear = collinearPoints(points)
         val sig = orderTypeSignature(points)
@@ -329,6 +346,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val p = points
         val sig = signature
         val sel = if (mode == Mode.INCIDENT) selected else null
+        val only = incidentOnly
         val generalPosition = collinear.isEmpty()
         val todo = ArrayList<Triple<PropertyDef, String, Boolean>>()
         // update every property right away (cached / skipped / computing), so the panel
@@ -337,7 +355,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             val t = toggles[prop.id] ?: continue
             if (!t.count) { results.remove(prop.id); continue }
             val draw = mode != Mode.COUNT && t.draw && prop.hasStructures
-            val key = "$sig|${prop.id}|$sel|$draw"
+            val key = "$sig|${prop.id}|$sel|$draw|$only"
             results[prop.id] = when {
                 !generalPosition -> PropState.Skipped("not in general position")
                 p.size > prop.maxN -> PropState.Skipped("n > ${prop.maxN}")
@@ -348,7 +366,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         computeJob = scope.launch {
             for ((prop, key, draw) in todo) {
                 results[prop.id] = try {
-                    val r = evaluate(prop, p, sel, draw)
+                    val r = evaluate(prop, p, sel, draw, only)
                     if (cache.size >= CACHE_SIZE) cache.clear()
                     cache[key] = r
                     PropState.Done(r)
@@ -361,8 +379,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
     }
 
-    private suspend fun evaluate(prop: PropertyDef, p: List<Pt>, sel: Int?, draw: Boolean) =
-        withContext(Dispatchers.Default) { prop.evaluate(p, sel, draw, Ticker()) }
+    private suspend fun evaluate(prop: PropertyDef, p: List<Pt>, sel: Int?, draw: Boolean, onlyIncident: Boolean = true) =
+        withContext(Dispatchers.Default) { prop.evaluate(p, sel, draw, Ticker(), onlyIncident) }
 
     // ---- operations ------------------------------------------------------------------
 
@@ -444,6 +462,27 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 busy = "Walking (${prop.label}): step ${s + 1}/$steps, value $best"
             }
             message = "${prop.label}: $first → $best"
+        }
+    }
+
+    /**
+     * The qtvis cell-hopping minimizer ("try to minimize", Enter in qtvis) for the chosen
+     * property: stops at the first configuration with a smaller value, or restores the
+     * start configuration when all trials failed.
+     */
+    fun cellHop(propId: String, params: CellHopParams) {
+        val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
+        if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
+        if (points.size < 3) { message = "Need at least 3 points"; return }
+        runOperation("qtvis minimizer (${prop.label})…") { start, update ->
+            val before = evaluate(prop, start, null, false).count
+            val result = CellHopMinimizer(
+                count = { evaluate(prop, it, null, false).count },
+                params = params,
+                onProgress = update,
+            ).minimize(start)
+            message = if (result == null) "${prop.label}: no configuration below $before found (start restored)"
+            else "${prop.label}: $before → ${evaluate(prop, result, null, false).count}"
         }
     }
 

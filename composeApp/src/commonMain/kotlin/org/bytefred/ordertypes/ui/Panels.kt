@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.bytefred.ordertypes.core.ALL_PROPERTIES
+import org.bytefred.ordertypes.core.CellHopParams
 import org.bytefred.ordertypes.core.HullProperty
 import org.bytefred.ordertypes.core.OnionProperty
 import org.bytefred.ordertypes.core.PointFormat
@@ -157,12 +158,19 @@ private fun PropertiesTab(state: AppState) {
             label = { Text(m.name.lowercase()) },
         )
     }
+    if (state.mode == Mode.INCIDENT) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        FilterChip(selected = state.incidentOnly, onClick = { state.changeIncidentOnly(true) }, label = { Text("only incident") })
+        FilterChip(selected = !state.incidentOnly, onClick = { state.changeIncidentOnly(false) }, label = { Text("highlight incident") })
+    }
     Text(
         when (state.mode) {
             Mode.COUNT -> "Numbers only."
             Mode.COLOR -> "Structures of the 'draw' properties are drawn."
-            Mode.INCIDENT -> if (state.selected == null) "Select a point: only structures containing it are counted and drawn."
-            else "Counting/drawing only structures containing point ${state.selected}."
+            Mode.INCIDENT -> when {
+                state.selected == null -> "Select a point: structures containing it are counted and drawn."
+                state.incidentOnly -> "Counting and drawing only structures containing point ${state.selected}."
+                else -> "All structures drawn; those containing point ${state.selected} highlighted and counted."
+            }
         },
         style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp),
     )
@@ -251,7 +259,7 @@ private fun EditTab(state: AppState) {
         "Mouse: drag a point to move it, drag empty space to pan, wheel to zoom. Tools: Move (click selects), " +
             "Add (click empty space), Delete (click a point). Keys: Esc deselect, Del delete, Ctrl+Z / Ctrl+Shift+Z undo/redo, " +
             "+/− zoom, Home fit, 1/2/3 count/color/incident, V/A/D tools, F fix order type, L lines, B beautify, " +
-            "M minimize step, PageUp/PageDown previous/next set.",
+            "M minimize step, Enter qtvis minimizer (property of the Optimize tab), PageUp/PageDown previous/next set.",
         style = MaterialTheme.typography.bodySmall,
     )
 }
@@ -270,24 +278,63 @@ private fun OptimizeTab(state: AppState) {
         OutlinedButton(onClick = { state.minimize(auto = true) }, enabled = idle) { Text("Auto") }
     }
     Spacer(Modifier.height(12.dp))
-    Text("Property walk: random local moves, kept if the property does not get worse", style = MaterialTheme.typography.bodySmall)
-    var propId by remember { mutableStateOf("hole5") }
-    var maximize by remember { mutableStateOf(false) }
-    var steps by remember { mutableStateOf("500") }
+    val propId = state.optimizeProperty
     var menu by remember { mutableStateOf(false) }
+    Text("Property to optimize", style = MaterialTheme.typography.titleSmall)
     Box {
         OutlinedButton(onClick = { menu = true }) { Text(ALL_PROPERTIES.first { it.id == propId }.label + " …") }
         DropdownMenu(menu, onDismissRequest = { menu = false }) {
-            for (p in ALL_PROPERTIES) DropdownMenuItem(text = { Text(p.label) }, onClick = { propId = p.id; menu = false })
+            for (p in ALL_PROPERTIES) DropdownMenuItem(text = { Text(p.label) }, onClick = { state.optimizeProperty = p.id; menu = false })
         }
     }
+    Spacer(Modifier.height(8.dp))
+    Text("Random walk: random local moves, kept if the property does not get worse", style = MaterialTheme.typography.bodySmall)
+    var maximize by remember { mutableStateOf(false) }
+    var steps by remember { mutableStateOf("500") }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         FilterChip(selected = !maximize, onClick = { maximize = false }, label = { Text("min") })
         FilterChip(selected = maximize, onClick = { maximize = true }, label = { Text("max") })
         NumberField("steps", steps, { steps = it }, Modifier.width(110.dp))
     }
+    OutlinedButton(onClick = { state.walk(propId, maximize, steps.toIntOrNull() ?: 0) }, enabled = idle) { Text("Run walk") }
+    Spacer(Modifier.height(8.dp))
+    Text(
+        "qtvis minimizer (Enter): pushes points just past their cell walls, accepts moves that do not increase " +
+            "the property, restarts with a random point; stops at the first smaller value",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    val d = CellHopParams()
+    var trials by remember { mutableStateOf(d.trials.toString()) }
+    var maxIt by remember { mutableStateOf(d.maxIterations.toString()) }
+    var maxFail by remember { mutableStateOf(d.maxFailIterations.toString()) }
+    var eps by remember { mutableStateOf(d.eps.toString()) }
+    var alpha by remember { mutableStateOf(d.alpha.toString()) }
+    var onlyLast by remember { mutableStateOf(d.onlyLastPoint) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        NumberField("trials", trials, { trials = it }, Modifier.width(90.dp))
+        NumberField("max iter.", maxIt, { maxIt = it }, Modifier.width(100.dp))
+        NumberField("max fail iter.", maxFail, { maxFail = it }, Modifier.width(120.dp))
+        NumberField("epsilon", eps, { eps = it }, Modifier.width(90.dp))
+        OutlinedTextField(
+            alpha, onValueChange = { v -> alpha = v.filter { it.isDigit() || it == '.' }.take(8) }, label = { Text("alpha") },
+            singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(90.dp),
+        )
+    }
+    SwitchRow("Only move the last point on restarts", onlyLast) { onlyLast = it }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { state.walk(propId, maximize, steps.toIntOrNull() ?: 0) }, enabled = idle) { Text("Run") }
+        OutlinedButton(onClick = {
+            state.cellHop(
+                propId,
+                CellHopParams(
+                    trials = trials.toIntOrNull() ?: d.trials,
+                    maxFailIterations = maxFail.toIntOrNull() ?: d.maxFailIterations,
+                    maxIterations = maxIt.toIntOrNull() ?: d.maxIterations,
+                    eps = eps.toIntOrNull() ?: d.eps,
+                    alpha = alpha.toDoubleOrNull() ?: d.alpha,
+                    onlyLastPoint = onlyLast,
+                ),
+            )
+        }, enabled = idle) { Text("Try to minimize") }
         OutlinedButton(onClick = state::cancelOperation, enabled = !idle) { Text("Stop") }
     }
 }

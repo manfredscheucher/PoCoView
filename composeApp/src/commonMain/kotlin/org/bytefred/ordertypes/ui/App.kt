@@ -30,6 +30,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import org.bytefred.ordertypes.core.CellHopParams
 
 /** Landscape (side panel) needs at least this width in AUTO layout mode (ktoy-style, width based). */
 private val WIDE_MIN = 760.dp
@@ -100,6 +101,7 @@ private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolea
         e.key == Key.MoveHome || e.key == Key.Zero -> state.requestFit()
         e.key == Key.B -> state.beautify()
         e.key == Key.M -> state.minimize(auto = false)
+        e.key == Key.Enter || e.key == Key.NumPadEnter -> state.cellHop(state.optimizeProperty, CellHopParams())
         e.key == Key.V -> state.tool = Tool.MOVE
         e.key == Key.A -> state.tool = Tool.ADD
         e.key == Key.D -> state.tool = Tool.DELETE

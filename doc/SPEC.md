@@ -234,25 +234,20 @@ Manual test by Manfred (open until he gives the OK), per target **web** and **JV
 - Performance: orientations are looked up in one table per evaluation (Kotlin/JS emulates Long);
   dragging inside a cell costs O(n^2) and triggers no recount.
 
-## 12. Open questions (to Manfred)
-1. Incident mode: v1 shows/counts ONLY the structures containing the selected point. qtvis showed
-   all of them and coloured the incident ones blue. Which one (or a switch)?
-2. qtvis' greedy "cell-hopping" minimizer with restarts (Enter key) vs. the v1 random property
-   walk: port the qtvis one as well?
-3. GitHub Pages via `scripts/deployPages.sh` + manual push: confirmed? (Pages needs a public repo.)
-4. pyotlib2: commit the editor fixes? Should "maximize" in its property walk be fixed?
-5. A git pre-commit hook (`install-hooks.sh`, fast Gradle-free check) like the other projects?
-
-## 10b. pyotlib2 editor fixes (done by a subagent, uncommitted in pyotlib2)
-All bugs of §2.2 fixed with tests (142 editor tests green), plus: editor "k-gons" counted k-holes
-(`empty_only` default), `.asc/.psz` writer now keeps colours. Found, not fixed: the property walk's
-"maximize" can never improve (`walk_points` only yields strictly smaller values) - Manfred to decide.
-
-## 11. Future TODOs
-- Android target (layout like ktoy: `androidApp/` wrapper, `runAndroidDevice.sh`,
-  `runAndroidEmulator.sh`; portrait layout already prepared by width-based AUTO layout)
-- iOS target
-- photo mode with ML Kit on Android/iOS (§3)
-- reconsider sharing file I/O with kotlin-common
-- save/restore the last point set in the browser (localStorage)
-- PNG export, arrow-key panning
+## 12. Decisions on the open questions (Manfred, 2026-10-19: "kein pre commit hook, rest schon bitte, schaltbar")
+1. Incident mode is **switchable**: "only incident" (only structures containing the selected point
+   are drawn) or "highlight incident" (all drawn faintly, the incident ones strong - qtvis style).
+   Counts show total and incident in both. Interpretation: the highlight uses the property's own
+   colour (strong vs faint) instead of qtvis' fixed blue, so several properties stay distinguishable.
+2. qtvis minimizer **ported** (`core/CellHopping.kt`, from `graphwidget.cpp`
+   `tryToMinimizeMeta`/`tryToMinimize`/`lineSearch`/`shuffle`) with the qtvis defaults (trials 3,
+   max iterations 6, max fail iterations 2, epsilon 3, alpha 1.05, only last point off). Enter key
+   or "Try to minimize" in the Optimize tab, for the property chosen there (qtvis: `to_optimize`).
+   Notes on the port: the qtvis canvas [0, max_val) is the bounding box of the start
+   configuration; a restart configuration that is not in general position counts as infinitely
+   bad; minimize only, as in qtvis (the random walk keeps min/max).
+3. GitHub Pages via `scripts/deployPages.sh` + manual push: confirmed.
+4. pyotlib2: editor fixes committed (only the editor-related hunks of `cli/commands.py`; Manfred's
+   unrelated work in progress stays uncommitted); "maximize" in `walk_points` fixed
+   (`maximize=True`, used by the editor's Property Min/Max).
+5. No pre-commit hook.
