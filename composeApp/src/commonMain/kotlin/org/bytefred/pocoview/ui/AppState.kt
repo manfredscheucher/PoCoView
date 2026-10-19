@@ -138,6 +138,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var busy by mutableStateOf<String?>(null)
         private set
 
+    /** Progress line of the running operation (shown in the operation dialog). */
+    var progress by mutableStateOf<String?>(null)
+
+    /**
+     * Loop: operations do not stop at the first improvement (or after one run) but continue
+     * until aborted. Read live, so it can be switched while an operation runs.
+     */
+    var loop by mutableStateOf(false)
+
     /** Incremented to ask the canvas to fit the view to the points. */
     var fitRequest by mutableIntStateOf(0)
         private set
@@ -434,6 +443,14 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         opJob?.cancel()
         opJob = null
         busy = null
+        progress = null
+    }
+
+    /** The Abort button of the operation dialog. */
+    fun abortOperation() {
+        val label = busy
+        cancelOperation()
+        if (label != null) message = "${label.removeSuffix("…")}: aborted"
     }
 
     private fun requireGeneralPosition(): Boolean {
@@ -466,7 +483,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             } catch (e: Exception) {
                 message = "$label failed: ${e.message ?: e}"
             } finally {
-                if (opJob == coroutineContext[Job]) busy = null
+                if (opJob == coroutineContext[Job]) { busy = null; progress = null }
             }
         }
     }
@@ -496,12 +513,20 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
     }
 
+    /** Runs a coordinate optimizer once, or with [loop] again and again on its result until aborted. */
     private fun runCoordOptimizer(label: String, run: suspend (List<Pt>) -> List<Pt>) =
         runOperation("$label…") { start, update ->
             val bitsBefore = bitsOf(start)
-            val r = withContext(Dispatchers.Default) { run(start) }
-            if (r != start) { update(r); requestFit() }
-            message = if (r == start) "$label: no change" else "$label: bits $bitsBefore → ${bitsOf(r)}"
+            var cur = start
+            var round = 0
+            do {
+                round++
+                progress = "run $round, ${bitsOf(cur)} bits (start $bitsBefore)"
+                val r = withContext(Dispatchers.Default) { run(cur) }
+                if (r != cur) { cur = r; update(r); requestFit() }
+                yield()
+            } while (loop)
+            message = if (cur == start) "$label: no change" else "$label: bits $bitsBefore → ${bitsOf(cur)}"
         }
 
     /**
@@ -511,20 +536,25 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun walk(propId: String, maximize: Boolean, steps: Int) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        runOperation("Walking (${prop.label})…") { start, update ->
+        runOperation("Random walk (${prop.label})…") { start, update ->
             var cur = start
             var best = evaluate(prop, cur, null, false).count
             val first = best
-            for (s in 0 until steps) {
+            var s = 0
+            while (s < steps || loop) {
+                s++
                 val radius = maxOf(1L, extent(cur) / 20)
                 val cand = randomMove(cur, radius) ?: continue
                 val v = evaluate(prop, cand, null, false).count
+                // equal values are taken over, worse ones not; a better one ends the search (unless loop)
                 if (if (maximize) v >= best else v <= best) {
+                    val improved = v != best
                     cur = cand
                     best = v
                     update(cur)
+                    if (improved && !loop) break
                 }
-                busy = "Walking (${prop.label}): step ${s + 1}/$steps, value $best"
+                progress = "step $s, ${prop.label} = $best (start $first)"
             }
             message = "${prop.label}: $first → $best"
         }
@@ -541,24 +571,32 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (points.size < 3) { message = "Need at least 3 points"; return }
         runOperation("qtvis minimizer (${prop.label})…") { start, update ->
             val before = evaluate(prop, start, null, false).count
-            var result: List<Pt>? = null
-            coroutineScope {
-                // the search runs off the UI thread; accepted configurations are applied in
-                // order by one consumer, a child of this operation (cancelling drops them too)
-                val progress = Channel<List<Pt>>(Channel.UNLIMITED)
-                launch { for (p in progress) update(p) }
-                result = withContext(Dispatchers.Default) {
-                    CellHopMinimizer(
-                        count = { prop.evaluate(it, null, false, Ticker()).count },
-                        params = params,
-                        onProgress = { progress.trySend(it) },
-                    ).minimize(start)
+            var cur = start
+            var round = 0
+            do {
+                round++
+                progress = "round $round, ${prop.label} = ${evaluate(prop, cur, null, false).count} (start $before)"
+                var result: List<Pt>? = null
+                val from = cur
+                coroutineScope {
+                    // the search runs off the UI thread; accepted configurations are applied in
+                    // order by one consumer, a child of this operation (cancelling drops them too)
+                    val channel = Channel<List<Pt>>(Channel.UNLIMITED)
+                    launch { for (p in channel) update(p) }
+                    result = withContext(Dispatchers.Default) {
+                        CellHopMinimizer(
+                            count = { prop.evaluate(it, null, false, Ticker()).count },
+                            params = params,
+                            onProgress = { channel.trySend(it) },
+                        ).minimize(from)
+                    }
+                    channel.close()
                 }
-                progress.close()
-            }
-            val r = result
-            message = if (r == null) "${prop.label}: no configuration below $before found (start restored)"
-            else "${prop.label}: $before → ${evaluate(prop, r, null, false).count}"
+                result?.let { cur = it }
+            } while (loop)
+            val after = evaluate(prop, cur, null, false).count
+            message = if (after >= before) "${prop.label}: no configuration below $before found"
+            else "${prop.label}: $before → $after"
         }
     }
 

@@ -86,7 +86,7 @@ fun StatusBar(state: AppState) {
             style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (state.busy != null) TextButton(onClick = state::cancelOperation) { Text("Stop") }
+        if (state.busy != null) TextButton(onClick = state::abortOperation) { Text("Abort") }
     }
 }
 
@@ -220,6 +220,9 @@ private fun OptimizeTab(state: AppState) {
 
     val cfg = state.coordSettings
     fun set(c: CoordSettings) { state.coordSettings = c }
+    SwitchRow("Loop: continue until aborted (otherwise stop at the first improvement / after one run)", state.loop) {
+        state.loop = it
+    }
 
     Text("Minimize coordinates (M), keeps the order type", style = MaterialTheme.typography.titleSmall)
     Dropdown(state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }

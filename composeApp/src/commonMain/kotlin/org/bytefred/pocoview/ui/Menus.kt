@@ -130,6 +130,7 @@ fun exportSvg(state: AppState): String {
 
 @Composable
 fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
+    state.busy?.let { OperationDialog(state, it) }
     when (kind) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
@@ -138,6 +139,22 @@ fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
 }
+
+/** Shown while an optimization runs: progress, loop switch, Abort. */
+@Composable
+private fun OperationDialog(state: AppState, title: String) = AlertDialog(
+    onDismissRequest = {},
+    confirmButton = { TextButton(onClick = state::abortOperation) { Text("Abort") } },
+    title = { Text("Searching for a better configuration") },
+    text = {
+        Column {
+            Text(title.removeSuffix("…"), style = MaterialTheme.typography.bodyMedium)
+            state.progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            Spacer(Modifier.height(8.dp))
+            SwitchRow("Loop (continue until aborted)", state.loop) { state.loop = it }
+        }
+    },
+)
 
 @Composable
 private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDialog(
