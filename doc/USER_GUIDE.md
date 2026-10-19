@@ -62,6 +62,9 @@ Property optimizers may change the order type:
 | `.json` | `[[x,y],...]` per set |
 | `.b08`, `.b16`, `.b32` | order type database: unsigned little-endian `x1 y1 x2 y2 ...`; n is read from the file name (`otypes05.b08`, `points_n12.b08`) |
 
+File → Import (paste)… takes the same formats as text pasted into a dialog; binary formats as a hex
+dump (`00 00 01 fe ...`) together with n.
+
 Files with several sets (e.g. `otypes06.b08`) can be browsed with the arrows in the toolbar or
 PageUp/PageDown. File → Export SVG saves a picture of the current view.
 

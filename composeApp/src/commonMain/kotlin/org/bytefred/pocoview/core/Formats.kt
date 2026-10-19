@@ -69,6 +69,26 @@ fun readPointSets(name: String, bytes: ByteArray): List<List<Pt>> {
     return sets
 }
 
+/** Bytes from a pasted hex dump ("00 00 01 fe ...", also without spaces; `0x` prefixes allowed). */
+fun parseHexBytes(text: String): ByteArray {
+    val clean = text.replace(Regex("""0[xX]"""), "").filterNot { it.isWhitespace() || it == ',' }
+    if (clean.length % 2 != 0 || clean.any { it.digitToIntOrNull(16) == null })
+        throw FormatException("Expected hexadecimal bytes, e.g. 00 00 01 fe")
+    return ByteArray(clean.length / 2) { clean.substring(2 * it, 2 * it + 2).toInt(16).toByte() }
+}
+
+/** Parses pasted content in [fmt]; binary formats are given as a hex dump and need [n]. */
+fun importPointSets(fmt: PointFormat, text: String, n: Int?): List<List<Pt>> {
+    val sets = when {
+        fmt.isBinary -> readBinary(parseHexBytes(text), n?.takeIf { it > 0 } ?: throw FormatException("Binary formats need n"), fmt.binaryBytes)
+        fmt == PointFormat.JSON -> readJson(text)
+        else -> readAsc(text)
+    }
+    if (sets.isEmpty()) throw FormatException("No point set found")
+    if (sets.any { s -> s.any { !it.inRange() } }) throw FormatException("Coordinates exceed ±$COORD_LIMIT (exact arithmetic limit)")
+    return sets
+}
+
 fun readBinary(bytes: ByteArray, n: Int, width: Int): List<List<Pt>> {
     require(n > 0)
     val per = 2 * n * width

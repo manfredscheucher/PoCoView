@@ -32,6 +32,7 @@ import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
 import org.bytefred.pocoview.core.extent
+import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.inRange
 import org.bytefred.pocoview.core.minimizeCoords
 import org.bytefred.pocoview.core.orderTypeSignature
@@ -314,19 +315,30 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun open(name: String, bytes: ByteArray) {
         try {
-            val loaded = readPointSets(name, bytes)
-            cancelOperation()
-            sets = loaded
-            setIndex = 0
-            fileName = name.substringBeforeLast('.')
-            selected = null
-            setPoints(loaded[0], recordUndo = false)
-            clearHistory()
-            requestFit()
-            message = "Loaded $name: ${loaded.size} set(s), n=${loaded[0].size}"
+            load(name, readPointSets(name, bytes))
         } catch (e: Exception) {
             message = "Cannot open $name: ${e.message}"
         }
+    }
+
+    /** Import dialog: pasted content in the chosen format. Returns an error message, or null on success. */
+    fun import(format: PointFormat, text: String, n: Int?): String? = try {
+        load("imported.${format.extension}", importPointSets(format, text, n))
+        null
+    } catch (e: Exception) {
+        e.message ?: "Cannot parse the content"
+    }
+
+    private fun load(name: String, loaded: List<List<Pt>>) {
+        cancelOperation()
+        sets = loaded
+        setIndex = 0
+        fileName = name.substringBeforeLast('.')
+        selected = null
+        setPoints(loaded[0], recordUndo = false)
+        clearHistory()
+        requestFit()
+        message = "Loaded $name: ${loaded.size} set(s), n=${loaded[0].size}"
     }
 
     /** Shows another set of the file. Undo history is per set, so it is cleared. */

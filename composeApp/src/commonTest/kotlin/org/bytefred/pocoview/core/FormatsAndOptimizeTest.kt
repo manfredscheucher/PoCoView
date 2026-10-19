@@ -48,6 +48,18 @@ class FormatsAndOptimizeTest {
     }
 
     @Test
+    fun pastedImportInAllFormats() {
+        val p = listOf(Pt(0, 0), Pt(1, 254), Pt(255, 255), Pt(254, 1))
+        assertEquals(listOf(p), importPointSets(PointFormat.PB08, "00 00 01 fe ff ff fe 01", 4))
+        assertEquals(listOf(p), importPointSets(PointFormat.PB08, "0x00,0x00,0x01,0xfe,0xff,0xff,0xfe,0x01", 4))
+        assertEquals(listOf(p), importPointSets(PointFormat.PB16, "0000 0000 0100 fe00 ff00 ff00 fe00 0100", 4))
+        assertEquals(listOf(p), importPointSets(PointFormat.JSON, "[[0,0],[1,254],[255,255],[254,1]]", null))
+        assertEquals(listOf(p), importPointSets(PointFormat.ASC, "4\n0 0\n1 254\n255 255\n254 1\n", null))
+        assertFailsWith<FormatException> { importPointSets(PointFormat.PB08, "00 0g", 1) }
+        assertFailsWith<FormatException> { importPointSets(PointFormat.PB08, "00 00", null) }
+    }
+
+    @Test
     fun nFromFileName() {
         assertEquals(5, pointCountFromFileName("otypes05.b08"))
         assertEquals(10, pointCountFromFileName("otypes10.b16"))

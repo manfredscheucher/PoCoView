@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CrossingProperty
@@ -47,7 +48,7 @@ import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
 
 /** Which dialog is open (the menu bar and the properties tab open them). */
-enum class DialogKind { NONE, PROPERTIES, SETTINGS, ABOUT, SHORTCUTS }
+enum class DialogKind { NONE, PROPERTIES, SETTINGS, ABOUT, SHORTCUTS, IMPORT }
 
 @Composable
 private fun Menu(title: String, content: @Composable (close: () -> Unit) -> Unit) {
@@ -75,6 +76,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
         Text("PoCoView", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
         Menu("File") { close ->
             Item("Open…", close) { opener() }
+            Item("Import (paste)…", close) { openDialog(DialogKind.IMPORT) }
             HorizontalDivider()
             for (fmt in PointFormat.entries) Item("Save as .${fmt.extension}", close) {
                 state.encode(fmt, allSets = false)?.let { saver(state.saveName(fmt), it) }
@@ -135,9 +137,62 @@ fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
         DialogKind.SETTINGS -> SettingsDialog(state, close)
+        DialogKind.IMPORT -> ImportDialog(state, close)
         DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT, close)
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
+}
+
+/** Paste point sets in one of the file formats; binary formats as a hex dump plus n. */
+@Composable
+private fun ImportDialog(state: AppState, close: () -> Unit) {
+    var format by remember { mutableStateOf(PointFormat.ASC) }
+    var text by remember { mutableStateOf("") }
+    var n by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var menu by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = close,
+        confirmButton = {
+            TextButton(onClick = {
+                error = state.import(format, text, n.toIntOrNull())
+                if (error == null) close()
+            }) { Text("Import") }
+        },
+        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+        title = { Text("Import point sets") },
+        text = {
+            Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Format", Modifier.padding(end = 8.dp))
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text(".${format.extension} …") }
+                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                            for (f in PointFormat.entries) DropdownMenuItem(text = { Text(".${f.extension}") }, onClick = { format = f; menu = false })
+                        }
+                    }
+                    if (format.isBinary) OutlinedTextField(
+                        n, onValueChange = { v -> n = v.filter { it.isDigit() }.take(3) }, label = { Text("n") },
+                        singleLine = true, modifier = Modifier.width(90.dp).padding(start = 8.dp),
+                    )
+                }
+                Text(
+                    when {
+                        format.isBinary -> "Hex dump of the file, e.g. 00 00 01 fe ff ff fe 01 (${format.binaryBytes} byte(s) per coordinate, little-endian)"
+                        format == PointFormat.JSON -> "[[x,y],...] per set, or [[[x,y],...],...]"
+                        else -> "A line with n, then one 'x y [color]' per point (several sets may follow); or just 'x y' lines"
+                    },
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp),
+                )
+                OutlinedTextField(
+                    text, onValueChange = { text = it; error = null },
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                )
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
 }
 
 /** Shown while an optimization runs: progress, loop switch, Abort. */
