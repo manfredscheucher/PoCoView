@@ -13,9 +13,6 @@ import kotlin.random.Random
  *
  * Not ported:
  *  - pyotlib.PointWalkAbstr.py walks on abstract order types (triple flips, no coordinates).
- *  - MinimizeCoords.py prop=... (ensure_property): its branch starts with
- *    `assert(not ensure_property)`, so the original raises on the first move that changes the
- *    order type; the remaining methods keep the order type (see LegacyOptimizers.kt).
  *
  * Common replacements (all flows):
  *  - The property is evaluated only through `count` (lower = better); output files, prints,
