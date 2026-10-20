@@ -26,8 +26,8 @@ import kotlin.random.Random
  *    products, see [orientWide]); a candidate beyond that limit counts as invalid. Results
  *    handed back to the app must lie within [COORD_LIMIT], otherwise the input is returned.
  *  - Off-by-default branches are not ported: PROVIDE_ALL / has_cocircular_points (PROVIDE_ALL
- *    = False), DEBUG output, and `ensure_property` (its branch starts with
- *    `assert not ensure_property`, i.e. any truthy value makes the first rejected move raise).
+ *    = False) and DEBUG output. `ensure_property` (minimize w.r.t. a property) is ported with
+ *    the original's `assert(not ensure_property)` dropped, see [minimizeIntegerCoordinates].
  *  - Python asserts become [check] (IllegalStateException), as in Python they raise.
  */
 
@@ -185,6 +185,10 @@ private class MinimizerState(
     val target: Array<IntArray>,
     val rnd: Random,
     val ticker: Ticker,
+    /** ensure_property: counting function (lower = better), or null = keep the order type. */
+    val ensureProperty: (suspend (List<Pt>) -> Long)? = null,
+    /** counting_function(BL): the count of the start configuration. */
+    val propertyThreshold: Long = 0,
 ) {
     /** COMBS[i]: pairs (a, b), a < b, such that {a, b, i} is an exit triple. */
     var combs: Array<List<IntArray>> = emptyArray()
@@ -197,13 +201,38 @@ private fun sameOtAsBl(st: MinimizerState, ps: Pts, i: Int): Boolean {
 }
 
 /**
- * pyotlib2 `_is_valid_point_set` (PROVIDE_ALL = False, no ensure_property). Deviation: a moved
- * point beyond [WIDE_LIMIT] is invalid (Python's unbounded integers would test it).
+ * pyotlib2 `_is_valid_point_set` (PROVIDE_ALL = False). Deviation: a moved point beyond
+ * [WIDE_LIMIT] is invalid (Python's unbounded integers would test it).
+ *
+ * ensure_property: if an exit triple through i flipped, the move is still valid when the set
+ * has no collinear points and the count is <= the count of the start configuration (the
+ * original's `assert(not ensure_property)` in front of this is dropped). Deviation: the count
+ * is taken on the set translated to its bounding box center; a set that does not fit into
+ * ±[COORD_LIMIT] then counts as invalid (the properties compute exactly only up to it).
  */
 private suspend fun isValidPointSet(st: MinimizerState, ps: Pts, i: Int): Boolean {
     st.ticker.tick(st.combs[i].size + 1L)
     if (!ps.pointWithin(i, WIDE_LIMIT)) return false
-    return sameOtAsBl(st, ps, i)
+    if (sameOtAsBl(st, ps, i)) return true
+    val ensure = st.ensureProperty ?: return false
+    if (hasCollinearPointsWide(ps)) return false
+    val centered = centeredWithin(ps, COORD_LIMIT) ?: return false
+    return ensure(centered) <= st.propertyThreshold
+}
+
+private suspend fun hasCollinearPointsWide(ps: Pts): Boolean {
+    for (a in 0 until ps.n) for (b in a + 1 until ps.n) {
+        for (c in b + 1 until ps.n) if (ps.orientation(a, b, c) == 0) return true
+    }
+    return false
+}
+
+/** The points translated so that their bounding box is centered at 0, or null if they then exceed ±[limit]. */
+private fun centeredWithin(ps: Pts, limit: Long): List<Pt>? {
+    val cx = ps.x.min() + (ps.x.max() - ps.x.min()) / 2
+    val cy = ps.y.min() + (ps.y.max() - ps.y.min()) / 2
+    val c = Pts(LongArray(ps.n) { ps.x[it] - cx }, LongArray(ps.n) { ps.y[it] - cy })
+    return if (c.within(limit)) c.toPoints() else null
 }
 
 private suspend fun movePointToEven(st: MinimizerState, ps: Pts, i: Int): Boolean {
@@ -310,7 +339,8 @@ private suspend fun minimizeIntegerCoordinatesPriv(
 
     var psNew = bestPts
     if (symmetric == 0) psNew = psNew.normalized()
-    check(sameLambda(psNew, st.target)) { "optimization failed?!" }
+    // with ensure_property the order type may change, so the original's assert only applies without it
+    check(st.ensureProperty != null || sameLambda(psNew, st.target)) { "optimization failed?!" }
     return psNew
 }
 
@@ -368,6 +398,11 @@ private suspend fun minimizeIntegerCoordinatesPrivate(
  * @param symmetric k > 0: keep the set k-fold rotationally symmetric around the origin
  *   ([computeSymmetricPs] after each halving; the set is not normalized). Needs n % k in {0, 1}
  *   and an input that is already symmetric in that labeling.
+ * @param ensureProperty minimize w.r.t. a property (old `ensure_property`): a counting
+ *   function (lower = better); a move that flips an exit triple is then accepted if the count
+ *   does not exceed the start count (see [isValidPointSet]). Only the exit triples through
+ *   the moved point are tested, so the result may still be worse or contain collinear points;
+ *   callers check it. null = keep the order type.
  * @return normalized (unless [symmetric]) points, colors kept by index.
  * @throws IllegalStateException where the Python asserts (e.g. order type changed by the
  *   symmetrization of a non-symmetric input) or on division by zero in the balancing.
@@ -382,15 +417,18 @@ suspend fun minimizeIntegerCoordinates(
     symmetric: Int = 0,
     rnd: Random = Random.Default,
     ticker: Ticker = Ticker(),
+    ensureProperty: (suspend (List<Pt>) -> Long)? = null,
 ): List<Pt> {
     val colors = points.map { it.color }
-    return minimizeIntegerCoordinates(Pts.of(points), maxTrials, randomize, tolerance, sheering, minimizeDiameter, symmetric, rnd, ticker)
-        .toPoints(colors)
+    return minimizeIntegerCoordinates(
+        Pts.of(points), maxTrials, randomize, tolerance, sheering, minimizeDiameter, symmetric, rnd, ticker, ensureProperty,
+    ).toPoints(colors)
 }
 
 private suspend fun minimizeIntegerCoordinates(
     ps0: Pts, maxTrials: Int, randomize: Int, tolerance0: Int, sheering: Boolean,
     minimizeDiameter: Boolean, symmetric: Int, rnd: Random, ticker: Ticker,
+    ensureProperty: (suspend (List<Pt>) -> Long)?,
 ): Pts {
     val tolerance: Long? = if (tolerance0 == 0) null else tolerance0.toLong()
     val quality: (Pts) -> Long = if (minimizeDiameter) { p -> p.diameter() } else { p -> p.bits().toLong() }
@@ -404,7 +442,10 @@ private suspend fun minimizeIntegerCoordinates(
     if (tolerance != null && startBits <= tolerance) return ps
 
     val bl = wideOrientations(ps)
-    val st = MinimizerState(bl, lambdaOf(ps)!!, rnd, ticker)
+    val threshold = ensureProperty?.let { f ->
+        f(requireNotNull(centeredWithin(ps, COORD_LIMIT)) { "coordinates exceed 2^29" })
+    } ?: 0L
+    val st = MinimizerState(bl, lambdaOf(ps)!!, rnd, ticker, ensureProperty, threshold)
 
     val dxs = mutableListOf(0L)
     val dys = mutableListOf(0L)
@@ -746,7 +787,7 @@ internal suspend fun beautify2Wide(
     }
 
     var ps = ot.normalized()
-    if (minimize) ps = minimizeIntegerCoordinates(ps, 1, 10, 0, false, false, 0, rnd, ticker)
+    if (minimize) ps = minimizeIntegerCoordinates(ps, 1, 10, 0, false, false, 0, rnd, ticker, null)
 
     repeat(iter1) {
         val dbits = goodBits - ps.bits()
@@ -764,7 +805,7 @@ internal suspend fun beautify2Wide(
         val zi = toIntegerExact(sol) ?: return null
         ps = Pts(LongArray(n) { zi[it] }, LongArray(n) { zi[it + n] }).normalized()
         if (!ps.within(WIDE_LIMIT)) return null
-        if (minimize) ps = minimizeIntegerCoordinates(ps, 1, 10, 0, false, false, 0, rnd, ticker)
+        if (minimize) ps = minimizeIntegerCoordinates(ps, 1, 10, 0, false, false, 0, rnd, ticker, null)
     }
 
     return if (sameLambda(ps, otLambda) && (bound == null || ps.diameter() <= bound)) ps.toPoints(colors) else points

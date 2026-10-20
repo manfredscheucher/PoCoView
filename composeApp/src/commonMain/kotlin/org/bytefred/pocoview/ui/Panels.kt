@@ -313,6 +313,13 @@ private fun OptimizeTab(state: AppState) {
     }
     Spacer(Modifier.height(4.dp))
     Text(
+        "Minimize w.r.t. property: like minimizeIntegerCoordinates (its parameters above), but the order type may " +
+            "change as long as the property does not get worse; a worse result is undone",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    OutlinedButton(onClick = state::minimizeWrtProperty, enabled = idle) { Text("Minimize w.r.t. property") }
+    Spacer(Modifier.height(8.dp))
+    Text(
         "Search (old pyotlib flows): moves points to find a configuration with a smaller value; equal values are " +
             "taken over, worse ones not; stops at the first improvement unless Loop is on",
         style = MaterialTheme.typography.bodySmall,

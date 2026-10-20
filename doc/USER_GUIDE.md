@@ -61,8 +61,12 @@ pyotlib):
   of its allowed range. Beautify 2 optimizes a quality function (no thin triangles, even distances)
   with Nelder-Mead, hull fixed. Each in the pyotlib2 and in the old pyotlib version.
 
-The property optimizers may change the order type. Both use the property chosen in the tab:
+The property optimizers may change the order type. They use the property chosen in the tab:
 
+- **Minimize w.r.t. property**: the old `minimizeIntegerCoordinates` (its parameters) with
+  `ensure_property`: coordinates shrink and the order type may change as long as the property does
+  not get worse. A result that is worse anyway (only some triples are checked during the run) is
+  undone. With Loop it runs again and again.
 - **Search** (ports of the old pyotlib scripts): PointWalk (depth-first search over moves of single
   points into neighbouring cells, optionally simulated annealing), PointWalkLocCr (the same, a move
   must not be worse than the best so far), PointMove (one pass over the neighbouring configurations)

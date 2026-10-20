@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.bytefred.pocoview.core.ALL_PROPERTIES
+import org.bytefred.pocoview.core.isGeneralPosition
 import org.bytefred.pocoview.core.COORD_LIMIT
 import org.bytefred.pocoview.core.CellHopMinimizer
 import org.bytefred.pocoview.core.CellHopParams
@@ -609,6 +610,51 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             } while (loop)
             message = if (cur == start) "$label: no change" else "$label: bits $bitsBefore → ${bitsOf(cur)}"
         }
+
+    /**
+     * Minimize w.r.t. property (old pyotlib minimizeIntegerCoordinates with ensure_property,
+     * parameters of that minimize method): the coordinates shrink while the order type may
+     * change, as long as the chosen property does not get worse. A result that is worse, has
+     * collinear points or does not fit is undone. With [loop] it runs again and again.
+     */
+    fun minimizeWrtProperty() {
+        val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
+        val cfg = coordSettings
+        val label = "Minimize w.r.t. ${prop.label}"
+        runOperation("$label…", "Minimizing coordinates") { start, update ->
+            val count: suspend (List<Pt>) -> Long = { prop.evaluate(it, null, false, Ticker()).count }
+            val bitsBefore = bitsOf(start)
+            val countBefore = evaluate(prop, start, null, false).count
+            var cur = start
+            var curCount = countBefore
+            var round = 0
+            var undone = 0
+            do {
+                round++
+                progress = "run $round, ${bitsOf(cur)} bits, ${prop.label} = $curCount (start $bitsBefore bits, $countBefore)"
+                val from = cur
+                val r = withContext(Dispatchers.Default) {
+                    minimizeIntegerCoordinates(
+                        from, maxTrials = cfg.oldMaxTrials, randomize = cfg.randomize, sheering = cfg.sheering,
+                        minimizeDiameter = cfg.minimizeDiameter, symmetric = cfg.symmetric, ensureProperty = count,
+                    )
+                }
+                val ok = r.all { it.inRange() } && isGeneralPosition(r)
+                val rCount = if (ok) evaluate(prop, r, null, false).count else null
+                if (rCount == null || rCount > curCount) {
+                    undone++ // worse -> undo
+                } else if (r != cur) {
+                    cur = r; curCount = rCount; update(r); requestFit()
+                }
+                yield()
+            } while (loop)
+            message = when {
+                cur != start -> "$label: bits $bitsBefore → ${bitsOf(cur)}, ${prop.label} $countBefore → $curCount"
+                undone > 0 -> "$label: result was worse, undone"
+                else -> "$label: no change"
+            }
+        }
+    }
 
     /**
      * Runs a property search flow (ports of the old pyotlib scripts, core/PropertySearch.kt)

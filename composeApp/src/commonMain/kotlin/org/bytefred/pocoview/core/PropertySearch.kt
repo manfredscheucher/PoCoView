@@ -12,9 +12,6 @@ import kotlin.random.Random
  * defaults and control flow (quirks included, marked "Quirk (original)").
  *
  * Not ported:
- *  - pyotlib.PolygonMinimization.py, pyotlib.MinimizeExtreme.py and MinimizeCoords.py
- *    method=siman call PyDCG.heuristics.simmulated_annealing_iterator, which does not exist
- *    in the PyDCG source (old/PyDCG); blocked.
  *  - pyotlib.PointWalkAbstr.py walks on abstract order types (triple flips, no coordinates).
  *  - MinimizeCoords.py prop=... (ensure_property): its branch starts with
  *    `assert(not ensure_property)`, so the original raises on the first move that changes the

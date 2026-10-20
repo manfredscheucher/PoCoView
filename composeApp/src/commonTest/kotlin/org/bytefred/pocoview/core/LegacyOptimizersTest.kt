@@ -185,4 +185,15 @@ class LegacyOptimizersTest {
         val r = myPatternSearch({ x -> (x[0] - 3) * (x[0] - 3) + (x[1] + 1) * (x[1] + 1) }, doubleArrayOf(0.0, 0.0), 1.0, maxIter = 1000)
         assertTrue(abs(r.x0[0] - 3) < 1e-6 && abs(r.x0[1] + 1) < 1e-6)
     }
+
+    @Test
+    fun minimizeWithEnsurePropertyMayChangeOrderType() = runTest {
+        val r = Random(3)
+        val p = List(9) { Pt(r.nextLong(0, 1_000_000), r.nextLong(0, 1_000_000)) }
+        val count: suspend (List<Pt>) -> Long = { CrossingProperty().evaluate(it, null, false, Ticker()).count }
+        val res = minimizeIntegerCoordinates(p, maxTrials = 2, rnd = Random(1), ensureProperty = count)
+        assertTrue(bits(res) < bits(p))
+        val keep = minimizeIntegerCoordinates(p, maxTrials = 2, rnd = Random(1))
+        assertEquals(orderTypeSignature(p), orderTypeSignature(keep))
+    }
 }

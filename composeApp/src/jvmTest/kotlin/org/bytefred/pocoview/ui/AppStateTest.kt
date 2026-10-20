@@ -262,4 +262,26 @@ class AppStateTest {
             assertTrue(s.canUndo)
         }
     }
+
+    @Test
+    fun minimizeWrtPropertyNeverGetsWorse() = runBlocking<Unit> {
+        val s = state()
+        val r = kotlin.random.Random(3)
+        repeat(4) {
+            var p: List<Pt>
+            do p = List(9) { Pt(r.nextLong(0, 1_000_000), r.nextLong(0, 1_000_000)) } while (!org.bytefred.pocoview.core.isGeneralPosition(p))
+            s.load(p)
+            s.optimizeProperty = "crossings"
+            s.coordSettings = s.coordSettings.copy(oldMaxTrials = 2)
+            s.awaitIdle()
+            val before = s.done("crossings").count
+            val bitsBefore = org.bytefred.pocoview.core.bitsOf(s.points)
+            s.minimizeWrtProperty()
+            s.awaitIdle()
+            assertTrue(org.bytefred.pocoview.core.isGeneralPosition(s.points), s.message)
+            assertTrue(s.done("crossings").count <= before, s.message)
+            assertTrue(org.bytefred.pocoview.core.bitsOf(s.points) <= bitsBefore, s.message)
+            assertTrue(s.message!!.startsWith("Minimize w.r.t."), s.message)
+        }
+    }
 }
