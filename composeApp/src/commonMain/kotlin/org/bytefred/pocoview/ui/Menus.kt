@@ -48,7 +48,7 @@ import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
 
 /** Which dialog is open (the menu bar and the properties tab open them). */
-enum class DialogKind { NONE, PROPERTIES, SETTINGS, ABOUT, SHORTCUTS, IMPORT, SAVE }
+enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, SAVE }
 
 @Composable
 private fun Menu(title: String, content: @Composable (close: () -> Unit) -> Unit) {
@@ -94,17 +94,17 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
             Item("Zoom out", close) { view.zoomCenter(1 / 1.2) }
             HorizontalDivider()
             CheckItem("Line arrangement", state.showLines, close) { state.showLines = !state.showLines }
-            CheckItem("Hide lines through the selected point", state.hideSelectedLines, close) {
-                state.hideSelectedLines = !state.hideSelectedLines
-            }
             CheckItem("Point labels", state.showLabels, close) { state.showLabels = !state.showLabels }
+            HorizontalDivider()
+            for ((i, w) in Widget.entries.withIndex()) CheckItem("Widget: ${w.label} (${i + 1})", w in state.openWidgets, close) {
+                state.toggleWidget(w)
+            }
             HorizontalDivider()
             for (m in LayoutMode.entries) CheckItem("Layout: ${m.name.lowercase()}", state.layoutMode == m, close) {
                 state.layoutMode = m
             }
             HorizontalDivider()
             Item("Select properties…", close) { openDialog(DialogKind.PROPERTIES) }
-            Item("Settings…", close) { openDialog(DialogKind.SETTINGS) }
         }
         Menu("Info") { close ->
             Item("About PoCoView", close) { openDialog(DialogKind.ABOUT) }
@@ -128,7 +128,6 @@ fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
     when (kind) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
-        DialogKind.SETTINGS -> SettingsDialog(state, close)
         DialogKind.IMPORT -> ImportDialog(state, close)
         DialogKind.SAVE -> SaveDialog(state, close)
         DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT, close)
@@ -339,38 +338,6 @@ private fun PickerRow(state: AppState, p: PropertyDef) {
     }
 }
 
-@Composable
-private fun SettingsDialog(state: AppState, close: () -> Unit) = AlertDialog(
-    onDismissRequest = close,
-    confirmButton = { TextButton(onClick = close) { Text("Close") } },
-    dismissButton = {
-        TextButton(onClick = {
-            state.pointRadius = 6f; state.selectedScalePercent = 100; state.lineWidth = 1f
-            state.lineColor = AppState.DEFAULT_LINE_COLOR; state.lineAlpha = AppState.DEFAULT_LINE_ALPHA
-        }) { Text("Defaults") }
-    },
-    title = { Text("Settings") },
-    text = {
-        Column(Modifier.widthIn(max = 420.dp)) {
-            Text("Point size: ${state.pointRadius.roundToInt()} px")
-            Slider(state.pointRadius, { state.pointRadius = it }, valueRange = 2f..20f)
-            Text("Selected point: ${state.selectedScalePercent} % of the point size")
-            Slider(state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() }, valueRange = 100f..400f)
-            Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px")
-            Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Line colour", Modifier.weight(1f))
-                ColorChooser(state, state.lineColor) { state.lineColor = it }
-            }
-            Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %")
-            Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
-            Spacer(Modifier.height(4.dp))
-            Text("Line width, colour and opacity apply to the line arrangement; structure outlines are 1.5× as wide. " +
-                "Highlight colours: Select properties…", style = MaterialTheme.typography.bodySmall)
-        }
-    },
-)
-
 private const val ABOUT = """PoCoView - Point Configuration Viewer
 
 An interactive editor and viewer for point configurations and their order types: load and save point sets (also the order type database formats), move, add and delete points, and count or visualize convex hull, onion layers, crossings, k-holes, k-gons and triangulations, also restricted to a selected point. Coordinates can be minimized and beautified while keeping the order type.
@@ -385,11 +352,12 @@ Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo / redo
 + / -: zoom;  Home or 0: fit
 V / A / D: tools move / add / delete
 F: lock order type
-M: minimize coordinates;  B: beautify (implementations: Optimize tab)
+M: minimize coordinates;  B: beautify (implementations: Optimize widget)
 L: line arrangement
 H: highlight on/off
 I: incident only on/off
-Enter: qtvis minimizer (property and parameters of the Optimize tab)
+Enter: qtvis minimizer (property and parameters of the Optimize widget)
+1 .. 5: show / hide the widgets Properties, Points, Optimize, Data, Display
 PageUp / PageDown (, / .): previous / next set of the file
 
 Mouse: drag a point to move it, drag empty space to pan, wheel or pinch to zoom."""

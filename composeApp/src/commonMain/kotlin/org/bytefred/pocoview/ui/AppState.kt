@@ -2,6 +2,7 @@ package org.bytefred.pocoview.ui
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -93,6 +94,14 @@ data class CoordSettings(
 
 enum class Tool { MOVE, ADD, DELETE }
 
+/** The panels next to the canvas; each one is a column that can be shown or hidden. */
+enum class Widget(val label: String) {
+    PROPERTIES("Properties"), POINTS("Points"), OPTIMIZE("Optimize"), DATA("Data"), DISPLAY("Display"),
+}
+
+/** How the lines through the selected point are drawn. */
+enum class IncidentLines(val label: String) { HIDE("hide"), NORMAL("normal"), HIGHLIGHT("highlight") }
+
 enum class LayoutMode { AUTO, PORTRAIT, LANDSCAPE }
 
 sealed interface PropState {
@@ -158,7 +167,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var selectedScalePercent by mutableStateOf(100)
     var lineWidth by mutableStateOf(1f)
 
-    /** Line arrangement colour and opacity (View → Settings). */
+    /** Line arrangement colour and opacity (Display widget). */
     var lineColor by mutableStateOf(DEFAULT_LINE_COLOR)
     var lineAlpha by mutableStateOf(DEFAULT_LINE_ALPHA)
 
@@ -167,8 +176,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun colorOf(id: String): Color = propertyColors[id] ?: defaultPropertyColor(ALL_PROPERTIES.indexOfFirst { it.id == id })
 
+    /** Selected point: fill and marker colour. */
+    var selectedColor by mutableStateOf(DEFAULT_SELECTED_COLOR)
+
+    /** Lines through the selected point: hidden (qtvis), like the others, or highlighted. */
+    var incidentLines by mutableStateOf(IncidentLines.HIDE)
+    var incidentLineColor by mutableStateOf(DEFAULT_INCIDENT_LINE_COLOR)
+    var incidentLineWidth by mutableStateOf(2f)
+
     var showLines by mutableStateOf(true)
-    var hideSelectedLines by mutableStateOf(true)
     var showLabels by mutableStateOf(true)
     var fixOrderType by mutableStateOf(false)
 
@@ -195,6 +211,52 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      * until aborted. Read live, so it can be switched while an operation runs.
      */
     var loop by mutableStateOf(false)
+
+    /** Open widget columns, in opening order. */
+    val openWidgets = mutableStateListOf(Widget.PROPERTIES, Widget.OPTIMIZE)
+
+    /** At most this many widget columns are open; opening one more closes the least recently clicked. */
+    var maxColumns by mutableIntStateOf(2)
+        private set
+
+    private val lastClicked = mutableMapOf<Widget, Long>()
+    private var clickCounter = 0L
+
+    init {
+        for (w in openWidgets) touchWidget(w)
+    }
+
+    /** A click into a widget column (or opening it): it becomes the most recently used one. */
+    fun touchWidget(w: Widget) {
+        lastClicked[w] = ++clickCounter
+    }
+
+    fun toggleWidget(w: Widget) {
+        if (w in openWidgets) {
+            openWidgets.remove(w)
+        } else {
+            openWidgets.add(w)
+            touchWidget(w)
+            closeExtraWidgets()
+        }
+    }
+
+    fun changeMaxColumns(k: Int) {
+        maxColumns = k.coerceIn(1, Widget.entries.size)
+        closeExtraWidgets()
+    }
+
+    private fun closeExtraWidgets() {
+        while (openWidgets.size > maxColumns) openWidgets.remove(openWidgets.minBy { lastClicked[it] ?: 0L })
+    }
+
+    /** Display widget "Defaults". */
+    fun resetDisplay() {
+        pointRadius = 6f; selectedScalePercent = 100; lineWidth = 1f
+        lineColor = DEFAULT_LINE_COLOR; lineAlpha = DEFAULT_LINE_ALPHA
+        selectedColor = DEFAULT_SELECTED_COLOR
+        incidentLines = IncidentLines.HIDE; incidentLineColor = DEFAULT_INCIDENT_LINE_COLOR; incidentLineWidth = 2f
+    }
 
     /** Incremented to ask the canvas to fit the view to the points. */
     var fitRequest by mutableIntStateOf(0)
@@ -749,6 +811,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         const val SEARCH_TITLE = "Searching for a better configuration"
         val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
         const val DEFAULT_LINE_ALPHA = 0.18f
+        val DEFAULT_SELECTED_COLOR = Color(0xFFFF9800)
+        val DEFAULT_INCIDENT_LINE_COLOR = Color(0xFFE53935)
 
         private fun fnv64(s: String): String {
             var h = -0x340d631b7bdddcdbL // FNV-1a offset basis

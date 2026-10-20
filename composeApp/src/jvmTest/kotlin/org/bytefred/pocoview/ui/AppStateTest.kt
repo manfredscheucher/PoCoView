@@ -284,4 +284,38 @@ class AppStateTest {
             assertTrue(s.message!!.startsWith("Minimize w.r.t."), s.message)
         }
     }
+
+    @Test
+    fun widgetColumnsCloseLeastRecentlyClicked() {
+        val s = state()
+        assertEquals(listOf(Widget.PROPERTIES, Widget.OPTIMIZE), s.openWidgets.toList())
+        assertEquals(2, s.maxColumns)
+        s.touchWidget(Widget.PROPERTIES) // Optimize is now the least recently clicked
+        s.toggleWidget(Widget.DISPLAY)
+        assertEquals(listOf(Widget.PROPERTIES, Widget.DISPLAY), s.openWidgets.toList())
+        s.toggleWidget(Widget.DATA) // Properties clicked before Display was opened
+        assertEquals(listOf(Widget.DISPLAY, Widget.DATA), s.openWidgets.toList())
+        s.changeMaxColumns(3)
+        s.toggleWidget(Widget.POINTS)
+        assertEquals(listOf(Widget.DISPLAY, Widget.DATA, Widget.POINTS), s.openWidgets.toList())
+        s.touchWidget(Widget.DISPLAY)
+        s.changeMaxColumns(1) // lowering k closes the least recently clicked ones at once
+        assertEquals(listOf(Widget.DISPLAY), s.openWidgets.toList())
+        s.toggleWidget(Widget.DISPLAY)
+        assertTrue(s.openWidgets.isEmpty())
+        s.changeMaxColumns(0)
+        assertEquals(1, s.maxColumns)
+    }
+
+    @Test
+    fun displayDefaults() {
+        val s = state()
+        s.selectedColor = androidx.compose.ui.graphics.Color.Blue
+        s.incidentLines = IncidentLines.HIGHLIGHT
+        s.pointRadius = 15f
+        s.resetDisplay()
+        assertEquals(IncidentLines.HIDE, s.incidentLines)
+        assertEquals(AppState.DEFAULT_SELECTED_COLOR, s.selectedColor)
+        assertEquals(6f, s.pointRadius)
+    }
 }

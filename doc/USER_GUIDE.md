@@ -6,19 +6,30 @@
   points on a common line get a red ring, and the properties then show "not in general position".
 - **Line arrangement**: the line through every pair of points. Its cells are exactly the regions in
   which a point can move without changing the order type. "Hide lines through the selected point"
-  is on by default so you can see the cell of the selected point; switch it off in the View menu.
+  is on by default (Display widget: "Lines through it: hide") so you can see the cell of the selected
+  point; "normal" draws them like the others, "highlight" in their own colour and width.
 - **Tools** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
   a point). Drag empty space to pan, use the wheel or pinch to zoom.
 - **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
   stays the same.
-- Undo/redo are in the Edit menu. Point size, selected point size, line width, colour and opacity
-  of the line arrangement are in View → Settings….
+- Undo/redo are in the Edit menu.
 
-The panel has four tabs: Properties, Points, Optimize and Data.
+## Widgets
+
+The panels are widgets: Properties, Points, Optimize, Data and Display. The buttons in the toolbar
+(also View menu, keys 1 to 5) show or hide them. In landscape each open widget is a column right of
+the canvas, in the order they were opened; in portrait they are stacked below the canvas.
+
+At most k widgets are open (Display widget, "Max. open columns", default 2). Opening one more closes
+the one that was clicked least recently (opening a widget or clicking into it counts).
+
+The Display widget sets how things are drawn: point size, line width, colour and opacity of the line
+arrangement, labels, the selected point (size, colour, lines through it), the number of columns and
+the layout (auto/portrait/landscape).
 
 ## Properties
 
-The Properties tab lists the properties you picked with View → Select properties…. All of them
+The Properties widget lists the properties you picked with View → Select properties…. All of them
 depend only on the order type, so they are recomputed only when the order type changes.
 
 | Property | Meaning |
@@ -48,7 +59,7 @@ of the given size).
 
 ## Optimize
 
-All optimizers are in the Optimize tab.
+All optimizers are in the Optimize widget.
 
 Minimize and beautify keep the order type. Both are ports of pyotlib2 (which took them from the old
 pyotlib):
@@ -61,7 +72,7 @@ pyotlib):
   of its allowed range. Beautify 2 optimizes a quality function (no thin triangles, even distances)
   with Nelder-Mead, hull fixed. Each in the pyotlib2 and in the old pyotlib version.
 
-The property optimizers may change the order type. They use the property chosen in the tab:
+The property optimizers may change the order type. They use the property chosen in the widget:
 
 - **Minimize w.r.t. property**: the old `minimizeIntegerCoordinates` (its parameters) with
   `ensure_property`: coordinates shrink and the order type may change as long as the property does
@@ -76,7 +87,7 @@ The property optimizers may change the order type. They use the property chosen 
 
 While a property optimizer runs, a "Searching…" dialog shows the progress and has an Abort button.
 Configurations with an equal value are taken over, worse ones are not. The search stops at the
-first improvement, unless **Loop** is on (in the tab or in the dialog); then it goes on until you
+first improvement, unless **Loop** is on (in the widget or in the dialog); then it goes on until you
 abort.
 
 ## Data

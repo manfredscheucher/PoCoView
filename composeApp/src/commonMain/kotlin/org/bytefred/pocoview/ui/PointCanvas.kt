@@ -54,6 +54,15 @@ class ViewTransform {
         scale = newScale
     }
 
+    /** New canvas size (e.g. a widget column opened or closed): the view keeps its centre. */
+    fun resize(newSize: IntSize) {
+        if (size != IntSize.Zero) {
+            ox += (newSize.width - size.width) / 2.0
+            oy += (newSize.height - size.height) / 2.0
+        }
+        size = newSize
+    }
+
     fun zoomCenter(factor: Double) = zoomAt(Offset(size.width / 2f, size.height / 2f), factor)
 
     fun fit(points: List<Pt>) {
@@ -123,7 +132,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
             .fillMaxSize()
             .clipToBounds()
             .background(MaterialTheme.colorScheme.surface)
-            .onSizeChanged { view.size = it }
+            .onSizeChanged { view.resize(it) }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     var down: Offset? = null
@@ -215,16 +224,21 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
         val scr = pts.map { view.toScreen(it) }
         val sel = state.selected
 
-        if (state.showLines) drawArrangement(scr, sel.takeIf { state.hideSelectedLines }, state.lineColor.copy(alpha = state.lineAlpha), state.lineWidth)
+        if (state.showLines) {
+            val separate = sel.takeIf { state.incidentLines != IncidentLines.NORMAL }
+            drawArrangement(scr, separate, state.lineColor.copy(alpha = state.lineAlpha), state.lineWidth)
+            if (sel != null && sel in scr.indices && state.incidentLines == IncidentLines.HIGHLIGHT)
+                drawIncidentLines(scr, sel, state.incidentLineColor, state.incidentLineWidth)
+        }
 
         if (state.highlight) drawStructures(state, scr)
 
         scr.forEachIndexed { i, s ->
             val r = if (i == sel) state.pointRadius * state.selectedScalePercent / 100f else state.pointRadius
-            val fill = tokenColor(pts[i].color) ?: onSurface
+            val fill = if (i == sel) state.selectedColor else tokenColor(pts[i].color) ?: onSurface
             drawCircle(fill, r, s)
             if (i in state.collinear) drawCircle(Color(0xFFE53935), r + 4f, s, style = Stroke(3f))
-            if (i == sel) drawCircle(Color(0xFFFF9800), r + 5f, s, style = Stroke(3f))
+            if (i == sel) drawCircle(state.selectedColor, r + 5f, s, style = Stroke(3f))
             if (state.showLabels) {
                 drawText(textMeasurer, "$i", s + Offset(r + 2f, -r - 14f), TextStyle(color = onSurface, fontSize = 11.sp))
             }
@@ -248,6 +262,21 @@ private fun DrawScope.drawArrangement(scr: List<Offset>, hidden: Int?, color: Co
             val ext = reach + (a - Offset(size.width / 2, size.height / 2)).getDistance()
             drawLine(color, a - d * ext, b + d * ext, strokeWidth = width)
         }
+    }
+}
+
+/** The lines through point [sel] and every other point. */
+private fun DrawScope.drawIncidentLines(scr: List<Offset>, sel: Int, color: Color, width: Float) {
+    val reach = (size.width + size.height) * 2f
+    val a = scr[sel]
+    for (j in scr.indices) {
+        if (j == sel) continue
+        val b = scr[j]
+        val len = hypot((b.x - a.x).toDouble(), (b.y - a.y).toDouble()).toFloat()
+        if (len < 1e-3f) continue
+        val d = (b - a) / len
+        val ext = reach + (a - Offset(size.width / 2, size.height / 2)).getDistance()
+        drawLine(color, a - d * ext, b + d * ext, strokeWidth = width)
     }
 }
 

@@ -23,9 +23,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +53,7 @@ import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.extent
 import org.bytefred.pocoview.core.smallLambda
+import kotlin.math.roundToInt
 
 /** Second row below the menu bar: editing tools, order type lock, navigation in multi-set files. */
 @Composable
@@ -67,6 +70,12 @@ fun ToolBar(state: AppState) {
         FilterChip(
             selected = state.fixOrderType, onClick = { state.fixOrderType = !state.fixOrderType },
             label = { Text("Lock order type") },
+        )
+        // widget columns: one toggle per widget (keys 1..5)
+        VerticalDivider(Modifier.height(32.dp).align(Alignment.CenterVertically).padding(horizontal = 4.dp))
+        for (w in Widget.entries) FilterChip(
+            selected = w in state.openWidgets, onClick = { state.toggleWidget(w) },
+            label = { Text(w.label) },
         )
         if (state.sets.size > 1) {
             TextButton(onClick = { state.showSet(state.setIndex - 1) }, enabled = state.setIndex > 0) { Text("<") }
@@ -92,24 +101,91 @@ fun StatusBar(state: AppState) {
     }
 }
 
-private enum class Tab(val label: String) { PROPERTIES("Properties"), POINTS("Points"), OPTIMIZE("Optimize"), DATA("Data") }
-
+/** Title row of a widget: its name and a close button. */
 @Composable
-fun ControlPanel(state: AppState, onSelectProperties: () -> Unit, modifier: Modifier = Modifier) {
-    var tab by remember { mutableStateOf(Tab.PROPERTIES) }
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            for (t in Tab.entries) FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(t.label) })
-        }
-        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 4.dp)) {
-            when (tab) {
-                Tab.PROPERTIES -> PropertiesTab(state, onSelectProperties)
-                Tab.POINTS -> PointsTab(state)
-                Tab.OPTIMIZE -> OptimizeTab(state)
-                Tab.DATA -> DataTab(state)
-            }
+fun WidgetHeader(state: AppState, w: Widget) {
+    Row(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(start = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(w.label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+        TextButton(onClick = { state.toggleWidget(w) }) { Text("x") }
+    }
+}
+
+/** The content of a widget (without scrolling; the caller scrolls). */
+@Composable
+fun WidgetContent(state: AppState, w: Widget, onSelectProperties: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
+        when (w) {
+            Widget.PROPERTIES -> PropertiesTab(state, onSelectProperties)
+            Widget.POINTS -> PointsTab(state)
+            Widget.OPTIMIZE -> OptimizeTab(state)
+            Widget.DATA -> DataTab(state)
+            Widget.DISPLAY -> DisplayWidget(state)
         }
     }
+}
+
+/** How points and lines are drawn, the selected point, and the widget columns. */
+@Composable
+private fun DisplayWidget(state: AppState) {
+    Text("Point size: ${state.pointRadius.roundToInt()} px")
+    Slider(state.pointRadius, { state.pointRadius = it }, valueRange = 2f..20f)
+    Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px")
+    Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Line colour", Modifier.weight(1f))
+        ColorChooser(state, state.lineColor) { state.lineColor = it }
+    }
+    Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %")
+    Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
+    SwitchRow("Line arrangement (L)", state.showLines) { state.showLines = it }
+    SwitchRow("Point labels", state.showLabels) { state.showLabels = it }
+    Text(
+        "Line width, colour and opacity apply to the line arrangement; structure outlines are 1.5x as wide. " +
+            "Highlight colours: Select properties…",
+        style = MaterialTheme.typography.bodySmall,
+    )
+
+    Spacer(Modifier.height(12.dp))
+    Text("Selected point", style = MaterialTheme.typography.titleSmall)
+    Text("Size: ${state.selectedScalePercent} % of the point size")
+    Slider(state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() }, valueRange = 100f..400f)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Colour", Modifier.weight(1f))
+        ColorChooser(state, state.selectedColor) { state.selectedColor = it }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Lines through it", Modifier.weight(1f))
+        Dropdown(state.incidentLines.label, IncidentLines.entries, { it.label }) { state.incidentLines = it }
+    }
+    if (state.incidentLines == IncidentLines.HIGHLIGHT) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Their colour", Modifier.weight(1f))
+            ColorChooser(state, state.incidentLineColor) { state.incidentLineColor = it }
+        }
+        Text("Their width: ${(state.incidentLineWidth * 10).roundToInt() / 10.0} px")
+        Slider(state.incidentLineWidth, { state.incidentLineWidth = it }, valueRange = 0.5f..8f)
+    }
+
+    Spacer(Modifier.height(12.dp))
+    Text("Widgets", style = MaterialTheme.typography.titleSmall)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Max. open columns: ${state.maxColumns}", Modifier.weight(1f))
+        TextButton(onClick = { state.changeMaxColumns(state.maxColumns - 1) }, enabled = state.maxColumns > 1) { Text("-") }
+        TextButton(onClick = { state.changeMaxColumns(state.maxColumns + 1) }, enabled = state.maxColumns < Widget.entries.size) { Text("+") }
+    }
+    Text(
+        "Opening one more widget closes the one that was clicked least recently.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Layout", Modifier.weight(1f))
+        Dropdown(state.layoutMode.name.lowercase(), LayoutMode.entries, { it.name.lowercase() }) { state.layoutMode = it }
+    }
+    Spacer(Modifier.height(8.dp))
+    OutlinedButton(onClick = state::resetDisplay) { Text("Defaults") }
 }
 
 @Composable
