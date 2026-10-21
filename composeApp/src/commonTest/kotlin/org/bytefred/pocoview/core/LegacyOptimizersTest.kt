@@ -190,7 +190,7 @@ class LegacyOptimizersTest {
     fun minimizeWithEnsurePropertyMayChangeOrderType() = runTest {
         val r = Random(3)
         val p = List(9) { Pt(r.nextLong(0, 1_000_000), r.nextLong(0, 1_000_000)) }
-        val count: suspend (List<Pt>) -> Long = { CrossingProperty().evaluate(it, null, false, Ticker()).count }
+        val count: suspend (List<Pt>, Ticker) -> Long = { q, t -> CrossingProperty().evaluate(q, null, false, t).count }
         val res = minimizeIntegerCoordinates(p, maxTrials = 2, rnd = Random(1), ensureProperty = count)
         assertTrue(bits(res) < bits(p))
         val keep = minimizeIntegerCoordinates(p, maxTrials = 2, rnd = Random(1))

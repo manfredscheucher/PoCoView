@@ -56,6 +56,8 @@ class ViewTransform {
 
     /** New canvas size (e.g. a widget column opened or closed): the view keeps its centre. */
     fun resize(newSize: IntSize) {
+        // keep the last real size while the canvas is squeezed to nothing
+        if (newSize.width == 0 || newSize.height == 0) return
         if (size != IntSize.Zero) {
             ox += (newSize.width - size.width) / 2.0
             oy += (newSize.height - size.height) / 2.0

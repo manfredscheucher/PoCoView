@@ -2,6 +2,7 @@ package org.bytefred.pocoview.ui
 
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.key
@@ -68,6 +69,7 @@ fun App() {
         // scroll positions survive closing and reopening a widget
         val scrolls = remember { Widget.entries.associateWith { ScrollState(0) } }
         val stackScroll = rememberScrollState()
+        val columnsScroll = rememberScrollState()
 
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
         // they are ignored while a text field has focus
@@ -90,7 +92,7 @@ fun App() {
                             // the canvas is composed inside BoxWithConstraints (subcomposition),
                             // so request the initial focus from here, once it is attached
                             // (again after a widget was opened or closed: keeps the shortcuts working)
-                            LaunchedEffect(state.openWidgets.toList()) { focus.requestFocus() }
+                            LaunchedEffect(state.openWidgets.toList()) { if (state.textFieldsFocused == 0) focus.requestFocus() }
                             PointCanvas(state, view, onInteract = { focus.requestFocus() })
                         }
                     }
@@ -98,16 +100,24 @@ fun App() {
                     val open = state.openWidgets.toList()
                     if (wide) {
                         // the widgets as columns right of the canvas, in opening order
+                        // (if even MIN_COLUMN wide columns do not fit, the columns scroll horizontally)
                         val columnWidth = if (open.isEmpty()) COLUMN_WIDTH
                         else ((maxWidth - MIN_CANVAS) / open.size).coerceIn(MIN_COLUMN, COLUMN_WIDTH)
+                        val area = (maxWidth - MIN_CANVAS).coerceAtLeast(MIN_COLUMN)
+                        val scrollColumns = columnWidth * open.size > area
                         Row(Modifier.fillMaxSize()) {
                             canvas(Modifier.weight(1f).fillMaxHeight())
-                            for (w in open) key(w) {
-                                VerticalDivider()
-                                Column(Modifier.width(columnWidth).fillMaxHeight().touches(state, w)) {
-                                    WidgetHeader(state, w)
-                                    Box(Modifier.weight(1f).verticalScroll(scrolls.getValue(w))) {
-                                        WidgetContent(state, w, selectProperties)
+                            Row(
+                                if (scrollColumns) Modifier.width(area).fillMaxHeight().horizontalScroll(columnsScroll)
+                                else Modifier.fillMaxHeight(),
+                            ) {
+                                for (w in open) key(w) {
+                                    VerticalDivider()
+                                    Column(Modifier.width(columnWidth).fillMaxHeight().touches(state, w)) {
+                                        WidgetHeader(state, w)
+                                        Box(Modifier.weight(1f).verticalScroll(scrolls.getValue(w))) {
+                                            WidgetContent(state, w, selectProperties)
+                                        }
                                     }
                                 }
                             }

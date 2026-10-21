@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.bytefred.pocoview.core.ALL_PROPERTIES
+import org.bytefred.pocoview.core.centeredPoints
 import org.bytefred.pocoview.core.isGeneralPosition
 import org.bytefred.pocoview.core.COORD_LIMIT
 import org.bytefred.pocoview.core.CellHopMinimizer
@@ -135,12 +136,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var tool by mutableStateOf(Tool.MOVE)
     var layoutMode by mutableStateOf(LayoutMode.AUTO)
 
-    /** Implementations and parameters chosen in the Optimize tab (also used by the M / B keys). */
+    /** Implementations and parameters chosen in the Optimize widget (also used by the M / B keys). */
     var minimizeMethod by mutableStateOf(MinimizeMethod.MINIMIZE_COORDS)
     var beautifyMethod by mutableStateOf(BeautifyMethod.BEAUTIFY_COORDS)
     var coordSettings by mutableStateOf(CoordSettings())
 
-    /** qtvis minimizer parameters (Optimize tab; also used by the Enter key). */
+    /** qtvis minimizer parameters (Optimize widget; also used by the Enter key). */
     var cellHopParams by mutableStateOf(CellHopParams())
 
     /** Property search flow (old pyotlib PointWalk etc.) and its parameter values, keyed "flowId.param". */
@@ -149,17 +150,17 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun searchValue(flow: PropertySearchFlow, param: SearchParam): Any = searchValues["${flow.id}.${param.name}"] ?: param.default
 
-    /** Random point set settings (Points tab). */
+    /** Random point set settings (Points widget). */
     var randomN by mutableStateOf(12)
     var randomGrid by mutableStateOf(1000L)
 
-    /** Unapplied edit of the coordinate list (Data tab); null = shows the current points. */
+    /** Unapplied edit of the coordinate list (Data widget); null = shows the current points. */
     var coordinatesDraft by mutableStateOf<String?>(null)
 
     /** Number of focused text fields: keyboard shortcuts are off while one has focus. */
     var textFieldsFocused by mutableIntStateOf(0)
 
-    /** Property chosen in the Optimize tab (walk, qtvis minimizer, Enter key). */
+    /** Property chosen in the Optimize widget (walk, qtvis minimizer, Enter key). */
     var optimizeProperty by mutableStateOf("hole5")
 
     /** View settings: point radius (px), selected point size relative to normal (%), line width (px). */
@@ -500,7 +501,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         recompute()
     }
 
-    /** Show (and compute) a property in the Properties tab or not. */
+    /** Show (and compute) a property in the Properties widget or not. */
     fun setShown(id: String, shown: Boolean) {
         val t = toggles[id] ?: return
         if (t.count != shown) setToggle(id, t.copy(count = shown))
@@ -684,13 +685,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val cfg = coordSettings
         val label = "Minimize w.r.t. ${prop.label}"
         runOperation("$label…", "Minimizing coordinates") { start, update ->
-            val count: suspend (List<Pt>) -> Long = { prop.evaluate(it, null, false, Ticker()).count }
+            // the minimizer's ticker, so a long run of rejected moves still yields (web) and can be aborted
+            val count: suspend (List<Pt>, Ticker) -> Long = { p, t -> prop.evaluate(p, null, false, t).count }
             val bitsBefore = bitsOf(start)
             val countBefore = evaluate(prop, start, null, false).count
             var cur = start
             var curCount = countBefore
             var round = 0
             var undone = 0
+            var rejected = 0
             do {
                 round++
                 progress = "run $round, ${bitsOf(cur)} bits, ${prop.label} = $curCount (start $bitsBefore bits, $countBefore)"
@@ -701,18 +704,22 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                         minimizeDiameter = cfg.minimizeDiameter, symmetric = cfg.symmetric, ensureProperty = count,
                     )
                 }
-                val ok = r.all { it.inRange() } && isGeneralPosition(r)
-                val rCount = if (ok) evaluate(prop, r, null, false).count else null
-                if (rCount == null || rCount > curCount) {
+                // the result comes back normalized: centred it fits into ±2^29 whenever possible
+                val rc = centeredPoints(r)?.takeIf { isGeneralPosition(it) }
+                val rCount = rc?.let { evaluate(prop, it, null, false).count }
+                if (rc == null || rCount == null) {
+                    rejected++ // collinear or too large
+                } else if (rCount > curCount) {
                     undone++ // worse -> undo
-                } else if (r != cur) {
-                    cur = r; curCount = rCount; update(r); requestFit()
+                } else if (rc != cur) {
+                    cur = rc; curCount = rCount; update(rc); requestFit()
                 }
                 yield()
             } while (loop)
             message = when {
                 cur != start -> "$label: bits $bitsBefore → ${bitsOf(cur)}, ${prop.label} $countBefore → $curCount"
                 undone > 0 -> "$label: result was worse, undone"
+                rejected > 0 -> "$label: result had collinear points or was too large, undone"
                 else -> "$label: no change"
             }
         }

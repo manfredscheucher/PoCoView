@@ -453,7 +453,7 @@ private fun DataTab(state: AppState) {
     Spacer(Modifier.height(8.dp))
     Text("Coordinates (edit and apply; one 'x y' per line)", style = MaterialTheme.typography.titleSmall)
     val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
-    // the draft lives in the state, so switching tabs does not lose an unapplied edit
+    // the draft lives in the state, so closing the widget does not lose an unapplied edit
     val draft = state.coordinatesDraft
     OutlinedTextField(
         draft ?: current, onValueChange = { state.coordinatesDraft = it },

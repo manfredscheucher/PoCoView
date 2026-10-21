@@ -186,7 +186,7 @@ private class MinimizerState(
     val rnd: Random,
     val ticker: Ticker,
     /** ensure_property: counting function (lower = better), or null = keep the order type. */
-    val ensureProperty: (suspend (List<Pt>) -> Long)? = null,
+    val ensureProperty: (suspend (List<Pt>, Ticker) -> Long)? = null,
     /** counting_function(BL): the count of the start configuration. */
     val propertyThreshold: Long = 0,
 ) {
@@ -215,19 +215,24 @@ private suspend fun isValidPointSet(st: MinimizerState, ps: Pts, i: Int): Boolea
     if (!ps.pointWithin(i, WIDE_LIMIT)) return false
     if (sameOtAsBl(st, ps, i)) return true
     val ensure = st.ensureProperty ?: return false
-    if (hasCollinearPointsWide(ps)) return false
+    if (hasCollinearPointsWide(ps, st.ticker)) return false
     val centered = centeredWithin(ps, COORD_LIMIT) ?: return false
-    return ensure(centered) <= st.propertyThreshold
+    return ensure(centered, st.ticker) <= st.propertyThreshold
 }
 
-private suspend fun hasCollinearPointsWide(ps: Pts): Boolean {
+private suspend fun hasCollinearPointsWide(ps: Pts, ticker: Ticker): Boolean {
     for (a in 0 until ps.n) for (b in a + 1 until ps.n) {
+        ticker.tick(ps.n.toLong())
         for (c in b + 1 until ps.n) if (ps.orientation(a, b, c) == 0) return true
     }
     return false
 }
 
 /** The points translated so that their bounding box is centered at 0, or null if they then exceed ±[limit]. */
+/** [points] translated to their bounding box centre (colours kept), or null if they then exceed ±[COORD_LIMIT]. */
+fun centeredPoints(points: List<Pt>): List<Pt>? =
+    centeredWithin(Pts.of(points), COORD_LIMIT)?.mapIndexed { i, q -> Pt(q.x, q.y, points[i].color) }
+
 private fun centeredWithin(ps: Pts, limit: Long): List<Pt>? {
     val cx = ps.x.min() + (ps.x.max() - ps.x.min()) / 2
     val cy = ps.y.min() + (ps.y.max() - ps.y.min()) / 2
@@ -417,7 +422,7 @@ suspend fun minimizeIntegerCoordinates(
     symmetric: Int = 0,
     rnd: Random = Random.Default,
     ticker: Ticker = Ticker(),
-    ensureProperty: (suspend (List<Pt>) -> Long)? = null,
+    ensureProperty: (suspend (List<Pt>, Ticker) -> Long)? = null,
 ): List<Pt> {
     val colors = points.map { it.color }
     return minimizeIntegerCoordinates(
@@ -428,7 +433,7 @@ suspend fun minimizeIntegerCoordinates(
 private suspend fun minimizeIntegerCoordinates(
     ps0: Pts, maxTrials: Int, randomize: Int, tolerance0: Int, sheering: Boolean,
     minimizeDiameter: Boolean, symmetric: Int, rnd: Random, ticker: Ticker,
-    ensureProperty: (suspend (List<Pt>) -> Long)?,
+    ensureProperty: (suspend (List<Pt>, Ticker) -> Long)?,
 ): Pts {
     val tolerance: Long? = if (tolerance0 == 0) null else tolerance0.toLong()
     val quality: (Pts) -> Long = if (minimizeDiameter) { p -> p.diameter() } else { p -> p.bits().toLong() }
@@ -443,7 +448,7 @@ private suspend fun minimizeIntegerCoordinates(
 
     val bl = wideOrientations(ps)
     val threshold = ensureProperty?.let { f ->
-        f(requireNotNull(centeredWithin(ps, COORD_LIMIT)) { "coordinates exceed 2^29" })
+        f(requireNotNull(centeredWithin(ps, COORD_LIMIT)) { "coordinates exceed 2^29" }, ticker)
     } ?: 0L
     val st = MinimizerState(bl, lambdaOf(ps)!!, rnd, ticker, ensureProperty, threshold)
 

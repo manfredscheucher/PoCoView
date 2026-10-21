@@ -47,7 +47,7 @@ import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
 
-/** Which dialog is open (the menu bar and the properties tab open them). */
+/** Which dialog is open (the menu bar and the properties widget open them). */
 enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, SAVE }
 
 @Composable
@@ -286,7 +286,7 @@ fun parseHexColor(s: String): Color? {
     return Color(0xFF000000 or v)
 }
 
-/** Choose which properties are shown (and computed) in the Properties tab; grouped in columns. */
+/** Choose which properties are shown (and computed) in the Properties widget; grouped in columns. */
 @Composable
 private fun PropertyPicker(state: AppState, close: () -> Unit) {
     val groups = listOf(
