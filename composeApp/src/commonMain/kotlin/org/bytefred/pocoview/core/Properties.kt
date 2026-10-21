@@ -23,7 +23,14 @@ data class PropertyResult(
  * [evaluate]: with [selected] set ("incident only"), the result also counts the structures
  * containing that point, and only those are returned as structures.
  */
-abstract class PropertyDef(val id: String, val label: String, val hasStructures: Boolean, val maxN: Int = 1000) {
+abstract class PropertyDef(
+    val id: String,
+    val label: String,
+    val hasStructures: Boolean,
+    val maxN: Int = 1000,
+    /** structures are drawn emphasized (red and bold) */
+    val emphasized: Boolean = false,
+) {
     abstract suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult
 }
 
@@ -104,6 +111,22 @@ class ExitEdgeProperty : PropertyDef("exitedges", "Exit edges", true) {
     }
 }
 
+/**
+ * Crossing family (see [crossingFamilies]): count = maximum size cf(S); drawn as the segments of
+ * one maximum family. With a selected point: the maximum family containing a segment incident to it.
+ */
+class CrossingFamilyProperty : PropertyDef("crossfam", "Crossing family", true, maxN = CROSSING_FAMILY_MAX_N, emphasized = true) {
+    override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult {
+        val f = crossingFamilies(p, selected, ticker)
+        val shown = f.incident ?: f.maximum
+        return PropertyResult(
+            count = f.maximum.size.toLong(),
+            incident = f.incident?.size?.toLong(),
+            structures = listOf(Structure(shown.flatMap { listOf(it.first, it.second) }.toIntArray(), Shape.SEGMENTS)),
+        )
+    }
+}
+
 class TriangulationProperty : PropertyDef("triangulations", "Triangulations", false, maxN = 16) {
     override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker) =
         PropertyResult(countTriangulations(p, ticker))
@@ -115,6 +138,7 @@ val ALL_PROPERTIES: List<PropertyDef> = buildList {
     add(OnionProperty())
     add(CrossingProperty())
     add(ExitEdgeProperty())
+    add(CrossingFamilyProperty())
     for (k in 3..7) add(PolygonProperty(k, emptyOnly = true))
     for (k in 4..7) add(PolygonProperty(k, emptyOnly = false))
     add(TriangulationProperty())

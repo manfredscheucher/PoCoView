@@ -5,10 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import org.bytefred.pocoview.core.CellHopParams
-import org.bytefred.pocoview.core.PointFormat
+import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.orderTypeSignature
-import org.bytefred.pocoview.core.writePointSets
+import org.bytefred.pocoview.core.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,7 +22,9 @@ class AppStateTest {
 
     private fun state() = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
-    private fun AppState.load(p: List<Pt>) = open("t.asc", writePointSets(PointFormat.ASC, listOf(p)))
+    private fun AppState.load(p: List<Pt>) = open("t.txt", writeText(p, countLine = true).encodeToByteArray())
+
+    private fun twoSets() = (writeText(square, true) + writeText(pentagon, true)).encodeToByteArray()
 
     private fun AppState.done(id: String) = assertIs<PropState.Done>(results[id], "$id: ${results[id]}").result
 
@@ -90,25 +92,16 @@ class AppStateTest {
     }
 
     @Test
-    fun multiSetFileNavigationAndSaveAll() {
+    fun multiSetFileNavigationKeepsEdits() {
         val s = state()
-        s.open("two.asc", writePointSets(PointFormat.ASC, listOf(square, pentagon)))
+        s.open("two.asc", twoSets())
         assertEquals(2, s.sets.size)
         s.showSet(1)
         assertEquals(pentagon, s.points)
         s.beginDrag(0)
         s.dragTo(0, Pt(1, 0))
         s.showSet(0)
-        val all = s.encode(PointFormat.ASC, allSets = true)!!.decodeToString()
-        assertTrue(all.contains("1 0\n"), "edited set 2 must be saved: $all")
-    }
-
-    @Test
-    fun saveOutOfRangeBinaryGivesMessage() {
-        val s = state()
-        s.load(listOf(Pt(0, 0), Pt(1000, 0), Pt(0, 1000)))
-        assertNull(s.encode(PointFormat.PB08, allSets = false))
-        assertTrue(s.message!!.contains("does not fit"))
+        assertEquals(Pt(1, 0), s.sets[1][0], "edited set 2 must be kept")
     }
 
     @Test
@@ -145,7 +138,7 @@ class AppStateTest {
     fun undoDoesNotCrossSets() {
         // regression: undo after "next" restored set 0 into set 1
         val s = state()
-        s.open("two.asc", writePointSets(PointFormat.ASC, listOf(square, pentagon)))
+        s.open("two.asc", twoSets())
         s.beginDrag(0)
         s.dragTo(0, Pt(1, 0))
         s.showSet(1)
@@ -169,17 +162,19 @@ class AppStateTest {
     }
 
     @Test
-    fun binarySaveNameReadsBack() {
+    fun binaryLoadThenSaveReadsBack() {
         val s = state()
-        s.open("otypes04.b08", writePointSets(PointFormat.PB08, listOf(square, square)))
+        // two 4-point sets, one byte per coordinate
+        s.open("otypes04.b08", ByteArray(16) { listOf(0, 0, 10, 0, 10, 10, 0, 10)[it % 8].toByte() })
+        assertEquals(listOf(square, square), s.sets)
         s.addPoint(Pt(5, 3))
-        val name = s.saveName(PointFormat.PB08)
-        val bytes = s.encode(PointFormat.PB08, allSets = false)!!
-        val back = state()
-        back.open(name, bytes)
-        assertEquals(s.points, back.points)
-        // sets with different n cannot share one binary file
-        assertNull(s.encode(PointFormat.PB08, allSets = true))
+        for (fmt in ExportFormat.entries) {
+            val name = s.saveName(fmt)
+            assertEquals("otypes04.${fmt.extension}", name)
+            val back = state()
+            back.open(name, s.exportText(fmt, countLine = true).encodeToByteArray())
+            assertEquals(s.points, back.points)
+        }
     }
 
     @Test

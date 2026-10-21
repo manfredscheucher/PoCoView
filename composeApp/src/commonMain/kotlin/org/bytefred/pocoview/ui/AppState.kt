@@ -25,6 +25,7 @@ import org.bytefred.pocoview.core.CellHopMinimizer
 import org.bytefred.pocoview.core.CellHopParams
 import org.bytefred.pocoview.core.FormatException
 import org.bytefred.pocoview.core.PROPERTY_SEARCH_FLOWS
+import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.PointFormat
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.PropertyResult
@@ -40,18 +41,18 @@ import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
 import org.bytefred.pocoview.core.extent
-import org.bytefred.pocoview.core.importPointSets
+import org.bytefred.pocoview.core.exportPointSet
+import org.bytefred.pocoview.core.importPointSet
 import org.bytefred.pocoview.core.inRange
 import org.bytefred.pocoview.core.minimizeCoords
 import org.bytefred.pocoview.core.minimizeIntegerCoordinates
 import org.bytefred.pocoview.core.minimizePatternSearch
 import org.bytefred.pocoview.core.orderTypeSignature
 import org.bytefred.pocoview.core.randomPointSet
-import org.bytefred.pocoview.core.readAsc
 import org.bytefred.pocoview.core.readPointSets
+import org.bytefred.pocoview.core.readText
 import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
-import org.bytefred.pocoview.core.writePointSets
 import kotlin.random.Random
 
 /** Implementations of "Minimize coordinates" (M); all keep the labeled order type. */
@@ -413,7 +414,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** Replaces all points by the parsed text (`x y` per line, optional count header). */
     fun applyCoordinatesText(text: String) {
         try {
-            val p = readAsc(text).singleOrNull() ?: throw FormatException("Expected exactly one point set")
+            val p = readText(text)
             if (p.any { !it.inRange() }) throw FormatException("Coordinates exceed ±$COORD_LIMIT")
             cancelOperation()
             selected = null
@@ -439,9 +440,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
     }
 
-    /** Import dialog: pasted content in the chosen format. Returns an error message, or null on success. */
-    fun import(format: PointFormat, text: String, n: Int?): String? = try {
-        load("imported.${format.extension}", importPointSets(format, text, n))
+    /** Import dialog: pasted content, format detected. Returns an error message, or null on success. */
+    fun import(text: String): String? = try {
+        load("imported", listOf(importPointSet(text)))
         null
     } catch (e: Exception) {
         e.message ?: "Cannot parse the content"
@@ -477,23 +478,27 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (setIndex in sets.indices) sets = sets.toMutableList().also { it[setIndex] = points }
     }
 
-    /** Suggested file name for saving; for binary formats it encodes n so the file can be read back. */
-    fun saveName(format: PointFormat): String = saveFileName(fileName, points.size, format)
+    /** Suggested file name for saving. */
+    fun saveName(format: ExportFormat): String = saveFileName(fileName, format)
 
-    /** Encodes the current set (or all sets of the file) for saving; null + message on error. */
+    /** The current set as export / file content. */
+    fun exportText(format: ExportFormat, countLine: Boolean): String = exportPointSet(points, format, countLine)
+
+    // Transitional until Menus.kt uses import(text), saveName(ExportFormat), exportText; then remove.
+    @Deprecated("use import(text)")
+    fun import(format: PointFormat, text: String, n: Int?): String? = import(text)
+
+    @Deprecated("use saveName(ExportFormat)")
+    fun saveName(format: PointFormat): String = saveName(if (format == PointFormat.JSON) ExportFormat.JSON else ExportFormat.TXT)
+
+    @Deprecated("use exportText")
     fun encode(format: PointFormat, allSets: Boolean): ByteArray? {
-        storeCurrentSet()
-        val out = if (allSets) sets else listOf(points)
-        if (format.isBinary && out.map { it.size }.distinct().size > 1) {
-            message = "Binary formats need all sets to have the same n; save the sets one by one or as .asc"
+        if (format.isBinary) {
+            message = "Binary formats can only be loaded"
             return null
         }
-        return try {
-            writePointSets(format, out)
-        } catch (e: FormatException) {
-            message = e.message
-            null
-        }
+        val fmt = if (format == PointFormat.JSON) ExportFormat.JSON else ExportFormat.TXT
+        return exportText(fmt, countLine = true).encodeToByteArray()
     }
 
     // ---- properties ------------------------------------------------------------------
