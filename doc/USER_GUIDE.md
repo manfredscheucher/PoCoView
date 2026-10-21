@@ -75,7 +75,7 @@ until you press Abort in the progress dialog. A whole run is one undo step.
 
 ## Data
 
-The coordinates as text, one `x y` per line. Edit them and press Apply, or Revert to go back. Below
+The coordinates as text, one `x y` or `x y color` per line. Edit them and press Apply, or Revert to go back. Below
 are the λ matrix (λ[i][j] = number of points left of i->j) and the order type hash.
 
 ## Point Set menu

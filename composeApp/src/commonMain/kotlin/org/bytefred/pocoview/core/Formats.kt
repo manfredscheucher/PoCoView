@@ -19,10 +19,7 @@ enum class PointFormat(val extension: String, val binaryBytes: Int = 0) {
     val isBinary get() = binaryBytes > 0
 
     companion object {
-        @Deprecated("Transitional until Menus.kt uses ExportFormat / importPointSet; then remove", ReplaceWith("TXT"))
-        val ASC = TXT
-
-        fun forFileName(name: String): PointFormat? =
+                fun forFileName(name: String): PointFormat? =
             when (name.substringAfterLast('.', "").lowercase()) {
                 "txt", "asc", "psz" -> TXT
                 "json" -> JSON
@@ -35,7 +32,10 @@ enum class PointFormat(val extension: String, val binaryBytes: Int = 0) {
 }
 
 /** File name extensions accepted when loading a file. */
-val LOAD_EXTENSIONS = listOf("json", "txt", "asc", "psz", "b08", "b16", "b32")
+val LOAD_EXTENSIONS = listOf("json", "txt", "asc", "psz", "b08", "b16", "b32", "pb08", "pb16", "pb32")
+
+/** A colour token survives the text format: one word, no separators. */
+fun isColorToken(s: String): Boolean = s.isNotEmpty() && !Regex("[\\s,;]").containsMatchIn(s)
 
 /** Formats for export and saving. */
 enum class ExportFormat(val extension: String) { JSON("json"), TXT("txt") }
@@ -165,7 +165,9 @@ fun readJson(text: String): List<Pt> {
         val c = v as? List<*>
         val ok = c != null && c.size in 2..3 && c[0] is Long && c[1] is Long && (c.size == 2 || c[2] is String)
         if (!ok) throw FormatException("JSON: point ${i + 1} must be [x, y] or [x, y, \"color\"] with integers x, y")
-        Pt(c!![0] as Long, c[1] as Long, c.getOrNull(2) as String?)
+        val color = c!!.getOrNull(2) as String?
+        if (color != null && !isColorToken(color)) throw FormatException("JSON: point ${i + 1}: colour must be one word (no spaces, ',' or ';')")
+        Pt(c[0] as Long, c[1] as Long, color)
     }
 }
 

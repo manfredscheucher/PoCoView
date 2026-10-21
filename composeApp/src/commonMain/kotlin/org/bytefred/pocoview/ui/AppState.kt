@@ -396,17 +396,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun deleteSelected() = selected?.let(::deletePoint)
 
+    /** Random set error for these parameters, or null if they are fine. */
+    fun randomSetError(n: Int, size: Long): String? =
+        if (n !in 1..200 || size !in 2..COORD_LIMIT) "n must be 1..200, grid 2..$COORD_LIMIT" else null
+
+    /** Replaces the point set (and the file context) by a random set in general position. */
     fun randomSet(n: Int, size: Long) {
-        if (n !in 1..200 || size !in 2..COORD_LIMIT) {
-            message = "Random set: n must be 1..200, grid size 2..$COORD_LIMIT"
-            return
-        }
+        randomSetError(n, size)?.let { message = "Random set: $it"; return }
         try {
-            val p = randomPointSet(n, size)
-            cancelOperation()
-            selected = null
-            setPoints(p)
-            requestFit()
+            load("random", listOf(randomPointSet(n, size)))
         } catch (e: IllegalStateException) {
             message = e.message
         }
@@ -439,14 +437,6 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         } catch (e: Exception) {
             message = "Cannot open $name: ${e.message}"
         }
-    }
-
-    /** Import dialog: pasted content, format detected. Returns an error message, or null on success. */
-    fun import(text: String): String? = try {
-        load("imported", listOf(importPointSet(text)))
-        null
-    } catch (e: Exception) {
-        e.message ?: "Cannot parse the content"
     }
 
     /** An action that replaces the point set, waiting for the user's confirmation (dialog). */
@@ -672,6 +662,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     fun minimizeWrtProperty(repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
+        if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
+        if (points.size < 3) { message = "Need at least 3 points"; return }
         val cfg = wrtSettings
         loop = repeat
         val label = "Minimize w.r.t. ${prop.label}"

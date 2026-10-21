@@ -29,6 +29,7 @@ fun jsonString(s: String): String = buildString {
 
 private class JsonParser(val s: String) {
     var i = 0
+    private var depth = 0
 
     fun skipWs() { while (i < s.length && s[i].isWhitespace()) i++ }
 
@@ -38,14 +39,20 @@ private class JsonParser(val s: String) {
         skipWs()
         if (i >= s.length) fail("unexpected end")
         return when (val c = s[i]) {
-            '{' -> obj()
-            '[' -> arr()
+            '{' -> nested { obj() }
+            '[' -> nested { arr() }
             '"' -> str()
             't' -> literal("true", true)
             'f' -> literal("false", false)
             'n' -> literal("null", null)
             else -> if (c == '-' || c.isDigit()) num() else fail("unexpected character '$c'")
         }
+    }
+
+    /** Nesting limit, so deeply nested input fails with a message instead of a stack overflow. */
+    private inline fun <T> nested(f: () -> T): T {
+        if (++depth > MAX_DEPTH) fail("nested deeper than $MAX_DEPTH levels")
+        try { return f() } finally { depth-- }
     }
 
     private fun literal(word: String, v: Any?): Any? {
@@ -111,8 +118,9 @@ private class JsonParser(val s: String) {
                         'r' -> b.append('\r')
                         't' -> b.append('\t')
                         'u' -> {
-                            if (i + 4 > s.length) fail("bad \\u escape")
-                            b.append(s.substring(i, i + 4).toIntOrNull(16)?.toChar() ?: fail("bad \\u escape"))
+                            val hex = if (i + 4 <= s.length) s.substring(i, i + 4) else ""
+                            if (hex.length != 4 || !hex.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) fail("bad \\u escape")
+                            b.append(hex.toInt(16).toChar())
                             i += 4
                         }
                         else -> fail("bad escape '\\$e'")
@@ -128,6 +136,7 @@ private class JsonParser(val s: String) {
         val start = i
         if (s[i] == '-') i++
         if (i >= s.length || !s[i].isDigit()) fail("bad number")
+        if (s[i] == '0' && i + 1 < s.length && s[i + 1].isDigit()) fail("leading zero")
         while (i < s.length && s[i].isDigit()) i++
         var integer = true
         if (i < s.length && s[i] == '.') {
@@ -143,3 +152,5 @@ private class JsonParser(val s: String) {
         return if (integer) t.toLongOrNull() ?: fail("integer out of range") else t.toDoubleOrNull() ?: fail("bad number")
     }
 }
+
+private const val MAX_DEPTH = 64

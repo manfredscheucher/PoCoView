@@ -261,8 +261,9 @@ fun NumberField(
     OutlinedTextField(
         text,
         onValueChange = { v ->
-            text = v.filter { it.isDigit() || (decimal && it == '.') }.take(10)
-            if (text.toDoubleOrNull() != null) onValue(text)
+            // at most 9 digits: every integer field value fits into an Int
+            text = v.filter { it.isDigit() || (decimal && it == '.') }.take(if (decimal) 10 else 9)
+            if (if (decimal) text.toDoubleOrNull() != null else text.toIntOrNull() != null) onValue(text)
         },
         label = { Text(label) }, singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),

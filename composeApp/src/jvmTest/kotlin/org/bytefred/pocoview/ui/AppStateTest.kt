@@ -340,4 +340,27 @@ class AppStateTest {
         assertEquals("x 0…5, y -2…7", rangeText(listOf(Pt(0, -2), Pt(5, 7))))
         assertEquals("-", rangeText(emptyList()))
     }
+
+    @Test
+    fun randomReplacesTheFileContext() {
+        val s = state()
+        s.open("two.asc", twoSets())
+        assertEquals(2, s.sets.size)
+        s.randomSet(8, 1000)
+        assertEquals(1, s.sets.size)
+        assertEquals(8, s.points.size)
+        assertEquals("random", s.fileName)
+        assertFalse(s.canUndo)
+        assertTrue(s.randomSetError(0, 1000) != null)
+    }
+
+    @Test
+    fun wrtPropertyRespectsMaxN() {
+        val s = state()
+        s.loadPoints("h", org.bytefred.pocoview.core.HortonFamily.generate(64))
+        s.optimizeProperty = "triangulations"
+        s.minimizeWrtProperty()
+        assertNull(s.busy)
+        assertTrue(s.message!!.contains("n >"), s.message)
+    }
 }

@@ -53,7 +53,8 @@ private suspend fun readExampleFile(file: String): String = Res.readBytes(EXAMPL
 private fun point(v: Any?, file: String): Pt {
     val c = v as? List<*>
     val ok = c != null && (c.size == 2 || (c.size == 3 && c[2] is String)) && c[0] is Long && c[1] is Long
-    if (!ok) throw FormatException("$file: expected a point [x, y] or [x, y, \"color\"], got $v")
+    if (!ok || (c!!.getOrNull(2) as String?)?.let { !isColorToken(it) } == true)
+        throw FormatException("$file: expected a point [x, y] or [x, y, \"color\"] (colour one word), got $v")
     return Pt(c[0] as Long, c[1] as Long, c.getOrNull(2) as String?)
 }
 

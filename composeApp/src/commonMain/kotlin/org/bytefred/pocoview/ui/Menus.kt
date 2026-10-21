@@ -281,20 +281,29 @@ n, then n lines: x y [color]
 lines: x y [color]"""
 
 @Composable
-private fun RandomDialog(state: AppState, close: () -> Unit) = AlertDialog(
-    onDismissRequest = close,
-    confirmButton = {
-        TextButton(onClick = { state.confirmReplace { state.randomSet(state.randomN, state.randomGrid); close() } }) { Text("Generate") }
-    },
-    dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
-    title = { Text("Random point set") },
-    text = {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt() }, Modifier.width(90.dp))
-            NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong() }, Modifier.width(130.dp))
-        }
-    },
-)
+private fun RandomDialog(state: AppState, close: () -> Unit) {
+    var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = close,
+        confirmButton = {
+            TextButton(onClick = {
+                error = state.randomSetError(state.randomN, state.randomGrid)
+                if (error == null) state.confirmReplace { state.randomSet(state.randomN, state.randomGrid); close() }
+            }) { Text("Generate") }
+        },
+        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+        title = { Text("Random point set") },
+        text = {
+            Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt(); error = null }, Modifier.width(90.dp))
+                    NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong(); error = null }, Modifier.width(130.dp))
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+    )
+}
 
 /** Bundled example sets (groups) and the generated families. */
 @Composable
@@ -343,18 +352,20 @@ private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
 @Composable
 private fun FamilyRow(state: AppState, f: PointSetFamily, close: () -> Unit) {
     var n by remember { mutableStateOf(16) }
+    var error by remember { mutableStateOf<String?>(null) }
     Column(Modifier.padding(vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(f.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            NumberField(state, "n", n.toString(), { n = it.toInt() }, Modifier.width(90.dp))
+            NumberField(state, "n", n.toString(), { n = it.toInt(); error = null }, Modifier.width(90.dp))
             OutlinedButton(onClick = {
-                if (n !in 1..f.maxN) state.message = "${f.name}: n must be 1..${f.maxN}"
+                if (n !in 1..f.maxN) error = "n must be 1..${f.maxN}"
                 else {
                     val size = f.size(n)
                     state.confirmReplace { state.loadPoints("${f.id}_n$size", f.generate(n)); close() }
                 }
             }) { Text("Generate") }
         }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text(f.description, style = MaterialTheme.typography.bodySmall)
         for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
     }
