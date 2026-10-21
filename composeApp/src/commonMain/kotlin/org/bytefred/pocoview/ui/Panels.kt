@@ -130,15 +130,15 @@ fun WidgetContent(state: AppState, w: Widget, onSelectProperties: () -> Unit) {
 /** How points and lines are drawn, the selected point, and the widget columns. */
 @Composable
 private fun DisplayWidget(state: AppState) {
-    Text("Point size: ${state.pointRadius.roundToInt()} px")
+    Text("Point size: ${state.pointRadius.roundToInt()} px", style = MaterialTheme.typography.bodyMedium)
     Slider(state.pointRadius, { state.pointRadius = it }, valueRange = 2f..20f)
-    Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px")
+    Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px", style = MaterialTheme.typography.bodyMedium)
     Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Line colour", Modifier.weight(1f))
+        Text("Line colour", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         ColorChooser(state, state.lineColor) { state.lineColor = it }
     }
-    Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %")
+    Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %", style = MaterialTheme.typography.bodyMedium)
     Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
     SwitchRow("Line arrangement (L)", state.showLines) { state.showLines = it }
     SwitchRow("Point labels", state.showLabels) { state.showLabels = it }
@@ -150,29 +150,29 @@ private fun DisplayWidget(state: AppState) {
 
     Spacer(Modifier.height(12.dp))
     Text("Selected point", style = MaterialTheme.typography.titleSmall)
-    Text("Size: ${state.selectedScalePercent} % of the point size")
+    Text("Size: ${state.selectedScalePercent} % of the point size", style = MaterialTheme.typography.bodyMedium)
     Slider(state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() }, valueRange = 100f..400f)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Colour", Modifier.weight(1f))
+        Text("Colour", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         ColorChooser(state, state.selectedColor) { state.selectedColor = it }
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Lines through it", Modifier.weight(1f))
+        Text("Lines through it", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Dropdown(state.incidentLines.label, IncidentLines.entries, { it.label }) { state.incidentLines = it }
     }
     if (state.incidentLines == IncidentLines.HIGHLIGHT) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Their colour", Modifier.weight(1f))
+            Text("Their colour", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             ColorChooser(state, state.incidentLineColor) { state.incidentLineColor = it }
         }
-        Text("Their width: ${(state.incidentLineWidth * 10).roundToInt() / 10.0} px")
+        Text("Their width: ${(state.incidentLineWidth * 10).roundToInt() / 10.0} px", style = MaterialTheme.typography.bodyMedium)
         Slider(state.incidentLineWidth, { state.incidentLineWidth = it }, valueRange = 0.5f..8f)
     }
 
     Spacer(Modifier.height(12.dp))
     Text("Widgets", style = MaterialTheme.typography.titleSmall)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Max. open columns: ${state.maxColumns}", Modifier.weight(1f))
+        Text("Max. open columns: ${state.maxColumns}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         TextButton(onClick = { state.changeMaxColumns(state.maxColumns - 1) }, enabled = state.maxColumns > 1) { Text("-") }
         TextButton(onClick = { state.changeMaxColumns(state.maxColumns + 1) }, enabled = state.maxColumns < Widget.entries.size) { Text("+") }
     }
@@ -181,7 +181,7 @@ private fun DisplayWidget(state: AppState) {
         style = MaterialTheme.typography.bodySmall,
     )
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Layout", Modifier.weight(1f))
+        Text("Layout", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Dropdown(state.layoutMode.name.lowercase(), LayoutMode.entries, { it.name.lowercase() }) { state.layoutMode = it }
     }
     Spacer(Modifier.height(8.dp))
