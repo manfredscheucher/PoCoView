@@ -1,10 +1,12 @@
 {
   "name": "n15-c1-9-convex-5-holes",
-  "description": "Set of 15 points with 9 convex 5-holes.",
-  "reference": "From: Oswin",
-  "url": null,
-  "source": "https://www.eurogiga-compose.eu/posezo/n15_c1_9_convex_5_holes/n15_c1_9_convex_5_holes.psz",
+  "n": 15,
+  "colors": 1,
   "group": "Singletons",
+  "description": "Set of 15 points with 9 convex 5-holes.",
+  "reference": "Found by Oswin Aichholzer (unpublished), collected on PoSeZo",
+  "url": "https://www.eurogiga-compose.eu/posezo.php",
+  "source": "https://www.eurogiga-compose.eu/posezo/n15_c1_9_convex_5_holes/n15_c1_9_convex_5_holes.psz",
   "points": [
     [0, 62035],
     [65280, 65280],

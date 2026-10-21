@@ -11,6 +11,8 @@ data class Example(
     val reference: String?,
     val url: String?,
     val points: List<Pt>,
+    /** Optional remark, e.g. "same order type as …". */
+    val note: String? = null,
 )
 
 /** A group of examples as listed in files/examples/index.json. */
@@ -44,7 +46,13 @@ fun parseExample(text: String, file: String): Example {
         reference = o.optString("reference", file),
         url = o.optString("url", file),
         points = o.list("points", file).map { point(it, file) },
-    )
+        note = o.optString("note", file),
+    ).also {
+        // the metadata must match the points (names follow n<N>-c<colors>-<description>)
+        val n = o["n"] as? Long
+        if (n != null && n != it.points.size.toLong()) throw FormatException("$file: \"n\" is $n, but there are ${it.points.size} points")
+        if (!Regex("n${it.points.size}-c[0-9]+-[a-z0-9-]+").matches(it.name)) throw FormatException("$file: name '${it.name}' does not follow n<N>-c<colors>-<description>")
+    }
 }
 
 @OptIn(ExperimentalResourceApi::class)

@@ -1,10 +1,12 @@
 {
   "name": "n12-c1-min-crossing-number-153",
-  "description": "Unique set of 12 points minimizing the rectilinear crossing number.",
-  "reference": null,
-  "url": null,
-  "source": "https://www.eurogiga-compose.eu/posezo/n12_c1_min_crossing_number_153/n12_c1_min_crossing_number_153.psz",
+  "n": 12,
+  "colors": 1,
   "group": "Singletons",
+  "description": "Unique set of 12 points minimizing the rectilinear crossing number.",
+  "reference": "PoSeZo",
+  "url": "https://www.eurogiga-compose.eu/posezo.php",
+  "source": "https://www.eurogiga-compose.eu/posezo/n12_c1_min_crossing_number_153/n12_c1_min_crossing_number_153.psz",
   "points": [
     [13290, 30827],
     [45233, 24125],

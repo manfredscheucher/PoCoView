@@ -31,19 +31,19 @@ class ExamplesTest {
     @Test
     fun spotChecks() = runTest {
         val all = loadExamples().flatMap { it.examples }.associateBy { it.name }
-        val bi = all.getValue("n08-c2-no-monochromatic-3-hole").points
+        val bi = all.getValue("n8-c2-no-monochromatic-3-hole").points
         assertEquals(Pt(0, 0, "B"), bi[0])
         assertEquals(Pt(40, 10, "R"), bi[2])
         // BLUE/RED tokens in the original file are stored as the app's B/R
         assertEquals(setOf("B", "R"), all.getValue("n35-c2-no-monochromatic-4-island").points.map { it.color }.toSet())
         assertEquals(null, all.getValue("n6-c1-non-regular-triangulation").points[0].color)
-        assertEquals(Pt(61, 66), all.getValue("n14-no-4-crossing-family").points[0])
-        assertEquals(Pt(69, 255), all.getValue("n5-universal").points[0])
-        assertEquals(Pt(30430, 8698), all.getValue("n10-universal").points.last())
-        val l2 = all.getValue("n17-universal-4-connected-k11-17").points
+        assertEquals(Pt(61, 66), all.getValue("n14-c1-no-4-crossing-family").points[0])
+        assertEquals(Pt(69, 255), all.getValue("n5-c1-5-universal").points[0])
+        assertEquals(Pt(30430, 8698), all.getValue("n10-c1-10-universal").points.last())
+        val l2 = all.getValue("n17-c1-universal-4-connected-k11-17").points
         assertEquals(Pt(612, 666), l2.first())
         assertEquals(Pt(980, 0), l2.last())
-        assertEquals(Pt(122, 197), all.getValue("n12-11-universal").points.last())
-        assertEquals("https://arxiv.org/abs/2109.10705", all.getValue("n41-no-9-crossing-family").url)
+        assertEquals(Pt(122, 197), all.getValue("n12-c1-11-universal").points.last())
+        assertEquals("https://arxiv.org/abs/2109.10705", all.getValue("n41-c1-no-9-crossing-family").url)
     }
 }

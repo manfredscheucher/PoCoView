@@ -1,11 +1,13 @@
 {
-  "name": "n20-no-5-crossing-family",
+  "name": "n20-c1-no-5-crossing-family",
+  "n": 20,
+  "colors": 1,
+  "group": "Crossing families",
   "description": "20 points without a 5-crossing family (Fig. 5)",
   "reference": "O. Aichholzer, J. Kynčl, M. Scheucher, B. Vogtenhuber, P. Valtr, On crossing-families in planar point sets, Comput. Geom. 107 (2022) 101899, arXiv:2109.10705",
   "url": "https://arxiv.org/abs/2109.10705",
   "source": "arXiv source tarball https://arxiv.org/src/2109.10705v2, file figures/n0020k5fams000000.pdf (Ipe 7.2.14 figure). Exact integers taken from the 'coordinates:' text object (LaTeX array) in the embedded Ipe XML; the same numbers are in the PDF content stream but lie outside the CropBox, i.e. not visible in the rendered paper. Cross-checked: an axis-aligned scaling of these coordinates maps each point onto one of the 20 drawn point marks (max deviation 0.001 pt).",
   "claim": "no 5-crossing family (caption of Fig. 5); paper uses it for cf(n)<=4*ceil(n/20) and cf(n)=4 for 15<=n<=20",
-  "group": "Crossing families",
   "points": [
     [595, 113],
     [0, 0],

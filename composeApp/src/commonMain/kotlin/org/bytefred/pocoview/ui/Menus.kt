@@ -344,6 +344,7 @@ private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
     ) {
         Text("${e.name} (n = ${e.points.size})", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         Text(e.description, style = MaterialTheme.typography.bodySmall)
+        e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
         e.url?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
     }

@@ -1,10 +1,12 @@
 {
   "name": "n16-c1-11-convex-5-holes",
+  "n": 16,
+  "colors": 1,
+  "group": "Singletons",
   "description": "Set of 16 points with 11 convex 5-holes.",
-  "reference": "From: Abstract order type by Manfred, realized by Oswin",
+  "reference": "Abstract order type by Manfred, realized by Oswin",
   "url": null,
   "source": "https://www.eurogiga-compose.eu/posezo/n16_c1_11_convex_5_holes/n16_c1_11_convex_5_holes.psz",
-  "group": "Singletons",
   "points": [
     [0, 0],
     [359, 597],

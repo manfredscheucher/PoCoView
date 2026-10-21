@@ -1,10 +1,12 @@
 {
   "name": "n61-c2-no-monochromatic-5-island",
+  "n": 61,
+  "colors": 2,
+  "group": "Singletons",
   "description": "Bicolored set of 61 points (30 blue, 31 red) without monochromatic 5-islands.",
-  "reference": "From: ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
+  "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
   "url": null,
   "source": "https://www.eurogiga-compose.eu/posezo/n61_c2_no_monochromatic_5_island/n61_c2_no_monochromatic_5_island.psz",
-  "group": "Singletons",
   "points": [
     [4502, 8191, "R"],
     [6131, 3106, "R"],
