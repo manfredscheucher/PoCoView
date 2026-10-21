@@ -34,9 +34,6 @@ import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.SearchParam
 import org.bytefred.pocoview.core.Ticker
 import org.bytefred.pocoview.core.beautify2Coords
-import org.bytefred.pocoview.core.beautify2
-import org.bytefred.pocoview.core.beautifyCoords
-import org.bytefred.pocoview.core.beautifyPointSet
 import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
@@ -55,50 +52,50 @@ import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
 import kotlin.random.Random
 
-/** Implementations of "Minimize coordinates" (M); all keep the labeled order type. */
+/** Minimize methods (M); both keep the labeled order type. */
 enum class MinimizeMethod(val label: String) {
-    MINIMIZE_COORDS("minimize_coords (pyotlib2)"),
-    MINIMIZE_INTEGER_COORDINATES("minimizeIntegerCoordinates (old pyotlib): even + halve, blow up"),
-    PATTERN_SEARCH("pattern search (old pyotlib): perturb towards the centre"),
+    /** pyotlib2 `minimize_coords`: even coordinates + halve, randomize, blow up. */
+    EVEN_HALVE("even + halve"),
+
+    /** pyotlib2 `minimize_pattern_search`: perturb the points towards the centre. */
+    PERTURB("perturb"),
 }
 
-/** Implementations of "Beautify" (B); all keep the labeled order type. */
-enum class BeautifyMethod(val label: String) {
-    BEAUTIFY_COORDS("beautify 1: beautify_coords (pyotlib2)"),
-    BEAUTIFY_POINT_SET("beautify 1: beautifyPointSet (old pyotlib)"),
-    BEAUTIFY2_COORDS("beautify 2: beautify2_coords (pyotlib2)"),
-    BEAUTIFY2("beautify 2: beautify2 (old pyotlib)"),
-}
-
-/**
- * Parameters of the minimize / beautify implementations; defaults as in the pyotlib2 CLI, and
- * for the old pyotlib variants as in its scripts (MinimizeCoords, MinimizePatternSearch,
- * Beautify2Script: e.g. beautify2 with minimize 1, iter1 10, goodbits 30).
- */
-data class CoordSettings(
+/** Parameters of the Minimize box; defaults as in the pyotlib2 CLI. */
+data class MinimizeSettings(
     val trials: Int = 10,
     val randomize: Int = 10,
     val sheering: Boolean = false,
-    val maxIter: Int = 100,
-    val iter1: Int = 5,
-    val iter2: Int = 2000,
-    val minimizeAfter: Boolean = true,
-    // old pyotlib
-    val oldMaxTrials: Int = 1,
-    val minimizeDiameter: Boolean = false,
-    val symmetric: Int = 0,
     val psMaxTrials: Int = 2000,
     val psScale: Int = 1,
     val psBlowup: Int = 0,
-    val oldIter1: Int = 10,
-    val oldGoodBits: Int = 30,
 )
+
+/** Parameters of "Minimize w.r.t. property" (old pyotlib minimizeIntegerCoordinates, script defaults). */
+data class WrtSettings(
+    val maxTrials: Int = 1,
+    val randomize: Int = 10,
+    val sheering: Boolean = false,
+    val minimizeDiameter: Boolean = false,
+    val symmetric: Int = 0,
+)
+
+/** Parameters of Beautify (pyotlib2 `beautify2_coords`, CLI defaults). */
+data class BeautifySettings(
+    val iter1: Int = 5,
+    val iter2: Int = 2000,
+    val minimizeAfter: Boolean = true,
+)
+
+/** "x 0…5599, y 0…4213" (empty set: "-"). */
+fun rangeText(p: List<Pt>): String =
+    if (p.isEmpty()) "-" else "x ${p.minOf { it.x }}…${p.maxOf { it.x }}, y ${p.minOf { it.y }}…${p.maxOf { it.y }}"
 
 enum class Tool { MOVE, ADD, DELETE }
 
 /** The panels next to the canvas; each one is a column that can be shown or hidden. */
 enum class Widget(val label: String) {
-    PROPERTIES("Properties"), POINTS("Points"), OPTIMIZE("Optimize"), DATA("Data"), DISPLAY("Display"),
+    PROPERTIES("Properties"), OPTIMIZE("Optimize"), DATA("Data"), DISPLAY("Display"),
 }
 
 /** How the lines through the selected point are drawn. */
@@ -138,9 +135,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var layoutMode by mutableStateOf(LayoutMode.AUTO)
 
     /** Implementations and parameters chosen in the Optimize widget (also used by the M / B keys). */
-    var minimizeMethod by mutableStateOf(MinimizeMethod.MINIMIZE_COORDS)
-    var beautifyMethod by mutableStateOf(BeautifyMethod.BEAUTIFY_COORDS)
-    var coordSettings by mutableStateOf(CoordSettings())
+    var minimizeMethod by mutableStateOf(MinimizeMethod.EVEN_HALVE)
+    var minimizeSettings by mutableStateOf(MinimizeSettings())
+    var wrtSettings by mutableStateOf(WrtSettings())
+    var beautifySettings by mutableStateOf(BeautifySettings())
 
     /** qtvis minimizer parameters (Optimize widget; also used by the Enter key). */
     var cellHopParams by mutableStateOf(CellHopParams())
@@ -151,7 +149,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun searchValue(flow: PropertySearchFlow, param: SearchParam): Any = searchValues["${flow.id}.${param.name}"] ?: param.default
 
-    /** Random point set settings (Points widget). */
+    /** Random point set settings (Point Set -> Random). */
     var randomN by mutableStateOf(12)
     var randomGrid by mutableStateOf(1000L)
 
@@ -176,7 +174,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** Highlight colour per property id (chosen in "Select properties…"); default: [defaultPropertyColor]. */
     val propertyColors = mutableStateMapOf<String, Color>()
 
-    fun colorOf(id: String): Color = propertyColors[id] ?: defaultPropertyColor(ALL_PROPERTIES.indexOfFirst { it.id == id })
+    fun colorOf(id: String): Color = propertyColors[id]
+        ?: if (ALL_PROPERTIES.firstOrNull { it.id == id }?.emphasized == true) EMPHASIZED_COLOR
+        else defaultPropertyColor(ALL_PROPERTIES.indexOfFirst { it.id == id })
 
     /** Selected point: fill and marker colour. */
     var selectedColor by mutableStateOf(DEFAULT_SELECTED_COLOR)
@@ -209,10 +209,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var progress by mutableStateOf<String?>(null)
 
     /**
-     * Loop: operations do not stop at the first improvement (or after one run) but continue
-     * until aborted. Read live, so it can be switched while an operation runs.
+     * Repeat: the running operation does not stop at the first improvement (or after one run)
+     * but continues until aborted. Set by the operation's Repeat button.
      */
     var loop by mutableStateOf(false)
+        private set
 
     /** Open widget columns, in opening order. */
     val openWidgets = mutableStateListOf(Widget.PROPERTIES, Widget.OPTIMIZE)
@@ -448,6 +449,16 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         e.message ?: "Cannot parse the content"
     }
 
+    /** An action that replaces the point set, waiting for the user's confirmation (dialog). */
+    var pendingReplace by mutableStateOf<(() -> Unit)?>(null)
+
+    fun confirmReplace(action: () -> Unit) {
+        pendingReplace = action
+    }
+
+    /** Loads an example or a generated family member as the only set. */
+    fun loadPoints(name: String, p: List<Pt>) = load(name, listOf(p))
+
     private fun load(name: String, loaded: List<List<Pt>>) {
         cancelOperation()
         coordinatesDraft = null
@@ -483,23 +494,6 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     /** The current set as export / file content. */
     fun exportText(format: ExportFormat, countLine: Boolean): String = exportPointSet(points, format, countLine)
-
-    // Transitional until Menus.kt uses import(text), saveName(ExportFormat), exportText; then remove.
-    @Deprecated("use import(text)")
-    fun import(format: PointFormat, text: String, n: Int?): String? = import(text)
-
-    @Deprecated("use saveName(ExportFormat)")
-    fun saveName(format: PointFormat): String = saveName(if (format == PointFormat.JSON) ExportFormat.JSON else ExportFormat.TXT)
-
-    @Deprecated("use exportText")
-    fun encode(format: PointFormat, allSets: Boolean): ByteArray? {
-        if (format.isBinary) {
-            message = "Binary formats can only be loaded"
-            return null
-        }
-        val fmt = if (format == PointFormat.JSON) ExportFormat.JSON else ExportFormat.TXT
-        return exportText(fmt, countLine = true).encodeToByteArray()
-    }
 
     // ---- properties ------------------------------------------------------------------
 
@@ -630,42 +624,31 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
     }
 
-    /** "Minimize coordinates" with the chosen implementation (M). */
-    fun minimize() {
+    /** Minimize with the chosen method (M); [repeat]: again and again until aborted. */
+    fun minimize(repeat: Boolean = false) {
         val m = minimizeMethod
-        val cfg = coordSettings
-        runCoordOptimizer("Minimize, ${m.label}") { start ->
+        val cfg = minimizeSettings
+        loop = repeat
+        runCoordOptimizer("Minimize (${m.label})") { start ->
             when (m) {
-                MinimizeMethod.MINIMIZE_COORDS ->
+                MinimizeMethod.EVEN_HALVE ->
                     minimizeCoords(start, trials = cfg.trials, randomize = cfg.randomize, sheering = cfg.sheering)
-                MinimizeMethod.MINIMIZE_INTEGER_COORDINATES -> minimizeIntegerCoordinates(
-                    start, maxTrials = cfg.oldMaxTrials, randomize = cfg.randomize, sheering = cfg.sheering,
-                    minimizeDiameter = cfg.minimizeDiameter, symmetric = cfg.symmetric,
-                )
-                MinimizeMethod.PATTERN_SEARCH ->
+                MinimizeMethod.PERTURB ->
                     minimizePatternSearch(start, maxTrials = cfg.psMaxTrials, scale = cfg.psScale.toLong(), blowup = cfg.psBlowup).points
             }
         }
     }
 
-    /** "Beautify" with the chosen implementation (B). */
-    fun beautify() {
-        val m = beautifyMethod
-        val cfg = coordSettings
-        runCoordOptimizer("Beautify, ${m.label}") { start ->
-            when (m) {
-                BeautifyMethod.BEAUTIFY_COORDS -> beautifyCoords(start, maxIter = cfg.maxIter)
-                BeautifyMethod.BEAUTIFY_POINT_SET -> beautifyPointSet(start, maxIter = cfg.maxIter)
-                BeautifyMethod.BEAUTIFY2_COORDS ->
-                    beautify2Coords(start, iter1 = cfg.iter1, iter2 = cfg.iter2, minimize = cfg.minimizeAfter)
-                BeautifyMethod.BEAUTIFY2 -> beautify2(
-                    start, iter1 = cfg.oldIter1, iter2 = cfg.iter2, goodBits = cfg.oldGoodBits, minimize = cfg.minimizeAfter,
-                )
-            }
+    /** Beautify (pyotlib2 beautify2_coords, B); [repeat]: again and again until aborted. */
+    fun beautify(repeat: Boolean = false) {
+        val cfg = beautifySettings
+        loop = repeat
+        runCoordOptimizer("Beautify") { start ->
+            beautify2Coords(start, iter1 = cfg.iter1, iter2 = cfg.iter2, minimize = cfg.minimizeAfter)
         }
     }
 
-    /** Runs a coordinate optimizer once, or with [loop] again and again on its result until aborted. */
+    /** Runs a coordinate optimizer once, or (Repeat) again and again on its result until aborted. */
     private fun runCoordOptimizer(label: String, run: suspend (List<Pt>) -> List<Pt>) =
         runOperation("$label…", if (label.startsWith("Minimize")) "Minimizing coordinates" else "Beautifying") { start, update ->
             val bitsBefore = bitsOf(start)
@@ -673,23 +656,24 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             var round = 0
             do {
                 round++
-                progress = "run $round, ${bitsOf(cur)} bits (start $bitsBefore)"
+                progress = "run $round · range ${rangeText(cur)} · ${bitsOf(cur)} bits (start $bitsBefore)"
                 val r = withContext(Dispatchers.Default) { run(cur) }
                 if (r != cur) { cur = r; update(r); requestFit() }
                 yield()
             } while (loop)
-            message = if (cur == start) "$label: no change" else "$label: bits $bitsBefore → ${bitsOf(cur)}"
+            message = if (cur == start) "$label: no change" else "$label: bits $bitsBefore -> ${bitsOf(cur)}"
         }
 
     /**
      * Minimize w.r.t. property (old pyotlib minimizeIntegerCoordinates with ensure_property,
      * parameters of that minimize method): the coordinates shrink while the order type may
      * change, as long as the chosen property does not get worse. A result that is worse, has
-     * collinear points or does not fit is undone. With [loop] it runs again and again.
+     * collinear points or does not fit is undone. With Repeat it runs again and again.
      */
-    fun minimizeWrtProperty() {
+    fun minimizeWrtProperty(repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
-        val cfg = coordSettings
+        val cfg = wrtSettings
+        loop = repeat
         val label = "Minimize w.r.t. ${prop.label}"
         runOperation("$label…", "Minimizing coordinates") { start, update ->
             // the minimizer's ticker, so a long run of rejected moves still yields (web) and can be aborted
@@ -703,11 +687,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             var rejected = 0
             do {
                 round++
-                progress = "run $round, ${bitsOf(cur)} bits, ${prop.label} = $curCount (start $bitsBefore bits, $countBefore)"
+                progress = "run $round · range ${rangeText(cur)} · ${bitsOf(cur)} bits · ${prop.label} $curCount (start $bitsBefore bits, $countBefore)"
                 val from = cur
                 val r = withContext(Dispatchers.Default) {
                     minimizeIntegerCoordinates(
-                        from, maxTrials = cfg.oldMaxTrials, randomize = cfg.randomize, sheering = cfg.sheering,
+                        from, maxTrials = cfg.maxTrials, randomize = cfg.randomize, sheering = cfg.sheering,
                         minimizeDiameter = cfg.minimizeDiameter, symmetric = cfg.symmetric, ensureProperty = count,
                     )
                 }
@@ -724,7 +708,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 yield()
             } while (loop)
             message = when {
-                cur != start -> "$label: bits $bitsBefore → ${bitsOf(cur)}, ${prop.label} $countBefore → $curCount"
+                cur != start -> "$label: bits $bitsBefore -> ${bitsOf(cur)}, ${prop.label} $countBefore -> $curCount"
                 undone > 0 -> "$label: result was worse, undone"
                 rejected > 0 -> "$label: result had collinear points or was too large, undone"
                 else -> "$label: no change"
@@ -735,14 +719,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /**
      * Runs a property search flow (ports of the old pyotlib scripts, core/PropertySearch.kt)
      * for the chosen property. Configurations with the same value are taken over, worse ones
-     * not; the first strictly better one ends the search unless [loop] is on.
+     * not; the first strictly better one ends the search unless Repeat was pressed.
      */
-    fun searchProperty() {
+    fun searchProperty(repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
         val flow = PROPERTY_SEARCH_FLOWS.firstOrNull { it.id == searchFlowId } ?: return
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
         if (points.size < 3) { message = "Need at least 3 points"; return }
         val values = flow.params.associate { it.name to searchValue(flow, it) }
+        loop = repeat
         runOperation("${flow.label}, ${prop.label}…", SEARCH_TITLE) { start, update ->
             val first = evaluate(prop, start, null, false).count
             var current = first
@@ -768,7 +753,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 }
                 channel.close()
             }
-            message = if (current < first) "${prop.label}: $first → $current" else "${prop.label}: no better configuration found ($first)"
+            message = if (current < first) "${prop.label}: $first -> $current" else "${prop.label}: no better configuration found ($first)"
         }
     }
 
@@ -777,8 +762,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      * property: stops at the first configuration with a smaller value, or restores the
      * start configuration when all trials failed.
      */
-    fun cellHop(propId: String, params: CellHopParams) {
+    fun cellHop(propId: String, params: CellHopParams, repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
+        loop = repeat
         if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
         if (points.size < 3) { message = "Need at least 3 points"; return }
         runOperation("qtvis minimizer (${prop.label})…", SEARCH_TITLE) { start, update ->
@@ -808,7 +794,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             } while (loop)
             val after = evaluate(prop, cur, null, false).count
             message = if (after >= before) "${prop.label}: no configuration below $before found"
-            else "${prop.label}: $before → $after"
+            else "${prop.label}: $before -> $after"
         }
     }
 
@@ -832,6 +818,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             Pt(3076, 5497), Pt(2684, 5783), Pt(3113, 5976),
         )
         val DEFAULT_SELECTED_COLOR = Color(0xFFFF9800)
+
+        /** Default highlight colour of emphasized properties (crossing families: red, bold). */
+        val EMPHASIZED_COLOR = Color(0xFFE53935)
         val DEFAULT_INCIDENT_LINE_COLOR = Color(0xFFE53935)
 
         private fun fnv64(s: String): String {

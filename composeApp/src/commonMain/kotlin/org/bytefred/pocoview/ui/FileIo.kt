@@ -18,3 +18,8 @@ expect fun rememberFileOpener(onOpened: (name: String, bytes: ByteArray) -> Unit
  */
 @Composable
 expect fun rememberFileSaver(onSaved: (name: String?) -> Unit): (fileName: String, bytes: ByteArray) -> Unit
+
+/** Small persistent settings (browser localStorage / Java preferences); null if unavailable. */
+expect fun loadPref(key: String): String?
+
+expect fun savePref(key: String, value: String)

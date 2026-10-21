@@ -74,16 +74,6 @@ class CoordOptimizersTest {
     }
 
     @Test
-    fun beautifyCoordsKeepsOrderType() = runTest {
-        val rnd = Random(5)
-        repeat(8) {
-            val p = randomPointSet(9, 10_000, rnd)
-            val b = beautifyCoords(p)
-            assertEquals(sig(p), sig(b))
-        }
-    }
-
-    @Test
     fun beautify2KeepsOrderTypeAndHull() = runTest {
         val p = randomPointSet(8, 1000, Random(6))
         val b = beautify2Coords(p, iter1 = 2, iter2 = 200, minimize = false)

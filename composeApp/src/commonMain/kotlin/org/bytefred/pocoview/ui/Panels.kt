@@ -6,6 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -62,6 +68,7 @@ fun ToolBar(state: AppState) {
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        ToolbarLabel("Mode")
         for (t in Tool.entries) FilterChip(
             selected = state.tool == t, onClick = { state.tool = t },
             label = { Text(t.name.lowercase().replaceFirstChar { it.uppercase() }) },
@@ -71,8 +78,9 @@ fun ToolBar(state: AppState) {
             selected = state.fixOrderType, onClick = { state.fixOrderType = !state.fixOrderType },
             label = { Text("Lock order type") },
         )
-        // widget columns: one toggle per widget (keys 1..5)
+        // widget columns: one toggle per widget (keys 1..4)
         VerticalDivider(Modifier.height(32.dp).align(Alignment.CenterVertically).padding(horizontal = 4.dp))
+        ToolbarLabel("Widgets")
         for (w in Widget.entries) FilterChip(
             selected = w in state.openWidgets, onClick = { state.toggleWidget(w) },
             label = { Text(w.label) },
@@ -84,6 +92,10 @@ fun ToolBar(state: AppState) {
         }
     }
 }
+
+@Composable
+private fun FlowRowScope.ToolbarLabel(text: String) =
+    Text(text, Modifier.align(Alignment.CenterVertically).padding(horizontal = 4.dp), style = MaterialTheme.typography.labelSmall)
 
 @Composable
 fun StatusBar(state: AppState) {
@@ -119,7 +131,6 @@ fun WidgetContent(state: AppState, w: Widget, onSelectProperties: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
         when (w) {
             Widget.PROPERTIES -> PropertiesTab(state, onSelectProperties)
-            Widget.POINTS -> PointsTab(state)
             Widget.OPTIMIZE -> OptimizeTab(state)
             Widget.DATA -> DataTab(state)
             Widget.DISPLAY -> DisplayWidget(state)
@@ -140,13 +151,8 @@ private fun DisplayWidget(state: AppState) {
     }
     Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %", style = MaterialTheme.typography.bodyMedium)
     Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
-    SwitchRow("Line arrangement (L)", state.showLines) { state.showLines = it }
+    SwitchRow("Line arrangement", state.showLines) { state.showLines = it }
     SwitchRow("Point labels", state.showLabels) { state.showLabels = it }
-    Text(
-        "Line width, colour and opacity apply to the line arrangement; structure outlines are 1.5x as wide. " +
-            "Highlight colours: Select properties…",
-        style = MaterialTheme.typography.bodySmall,
-    )
 
     Spacer(Modifier.height(12.dp))
     Text("Selected point", style = MaterialTheme.typography.titleSmall)
@@ -158,7 +164,7 @@ private fun DisplayWidget(state: AppState) {
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Lines through it", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Dropdown(state.incidentLines.label, IncidentLines.entries, { it.label }) { state.incidentLines = it }
+        SelectField(null, state.incidentLines.label, IncidentLines.entries, { it.label }, Modifier.width(150.dp)) { state.incidentLines = it }
     }
     if (state.incidentLines == IncidentLines.HIGHLIGHT) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -172,17 +178,13 @@ private fun DisplayWidget(state: AppState) {
     Spacer(Modifier.height(12.dp))
     Text("Widgets", style = MaterialTheme.typography.titleSmall)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Max. open columns: ${state.maxColumns}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text("Max. widgets: ${state.maxColumns}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         TextButton(onClick = { state.changeMaxColumns(state.maxColumns - 1) }, enabled = state.maxColumns > 1) { Text("-") }
         TextButton(onClick = { state.changeMaxColumns(state.maxColumns + 1) }, enabled = state.maxColumns < Widget.entries.size) { Text("+") }
     }
-    Text(
-        "Opening one more widget closes the one that was clicked least recently.",
-        style = MaterialTheme.typography.bodySmall,
-    )
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Layout", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Dropdown(state.layoutMode.name.lowercase(), LayoutMode.entries, { it.name.lowercase() }) { state.layoutMode = it }
+        SelectField(null, state.layoutMode.name.lowercase(), LayoutMode.entries, { it.name.lowercase() }, Modifier.width(150.dp)) { state.layoutMode = it }
     }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(onClick = state::resetDisplay) { Text("Reset to defaults") }
@@ -200,14 +202,6 @@ fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
 private fun PropertiesTab(state: AppState, onSelectProperties: () -> Unit) {
     SwitchRow("Highlight", state.highlight, state::changeHighlight)
     SwitchRow("Incident only", state.incidentOnly, state::changeIncidentOnly)
-    if (!state.highlight) Text(
-        "Highlight is off: nothing is drawn; the switches on the right take effect when it is on.",
-        style = MaterialTheme.typography.bodySmall,
-    )
-    if (state.incidentOnly && state.selected == null) Text(
-        "Select a point: only structures containing it are counted and highlighted.",
-        style = MaterialTheme.typography.bodySmall,
-    )
     Spacer(Modifier.height(4.dp))
     for (prop in ALL_PROPERTIES) {
         val t = state.toggles[prop.id] ?: continue
@@ -288,170 +282,167 @@ fun Modifier.textFocus(state: AppState): Modifier = composed {
     }
 }
 
+/** A real dropdown: read-only text field with an arrow; click opens the list. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PointsTab(state: AppState) {
-    OutlinedButton(onClick = { state.deleteSelected() }, enabled = state.selected != null) {
-        Text("Delete selected point")
-    }
-    Spacer(Modifier.height(12.dp))
-    Text("Random point set (general position)", style = MaterialTheme.typography.titleSmall)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt() }, Modifier.width(90.dp))
-        NumberField(state, "grid size", state.randomGrid.toString(), { state.randomGrid = it.toLong() }, Modifier.width(130.dp))
-        OutlinedButton(onClick = { state.randomSet(state.randomN, state.randomGrid) }) { Text("Generate") }
-    }
-    Spacer(Modifier.height(12.dp))
-    Text(
-        "Mouse: drag a point to move it, drag empty space to pan, wheel to zoom. Tools: Move (click selects), " +
-            "Add (click empty space), Delete (click a point). Keys: Info → Keyboard shortcuts.",
-        style = MaterialTheme.typography.bodySmall,
-    )
-}
-
-@Composable
-private fun <T> Dropdown(current: String, items: List<T>, label: (T) -> String, onSelect: (T) -> Unit) {
+fun <T> SelectField(
+    label: String?, current: String, items: List<T>, itemLabel: (T) -> String, modifier: Modifier = Modifier,
+    onSelect: (T) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(onClick = { open = true }) { Text("$current …") }
-        DropdownMenu(open, onDismissRequest = { open = false }) {
-            for (it in items) DropdownMenuItem(text = { Text(label(it)) }, onClick = { onSelect(it); open = false })
+    ExposedDropdownMenuBox(open, onExpandedChange = { open = it }, modifier = modifier) {
+        OutlinedTextField(
+            current, onValueChange = {}, readOnly = true, singleLine = true,
+            label = label?.let { { Text(it) } },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(open) },
+            textStyle = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+        )
+        ExposedDropdownMenu(open, onDismissRequest = { open = false }) {
+            for (it in items) DropdownMenuItem(text = { Text(itemLabel(it)) }, onClick = { onSelect(it); open = false })
         }
     }
 }
+
+/** One optimizer box: title with a small Reset, content, and the run buttons. */
+@Composable
+private fun OptBox(title: String, onReset: (() -> Unit)?, content: @Composable () -> Unit) {
+    OutlinedCard(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Column(Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                if (onReset != null) TextButton(onClick = onReset) { Text("Reset", style = MaterialTheme.typography.labelSmall) }
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun RunButtons(run: String, idle: Boolean, onRun: () -> Unit, onRepeat: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+        OutlinedButton(onClick = onRun, enabled = idle) { Text(run) }
+        OutlinedButton(onClick = onRepeat, enabled = idle) { Text("Repeat") }
+    }
+}
+
+@Composable
+private fun Hint(text: String) = Text(text, style = MaterialTheme.typography.bodySmall)
+
+@Composable
+private fun PropertySelect(state: AppState) =
+    SelectField("Property", ALL_PROPERTIES.first { it.id == state.optimizeProperty }.label, ALL_PROPERTIES, { it.label }) {
+        state.optimizeProperty = it.id
+    }
 
 @Composable
 private fun OptimizeTab(state: AppState) {
     val idle = state.busy == null
     val p = state.points
-    Text("Extent ${extent(p)} (max of width, height), ${bitsOf(p)} bits per coordinate", style = MaterialTheme.typography.bodyMedium)
-    Spacer(Modifier.height(8.dp))
+    Text("Range ${rangeText(p)} · ${bitsOf(p)} bits", style = MaterialTheme.typography.bodyMedium)
 
-    val cfg = state.coordSettings
-    fun set(c: CoordSettings) { state.coordSettings = c }
-    SwitchRow("Loop: continue until aborted (otherwise stop at the first improvement / after one run)", state.loop) {
-        state.loop = it
-    }
-
-    Text("Minimize coordinates (M), keeps the order type", style = MaterialTheme.typography.titleSmall)
-    Dropdown(state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        when (state.minimizeMethod) {
-            MinimizeMethod.MINIMIZE_COORDS -> {
-                NumberField(state, "trials", cfg.trials.toString(), { set(cfg.copy(trials = it.toInt())) }, Modifier.width(90.dp))
-                NumberField(state, "randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
-            }
-            MinimizeMethod.MINIMIZE_INTEGER_COORDINATES -> {
-                NumberField(state, "max trials", cfg.oldMaxTrials.toString(), { set(cfg.copy(oldMaxTrials = it.toInt())) }, Modifier.width(100.dp))
-                NumberField(state, "randomize", cfg.randomize.toString(), { set(cfg.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
-                NumberField(state, "symmetric (k)", cfg.symmetric.toString(), { set(cfg.copy(symmetric = it.toInt())) }, Modifier.width(120.dp))
-            }
-            MinimizeMethod.PATTERN_SEARCH -> {
-                NumberField(state, "max trials", cfg.psMaxTrials.toString(), { set(cfg.copy(psMaxTrials = it.toInt())) }, Modifier.width(100.dp))
-                NumberField(state, "scale", cfg.psScale.toString(), { set(cfg.copy(psScale = it.toInt())) }, Modifier.width(90.dp))
-                NumberField(state, "blowup", cfg.psBlowup.toString(), { set(cfg.copy(psBlowup = it.toInt())) }, Modifier.width(90.dp))
+    val m = state.minimizeSettings
+    fun setM(c: MinimizeSettings) { state.minimizeSettings = c }
+    OptBox("Minimize", { state.minimizeSettings = MinimizeSettings() }) {
+        Hint("Keeps the order type.")
+        SelectField("Method", state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (state.minimizeMethod) {
+                MinimizeMethod.EVEN_HALVE -> {
+                    NumberField(state, "trials", m.trials.toString(), { setM(m.copy(trials = it.toInt())) }, Modifier.width(90.dp))
+                    NumberField(state, "randomize", m.randomize.toString(), { setM(m.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
+                }
+                MinimizeMethod.PERTURB -> {
+                    NumberField(state, "max trials", m.psMaxTrials.toString(), { setM(m.copy(psMaxTrials = it.toInt())) }, Modifier.width(100.dp))
+                    NumberField(state, "scale", m.psScale.toString(), { setM(m.copy(psScale = it.toInt())) }, Modifier.width(90.dp))
+                    NumberField(state, "blowup", m.psBlowup.toString(), { setM(m.copy(psBlowup = it.toInt())) }, Modifier.width(90.dp))
+                }
             }
         }
+        if (state.minimizeMethod == MinimizeMethod.EVEN_HALVE) SwitchRow("Shear", m.sheering) { setM(m.copy(sheering = it)) }
+        RunButtons("Minimize", idle, { state.minimize() }, { state.minimize(repeat = true) })
     }
-    if (state.minimizeMethod != MinimizeMethod.PATTERN_SEARCH)
-        SwitchRow("Also try sheering transforms", cfg.sheering) { set(cfg.copy(sheering = it)) }
-    if (state.minimizeMethod == MinimizeMethod.MINIMIZE_INTEGER_COORDINATES)
-        SwitchRow("Minimize the diameter instead of the bits", cfg.minimizeDiameter) { set(cfg.copy(minimizeDiameter = it)) }
-    OutlinedButton(onClick = state::minimize, enabled = idle) { Text("Minimize") }
 
-    Spacer(Modifier.height(12.dp))
-    Text("Beautify (B), keeps the order type", style = MaterialTheme.typography.titleSmall)
-    Dropdown(state.beautifyMethod.label, BeautifyMethod.entries, { it.label }) { state.beautifyMethod = it }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        when (state.beautifyMethod) {
-            BeautifyMethod.BEAUTIFY_COORDS, BeautifyMethod.BEAUTIFY_POINT_SET ->
-                NumberField(state, "max iter.", cfg.maxIter.toString(), { set(cfg.copy(maxIter = it.toInt())) }, Modifier.width(110.dp))
-            BeautifyMethod.BEAUTIFY2_COORDS -> {
-                NumberField(state, "iter1", cfg.iter1.toString(), { set(cfg.copy(iter1 = it.toInt())) }, Modifier.width(90.dp))
-                NumberField(state, "iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
-            }
-            BeautifyMethod.BEAUTIFY2 -> {
-                NumberField(state, "iter1", cfg.oldIter1.toString(), { set(cfg.copy(oldIter1 = it.toInt())) }, Modifier.width(90.dp))
-                NumberField(state, "iter2", cfg.iter2.toString(), { set(cfg.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
-                NumberField(state, "good bits", cfg.oldGoodBits.toString(), { set(cfg.copy(oldGoodBits = it.toInt())) }, Modifier.width(100.dp))
-            }
+    val w = state.wrtSettings
+    fun setW(c: WrtSettings) { state.wrtSettings = c }
+    OptBox("Minimize w.r.t. property", { state.wrtSettings = WrtSettings() }) {
+        Hint("Order type may change; the property never gets worse.")
+        PropertySelect(state)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField(state, "max trials", w.maxTrials.toString(), { setW(w.copy(maxTrials = it.toInt())) }, Modifier.width(100.dp))
+            NumberField(state, "randomize", w.randomize.toString(), { setW(w.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
+            NumberField(state, "symmetric k", w.symmetric.toString(), { setW(w.copy(symmetric = it.toInt())) }, Modifier.width(110.dp))
         }
+        SwitchRow("Shear", w.sheering) { setW(w.copy(sheering = it)) }
+        SwitchRow("Minimize diameter", w.minimizeDiameter) { setW(w.copy(minimizeDiameter = it)) }
+        RunButtons("Minimize", idle, { state.minimizeWrtProperty() }, { state.minimizeWrtProperty(repeat = true) })
     }
-    if (state.beautifyMethod == BeautifyMethod.BEAUTIFY2_COORDS || state.beautifyMethod == BeautifyMethod.BEAUTIFY2)
-        SwitchRow("Minimize after each run", cfg.minimizeAfter) { set(cfg.copy(minimizeAfter = it)) }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = state::beautify, enabled = idle) { Text("Beautify") }
-        OutlinedButton(onClick = { set(CoordSettings()) }) { Text("Default parameters") }
+
+    val b = state.beautifySettings
+    fun setB(c: BeautifySettings) { state.beautifySettings = c }
+    OptBox("Beautify", { state.beautifySettings = BeautifySettings() }) {
+        Hint("Keeps the order type.")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField(state, "iter1", b.iter1.toString(), { setB(b.copy(iter1 = it.toInt())) }, Modifier.width(90.dp))
+            NumberField(state, "iter2", b.iter2.toString(), { setB(b.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
+        }
+        SwitchRow("Minimize after", b.minimizeAfter) { setB(b.copy(minimizeAfter = it)) }
+        RunButtons("Beautify", idle, { state.beautify() }, { state.beautify(repeat = true) })
     }
-    Spacer(Modifier.height(16.dp))
-    Text("Property (may change the order type)", style = MaterialTheme.typography.titleSmall)
-    Dropdown(ALL_PROPERTIES.first { it.id == state.optimizeProperty }.label, ALL_PROPERTIES, { it.label }) {
-        state.optimizeProperty = it.id
-    }
-    Spacer(Modifier.height(4.dp))
-    Text(
-        "Minimize w.r.t. property: like minimizeIntegerCoordinates (its parameters above), but the order type may " +
-            "change as long as the property does not get worse; a worse result is undone",
-        style = MaterialTheme.typography.bodySmall,
-    )
-    OutlinedButton(onClick = state::minimizeWrtProperty, enabled = idle) { Text("Minimize w.r.t. property") }
-    Spacer(Modifier.height(8.dp))
-    Text(
-        "Search (old pyotlib flows): moves points to find a configuration with a smaller value; equal values are " +
-            "taken over, worse ones not; stops at the first improvement unless Loop is on",
-        style = MaterialTheme.typography.bodySmall,
-    )
+
+    // Search and the qtvis minimizer: kept as they were (Manfred decides their place later)
     val flow = PROPERTY_SEARCH_FLOWS.first { it.id == state.searchFlowId }
-    Dropdown(flow.label, PROPERTY_SEARCH_FLOWS, { it.label }) { state.searchFlowId = it.id }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (param in flow.params) {
-            val key = "${flow.id}.${param.name}"
-            when (val v = state.searchValue(flow, param)) {
-                is Int -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble().toInt() }, Modifier.width(110.dp))
-                is Double -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble() }, Modifier.width(110.dp), decimal = true)
-                else -> {}
+    OptBox("Search", { flow.params.forEach { state.searchValues.remove("${flow.id}.${it.name}") } }) {
+        Hint("Order type may change; equal values are taken over.")
+        PropertySelect(state)
+        SelectField("Flow", flow.label, PROPERTY_SEARCH_FLOWS, { it.label }) { state.searchFlowId = it.id }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (param in flow.params) {
+                val key = "${flow.id}.${param.name}"
+                when (val v = state.searchValue(flow, param)) {
+                    is Int -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble().toInt() }, Modifier.width(110.dp))
+                    is Double -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble() }, Modifier.width(110.dp), decimal = true)
+                    else -> {}
+                }
             }
         }
+        for (param in flow.params.filter { it.default is Boolean }) {
+            val key = "${flow.id}.${param.name}"
+            SwitchRow(param.name, state.searchValue(flow, param) as Boolean) { state.searchValues[key] = it }
+        }
+        RunButtons("Search", idle, { state.searchProperty() }, { state.searchProperty(repeat = true) })
     }
-    for (param in flow.params.filter { it.default is Boolean }) {
-        val key = "${flow.id}.${param.name}"
-        SwitchRow("${param.name}: ${param.description}", state.searchValue(flow, param) as Boolean) { state.searchValues[key] = it }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = state::searchProperty, enabled = idle) { Text("Search") }
-        OutlinedButton(onClick = { flow.params.forEach { state.searchValues.remove("${flow.id}.${it.name}") } }) { Text("Default parameters") }
-    }
-    Spacer(Modifier.height(8.dp))
-    Text(
-        "qtvis minimizer (Enter): pushes points just past their cell walls, accepts moves that do not increase " +
-            "the property, restarts with a random point; stops at the first smaller value",
-        style = MaterialTheme.typography.bodySmall,
-    )
+
     val c = state.cellHopParams
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        NumberField(state, "trials", c.trials.toString(), { state.cellHopParams = c.copy(trials = it.toInt()) }, Modifier.width(90.dp))
-        NumberField(state, "max iter.", c.maxIterations.toString(), { state.cellHopParams = c.copy(maxIterations = it.toInt()) }, Modifier.width(100.dp))
-        NumberField(state, "max fail iter.", c.maxFailIterations.toString(), { state.cellHopParams = c.copy(maxFailIterations = it.toInt()) }, Modifier.width(120.dp))
-        NumberField(state, "epsilon", c.eps.toString(), { state.cellHopParams = c.copy(eps = it.toInt()) }, Modifier.width(90.dp))
-        NumberField(state, "alpha", c.alpha.toString(), { state.cellHopParams = c.copy(alpha = it.toDouble()) }, Modifier.width(90.dp), decimal = true)
-    }
-    SwitchRow("Only move the last point on restarts", c.onlyLastPoint) { state.cellHopParams = c.copy(onlyLastPoint = it) }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { state.cellHop(state.optimizeProperty, state.cellHopParams) }, enabled = idle) { Text("Try to minimize") }
-        OutlinedButton(onClick = { state.cellHopParams = CellHopParams() }) { Text("Default parameters") }
+    OptBox("qtvis minimizer", { state.cellHopParams = CellHopParams() }) {
+        Hint("Uses the property above (Enter).")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField(state, "trials", c.trials.toString(), { state.cellHopParams = c.copy(trials = it.toInt()) }, Modifier.width(90.dp))
+            NumberField(state, "max iter", c.maxIterations.toString(), { state.cellHopParams = c.copy(maxIterations = it.toInt()) }, Modifier.width(100.dp))
+            NumberField(state, "max fail", c.maxFailIterations.toString(), { state.cellHopParams = c.copy(maxFailIterations = it.toInt()) }, Modifier.width(100.dp))
+            NumberField(state, "eps", c.eps.toString(), { state.cellHopParams = c.copy(eps = it.toInt()) }, Modifier.width(80.dp))
+            NumberField(state, "alpha", c.alpha.toString(), { state.cellHopParams = c.copy(alpha = it.toDouble()) }, Modifier.width(90.dp), decimal = true)
+        }
+        SwitchRow("Last point only", c.onlyLastPoint) { state.cellHopParams = c.copy(onlyLastPoint = it) }
+        RunButtons(
+            "Minimize", idle,
+            { state.cellHop(state.optimizeProperty, state.cellHopParams) },
+            { state.cellHop(state.optimizeProperty, state.cellHopParams, repeat = true) },
+        )
     }
 }
 
 @Composable
 private fun DataTab(state: AppState) {
     val p = state.points
-    Text("n = ${p.size}, extent ${extent(p)}, ${bitsOf(p)} bits", style = MaterialTheme.typography.bodyMedium)
+    Text("n = ${p.size} · range ${rangeText(p)} · ${bitsOf(p)} bits", style = MaterialTheme.typography.bodyMedium)
     Text(
         if (state.collinear.isEmpty()) "General position: yes" else "General position: NO (points ${state.collinear.sorted().joinToString()})",
         style = MaterialTheme.typography.bodyMedium,
     )
-    Text("Order type hash: ${state.orderTypeHash}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+    Text("Hash: ${state.orderTypeHash}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
     Spacer(Modifier.height(8.dp))
-    Text("Coordinates (edit and apply; one 'x y' per line)", style = MaterialTheme.typography.titleSmall)
+    Text("Coordinates", style = MaterialTheme.typography.titleSmall)
     val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
     // the draft lives in the state, so closing the widget does not lose an unapplied edit
     val draft = state.coordinatesDraft
@@ -466,7 +457,7 @@ private fun DataTab(state: AppState) {
     }
     if (p.size in 1..30) {
         Spacer(Modifier.height(8.dp))
-        Text("λ matrix (λ[i][j] = #points left of i→j)", style = MaterialTheme.typography.titleSmall)
+        Text("λ matrix", style = MaterialTheme.typography.titleSmall)
         val l = smallLambda(p)
         val w = (p.size - 2).toString().length + 1
         val sel = state.selected

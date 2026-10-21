@@ -39,16 +39,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.material3.OutlinedButton
+import org.bytefred.pocoview.core.Example
+import org.bytefred.pocoview.core.ExampleGroup
+import org.bytefred.pocoview.core.ExportFormat
+import org.bytefred.pocoview.core.FAMILIES
+import org.bytefred.pocoview.core.PointSetFamily
+import org.bytefred.pocoview.core.Structure
+import org.bytefred.pocoview.core.importPointSet
+import org.bytefred.pocoview.core.loadExamples
 import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CrossingProperty
-import org.bytefred.pocoview.core.PointFormat
 import org.bytefred.pocoview.core.PolygonProperty
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
 
 /** Which dialog is open (the menu bar and the properties widget open them). */
-enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, SAVE }
+enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME }
 
 @Composable
 private fun Menu(title: String, content: @Composable (close: () -> Unit) -> Unit) {
@@ -67,19 +79,24 @@ private fun Item(text: String, close: () -> Unit, enabled: Boolean = true, onCli
 private fun CheckItem(text: String, checked: Boolean, close: () -> Unit, onToggle: () -> Unit) =
     DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = { close(); onToggle() })
 
-/** File / Edit / View / Info. */
+/** Point Set / Edit / View / Info. */
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
     val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("PoCoView", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
-        Menu("File") { close ->
-            Item("Open…", close) { opener() }
-            Item("Import (paste)…", close) { openDialog(DialogKind.IMPORT) }
-            Item("Save…", close) { openDialog(DialogKind.SAVE) }
+        Menu("Point Set") { close ->
+            Item("Import…", close) { openDialog(DialogKind.IMPORT) }
+            Item("Random…", close) { openDialog(DialogKind.RANDOM) }
+            Item("Export…", close) { openDialog(DialogKind.EXPORT) }
+            Item("Examples…", close) { openDialog(DialogKind.EXAMPLES) }
+            HorizontalDivider()
+            Item("Open file…", close) { state.confirmReplace { opener() } }
+            Item("Save file…", close) { openDialog(DialogKind.SAVE) }
             HorizontalDivider()
             Item("Export SVG", close) { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
+            Item("Export Ipe", close) { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
         }
         Menu("Edit") { close ->
             Item("Undo", close, enabled = state.canUndo) { state.undo() }
@@ -96,7 +113,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
             CheckItem("Line arrangement", state.showLines, close) { state.showLines = !state.showLines }
             CheckItem("Point labels", state.showLabels, close) { state.showLabels = !state.showLabels }
             HorizontalDivider()
-            for ((i, w) in Widget.entries.withIndex()) CheckItem("Widget: ${w.label} (${i + 1})", w in state.openWidgets, close) {
+            for ((i, w) in Widget.entries.withIndex()) CheckItem("${w.label} (${i + 1})", w in state.openWidgets, close) {
                 state.toggleWidget(w)
             }
             HorizontalDivider()
@@ -113,108 +130,145 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
     }
 }
 
-fun exportSvg(state: AppState): String {
-    val layers = if (!state.highlight) emptyList() else ALL_PROPERTIES.mapNotNull { p ->
-        val t = state.toggles[p.id] ?: return@mapNotNull null
-        val r = (state.results[p.id] as? PropState.Done)?.result ?: return@mapNotNull null
-        if (t.count && t.draw && r.structures != null) state.colorOf(p.id) to r.structures else null
+/** The highlighted structures as drawn on the canvas (colour, structures), and which of them are emphasized. */
+private fun exportLayers(state: AppState): Pair<List<Pair<Color, List<Structure>>>, Set<Int>> {
+    if (!state.highlight) return emptyList<Pair<Color, List<Structure>>>() to emptySet()
+    val layers = ArrayList<Pair<Color, List<Structure>>>()
+    val emphasized = HashSet<Int>()
+    for (p in ALL_PROPERTIES) {
+        val t = state.toggles[p.id] ?: continue
+        val r = (state.results[p.id] as? PropState.Done)?.result ?: continue
+        if (!t.count || !t.draw || r.structures == null) continue
+        if (p.emphasized) emphasized += layers.size
+        layers += state.colorOf(p.id) to r.structures
     }
-    return pointSetSvg(state.points, layers, state.showLabels)
+    return layers to emphasized
+}
+
+private fun lineStyle(state: AppState) = if (state.showLines) LineStyle(state.lineColor, state.lineAlpha, state.lineWidth) else null
+
+fun exportSvg(state: AppState): String {
+    val (layers, emphasized) = exportLayers(state)
+    return pointSetSvg(state.points, layers, state.showLabels, lineStyle(state), emphasized)
+}
+
+fun exportIpe(state: AppState): String {
+    val (layers, emphasized) = exportLayers(state)
+    return pointSetIpe(state.points, layers, state.showLabels, lineStyle(state), emphasized)
 }
 
 @Composable
-fun Dialogs(state: AppState, kind: DialogKind, close: () -> Unit) {
+fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close: () -> Unit) {
     state.busy?.let { OperationDialog(state, it) }
+    state.pendingReplace?.let { action -> ConfirmReplaceDialog(state, action) }
     when (kind) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
         DialogKind.IMPORT -> ImportDialog(state, close)
+        DialogKind.EXPORT -> ExportDialog(state, close)
         DialogKind.SAVE -> SaveDialog(state, close)
+        DialogKind.RANDOM -> RandomDialog(state, close)
+        DialogKind.EXAMPLES -> ExamplesDialog(state, close)
+        DialogKind.WELCOME -> WelcomeDialog(close = close, showExamples = { open(DialogKind.EXAMPLES) })
         DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT, close)
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
 }
 
-/** Save the current set (or all sets of the file) in a chosen format. */
+/** Asked before anything replaces the current point set. */
+@Composable
+private fun ConfirmReplaceDialog(state: AppState, action: () -> Unit) = AlertDialog(
+    onDismissRequest = { state.pendingReplace = null },
+    confirmButton = { TextButton(onClick = { state.pendingReplace = null; action() }) { Text("Yes") } },
+    dismissButton = { TextButton(onClick = { state.pendingReplace = null }) { Text("Abort") } },
+    title = { Text("Replace point set?") },
+    text = { Text("The current point set will be lost. This cannot be undone. Continue?", style = MaterialTheme.typography.bodyMedium) },
+)
+
+@Composable
+private fun FormatSelect(format: ExportFormat, countLine: Boolean, onFormat: (ExportFormat) -> Unit, onCountLine: (Boolean) -> Unit) {
+    SelectField("Format", format.extension, ExportFormat.entries, { it.extension }, Modifier.width(160.dp), onFormat)
+    if (format == ExportFormat.TXT) SwitchRow("First line: number of points", countLine, onCountLine)
+}
+
+/** Save the current set as a file (json or txt). */
 @Composable
 private fun SaveDialog(state: AppState, close: () -> Unit) {
     val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
-    var format by remember { mutableStateOf(PointFormat.ASC) }
-    var all by remember { mutableStateOf(false) }
-    var menu by remember { mutableStateOf(false) }
+    var format by remember { mutableStateOf(ExportFormat.JSON) }
+    var countLine by remember { mutableStateOf(true) }
     AlertDialog(
         onDismissRequest = close,
         confirmButton = {
             TextButton(onClick = {
-                state.encode(format, allSets = all)?.let { saver(state.saveName(format), it) }
+                saver(state.saveName(format), state.exportText(format, countLine).encodeToByteArray())
                 close()
             }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
-        title = { Text("Save point set") },
+        title = { Text("Save file") },
         text = {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Format", Modifier.padding(end = 8.dp))
-                    Box {
-                        TextButton(onClick = { menu = true }) { Text(".${format.extension} …") }
-                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            for (f in PointFormat.entries) DropdownMenuItem(text = { Text(".${f.extension}") }, onClick = { format = f; menu = false })
-                        }
-                    }
-                }
-                Text("File name: ${state.saveName(format)}", style = MaterialTheme.typography.bodySmall)
-                if (state.sets.size > 1) SwitchRow("All ${state.sets.size} sets of the file", all) { all = it }
+            Column(Modifier.widthIn(min = 300.dp)) {
+                FormatSelect(format, countLine, { format = it }, { countLine = it })
+                Text(state.saveName(format), style = MaterialTheme.typography.bodySmall)
             }
         },
     )
 }
 
-/** Paste point sets in one of the file formats; binary formats as a hex dump plus n. */
+/** The current set as text, to copy. */
+@Composable
+private fun ExportDialog(state: AppState, close: () -> Unit) {
+    var format by remember { mutableStateOf(ExportFormat.JSON) }
+    var countLine by remember { mutableStateOf(true) }
+    val clipboard = LocalClipboardManager.current
+    val text = state.exportText(format, countLine)
+    AlertDialog(
+        onDismissRequest = close,
+        confirmButton = { TextButton(onClick = close) { Text("Close") } },
+        dismissButton = {
+            TextButton(onClick = { clipboard.setText(AnnotatedString(text)); state.message = "Copied" }) { Text("Copy") }
+        },
+        title = { Text("Export") },
+        text = {
+            Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
+                FormatSelect(format, countLine, { format = it }, { countLine = it })
+                OutlinedTextField(
+                    text, onValueChange = {}, readOnly = true,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.fillMaxWidth().height(260.dp).padding(top = 8.dp).textFocus(state),
+                )
+            }
+        },
+    )
+}
+
+/** Paste a point set; the format is detected. */
 @Composable
 private fun ImportDialog(state: AppState, close: () -> Unit) {
-    var format by remember { mutableStateOf(PointFormat.ASC) }
     var text by remember { mutableStateOf("") }
-    var n by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    var menu by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = close,
         confirmButton = {
             TextButton(onClick = {
-                error = state.import(format, text, n.toIntOrNull())
-                if (error == null) close()
+                try {
+                    val p = importPointSet(text)
+                    state.confirmReplace { state.loadPoints("imported", p); close() }
+                } catch (e: Exception) {
+                    error = e.message ?: "Cannot read the content"
+                }
             }) { Text("Import") }
         },
         dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
-        title = { Text("Import point sets") },
+        title = { Text("Import") },
         text = {
             Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Format", Modifier.padding(end = 8.dp))
-                    Box {
-                        TextButton(onClick = { menu = true }) { Text(".${format.extension} …") }
-                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                            for (f in PointFormat.entries) DropdownMenuItem(text = { Text(".${f.extension}") }, onClick = { format = f; menu = false })
-                        }
-                    }
-                    if (format.isBinary) OutlinedTextField(
-                        n, onValueChange = { v -> n = v.filter { it.isDigit() }.take(3) }, label = { Text("n") },
-                        singleLine = true, modifier = Modifier.width(90.dp).padding(start = 8.dp).textFocus(state),
-                    )
-                }
-                Text(
-                    when {
-                        format.isBinary -> "Hex dump of the file, e.g. 00 00 01 fe ff ff fe 01 (${format.binaryBytes} byte(s) per coordinate, little-endian)"
-                        format == PointFormat.JSON -> "[[x,y],...] per set, or [[[x,y],...],...]"
-                        else -> "A line with n, then one 'x y [color]' per point (several sets may follow); or just 'x y' lines"
-                    },
-                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 4.dp),
-                )
+                Text(IMPORT_FORMATS, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
                 OutlinedTextField(
                     text, onValueChange = { text = it; error = null },
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.fillMaxWidth().height(220.dp).textFocus(state),
+                    modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = 8.dp).textFocus(state),
                 )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
@@ -222,7 +276,123 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
     )
 }
 
-/** Shown while an optimization runs: progress, loop switch, Abort. */
+private const val IMPORT_FORMATS = """{"points": [[x, y], [x, y, "color"], ...]}
+n, then n lines: x y [color]
+lines: x y [color]"""
+
+@Composable
+private fun RandomDialog(state: AppState, close: () -> Unit) = AlertDialog(
+    onDismissRequest = close,
+    confirmButton = {
+        TextButton(onClick = { state.confirmReplace { state.randomSet(state.randomN, state.randomGrid); close() } }) { Text("Generate") }
+    },
+    dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+    title = { Text("Random point set") },
+    text = {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt() }, Modifier.width(90.dp))
+            NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong() }, Modifier.width(130.dp))
+        }
+    },
+)
+
+/** Bundled example sets (groups) and the generated families. */
+@Composable
+private fun ExamplesDialog(state: AppState, close: () -> Unit) {
+    var groups by remember { mutableStateOf<List<ExampleGroup>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        try { groups = loadExamples() } catch (e: Exception) { error = e.message ?: "Cannot load the examples" }
+    }
+    AlertDialog(
+        onDismissRequest = close,
+        confirmButton = { TextButton(onClick = close) { Text("Close") } },
+        title = { Text("Examples") },
+        text = {
+            Column(Modifier.widthIn(min = 320.dp, max = 640.dp).verticalScroll(rememberScrollState())) {
+                Text("Know a set that belongs here? Please send it to $EMAIL", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(8.dp))
+                Text("Families", style = MaterialTheme.typography.titleSmall)
+                for (f in FAMILIES) FamilyRow(state, f, close)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                if (groups == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                for (g in groups.orEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(g.title, style = MaterialTheme.typography.titleSmall)
+                    g.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    for (e in g.examples) ExampleRow(state, e, close)
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clickable { state.confirmReplace { state.loadPoints(e.name, e.points); close() } }
+            .padding(vertical = 4.dp),
+    ) {
+        Text("${e.name} (n = ${e.points.size})", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+        Text(e.description, style = MaterialTheme.typography.bodySmall)
+        e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+        e.url?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+    }
+}
+
+@Composable
+private fun FamilyRow(state: AppState, f: PointSetFamily, close: () -> Unit) {
+    var n by remember { mutableStateOf(16) }
+    Column(Modifier.padding(vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(f.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            NumberField(state, "n", n.toString(), { n = it.toInt() }, Modifier.width(90.dp))
+            OutlinedButton(onClick = {
+                if (n !in 1..f.maxN) state.message = "${f.name}: n must be 1..${f.maxN}"
+                else {
+                    val size = f.size(n)
+                    state.confirmReplace { state.loadPoints("${f.id}_n$size", f.generate(n)); close() }
+                }
+            }) { Text("Generate") }
+        }
+        Text(f.description, style = MaterialTheme.typography.bodySmall)
+        for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** Shown at start until "Don't show again" is ticked. */
+@Composable
+private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
+    var dontShow by remember { mutableStateOf(false) }
+    fun done() { if (dontShow) savePref(WELCOME_PREF, "off"); close() }
+    AlertDialog(
+        onDismissRequest = ::done,
+        confirmButton = { TextButton(onClick = ::done) { Text("Start") } },
+        dismissButton = { TextButton(onClick = { if (dontShow) savePref(WELCOME_PREF, "off"); showExamples() }) { Text("Examples") } },
+        title = { Text("Welcome to PoCoView") },
+        text = {
+            Column {
+                SelectionContainer {
+                    Text(
+                        "Explore planar point sets and their order types.\n\n" +
+                            "Interesting point configurations or ideas? Please send them to $EMAIL " +
+                            "to extend the collection (also noted in Point Set > Examples).",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(dontShow, { dontShow = it })
+                    Text("Don't show again", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+    )
+}
+
+const val WELCOME_PREF = "welcome"
+private const val EMAIL = "manfred.scheucher@proton.me"
+
+/** Shown while an optimization runs: progress and Abort. */
 @Composable
 private fun OperationDialog(state: AppState, title: String) = AlertDialog(
     onDismissRequest = {},
@@ -230,10 +400,8 @@ private fun OperationDialog(state: AppState, title: String) = AlertDialog(
     title = { Text(state.busyTitle) },
     text = {
         Column {
-            Text(title.removeSuffix("…"), style = MaterialTheme.typography.bodyMedium)
+            Text(title.removeSuffix("…") + if (state.loop) " (repeat)" else "", style = MaterialTheme.typography.bodyMedium)
             state.progress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            Spacer(Modifier.height(8.dp))
-            SwitchRow("Loop (continue until aborted)", state.loop) { state.loop = it }
         }
     },
 )
@@ -352,12 +520,12 @@ Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo / redo
 + / -: zoom;  Home or 0: fit
 V / A / D: tools move / add / delete
 F: lock order type
-M: minimize coordinates;  B: beautify (implementations: Optimize widget)
+M: minimize;  B: beautify (Optimize widget)
 L: line arrangement
 H: highlight on/off
 I: incident only on/off
 Enter: qtvis minimizer (property and parameters of the Optimize widget)
-1 .. 5: show / hide the widgets Properties, Points, Optimize, Data, Display
+1 .. 4: show / hide the widgets Properties, Optimize, Data, Display
 PageUp / PageDown (, / .): previous / next set of the file
 
 Mouse: drag a point to move it, drag empty space to pan, wheel or pinch to zoom."""

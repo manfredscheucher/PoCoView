@@ -289,7 +289,9 @@ private fun DrawScope.drawStructures(state: AppState, scr: List<Offset>) {
         val res = (state.results[prop.id] as? PropState.Done)?.result ?: continue
         val list = res.structures ?: continue
         val c = state.colorOf(prop.id)
-        val width = 1.5f * state.lineWidth
+        // emphasized properties (crossing families): opaque and bold
+        val strong = prop.emphasized
+        val width = (if (strong) 3.5f else 1.5f) * state.lineWidth
         // (with "incident only", the structures are already restricted to the selected point)
         for (s in list) {
             if (s.vertices.any { it !in scr.indices }) continue
@@ -304,7 +306,7 @@ private fun DrawScope.drawStructures(state: AppState, scr: List<Offset>) {
                     drawPath(path, c.copy(alpha = 0.7f), style = Stroke(width))
                 }
                 Shape.SEGMENTS -> for (v in 0 until s.vertices.size - 1 step 2)
-                    drawLine(c.copy(alpha = 0.5f), scr[s.vertices[v]], scr[s.vertices[v + 1]], strokeWidth = width)
+                    drawLine(c.copy(alpha = if (strong) 1f else 0.5f), scr[s.vertices[v]], scr[s.vertices[v + 1]], strokeWidth = width)
             }
         }
     }

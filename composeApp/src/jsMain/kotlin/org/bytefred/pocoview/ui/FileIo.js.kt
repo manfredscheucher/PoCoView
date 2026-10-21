@@ -1,5 +1,6 @@
 package org.bytefred.pocoview.ui
 
+import org.bytefred.pocoview.core.LOAD_EXTENSIONS
 import androidx.compose.runtime.Composable
 import kotlinx.browser.document
 import kotlinx.browser.window
@@ -19,7 +20,7 @@ import org.w3c.files.get
 actual fun rememberFileOpener(onOpened: (name: String, bytes: ByteArray) -> Unit): () -> Unit = {
     val input = document.createElement("input") as HTMLInputElement
     input.type = "file"
-    input.accept = ".asc,.psz,.txt,.json,.b08,.b16,.b32,.pb08,.pb16,.pb32"
+    input.accept = LOAD_EXTENSIONS.joinToString(",") { ".$it" }
     input.onchange = {
         val file = input.files?.get(0)
         if (file != null) {
@@ -45,4 +46,11 @@ actual fun rememberFileSaver(onSaved: (name: String?) -> Unit): (fileName: Strin
     // revoking right away can abort the download in some browsers
     window.setTimeout({ URL.revokeObjectURL(url) }, 10_000)
     onSaved(fileName)
+}
+
+// browser storage can be unavailable (private mode, blocked site data): then nothing is remembered
+actual fun loadPref(key: String): String? = try { kotlinx.browser.localStorage.getItem("pocoview.$key") } catch (e: Throwable) { null }
+
+actual fun savePref(key: String, value: String) {
+    try { kotlinx.browser.localStorage.setItem("pocoview.$key", value) } catch (e: Throwable) { }
 }

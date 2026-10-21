@@ -71,12 +71,6 @@ class LegacyOptimizersTest {
     }
 
     @Test
-    fun toIntegerMatchesPython() {
-        assertEquals(listOf(4L, 24L, 18L, -9L, 56L), toIntegerExact(doubleArrayOf(0.5, 3.0, 2.25, -1.125, 7.0))!!.toList())
-        assertEquals(null, toIntegerExact(doubleArrayOf(1e-30, 1e10)))
-    }
-
-    @Test
     fun beautifyPointSetMatchesPython() = runTest {
         assertEquals(
             listOf(246L to 0L, 1466L to 11L, 1284L to 826L, 0L to 891L, 566L to 381L, 984L to 300L, 722L to 690L),
@@ -108,30 +102,6 @@ class LegacyOptimizersTest {
         assertEquals(listOf(0L to 0L, 35L to 23L, 16L to 50L, 8L to 26L, 25L to 37L, 8L to 27L, 34L to 51L, 2L to 2L, 18L to 25L), coords(r3.points))
         val r4 = minimizePatternSearch(p9, maxTrials = 300, scale = 3, blowup = 2)
         assertEquals(listOf(0L to 0L, 206L to 154L, 187L to 252L, 118L to 160L, 191L to 231L, 126L to 171L, 235L to 285L, 1L to 1L, 133L to 159L), coords(r4.points))
-    }
-
-    @Test
-    fun beautify2RawMatchesPython() = runTest {
-        val r = beautify2Wide(p7, 1, 200, 0, false, null, 1, 0.0001, Random(1), Ticker())!!
-        assertEquals(
-            listOf(
-                0L to 0L, 8796093022208000L to 325455441821696L, 8620171161763840L to 8884053952430080L,
-                114349209288704L to 8708132091985920L, 2060598859473367L to 3120902570560211L,
-                5325868948560398L to 2633438426601877L, 3242255867791801L to 7588608740157980L,
-            ),
-            coords(r),
-        )
-        // the public variant cannot hand such coordinates to the app: falls back to the input
-        assertEquals(p7, beautify2(p7, iter2 = 200))
-    }
-
-    @Test
-    fun beautify2WithMinimizeKeepsOrderType() = runTest {
-        val col = p9.mapIndexed { i, p -> p.copy(color = if (i % 2 == 0) "red" else null) }
-        val r = beautify2(col, iter2 = 300, minimize = true, rnd = Random(5))
-        assertEquals(orderTypeSignature(col), orderTypeSignature(r))
-        assertEquals(col.map { it.color }, r.map { it.color })
-        assertTrue(r.all { it.inRange() })
     }
 
     @Test

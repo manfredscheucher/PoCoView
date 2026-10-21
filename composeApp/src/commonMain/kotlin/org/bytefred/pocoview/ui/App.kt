@@ -68,20 +68,20 @@ fun App() {
         val focus = remember { FocusRequester() }
         // scroll positions survive closing and reopening a widget
         val scrolls = remember { Widget.entries.associateWith { ScrollState(0) } }
-        val stackScroll = rememberScrollState()
         val columnsScroll = rememberScrollState()
 
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
         // they are ignored while a text field has focus
         Surface(Modifier.fillMaxSize().onKeyEvent { state.textFieldsFocused == 0 && handleKey(it, state, view) }) {
-            var dialog by remember { mutableStateOf(DialogKind.NONE) }
-            Dialogs(state, dialog) { dialog = DialogKind.NONE }
+            var dialog by remember { mutableStateOf(if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME) }
+            Dialogs(state, dialog, open = { dialog = it }) { dialog = DialogKind.NONE }
             Column(Modifier.fillMaxSize()) {
                 MenuBar(state, view) { dialog = it }
                 ToolBar(state)
                 HorizontalDivider()
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                    val panelHeight = maxHeight * 0.45f
+                    // portrait: more room below the canvas when several widgets share it
+                    val panelHeight = maxHeight * if (state.openWidgets.size > 1) 0.55f else 0.45f
                     val wide = when (state.layoutMode) {
                         LayoutMode.LANDSCAPE -> true
                         LayoutMode.PORTRAIT -> false
@@ -123,16 +123,20 @@ fun App() {
                             }
                         }
                     } else {
-                        // portrait: the widgets stacked below the canvas in one scrolling area
+                        // portrait: the widgets stacked below the canvas, each with its own share
+                        // of the height and its own scrolling
                         Column(Modifier.fillMaxSize()) {
                             canvas(Modifier.weight(1f).fillMaxWidth())
                             if (open.isNotEmpty()) {
                                 HorizontalDivider()
-                                Column(Modifier.fillMaxWidth().height(panelHeight).verticalScroll(stackScroll)) {
-                                    for (w in open) key(w) {
-                                        Column(Modifier.fillMaxWidth().touches(state, w)) {
+                                Column(Modifier.fillMaxWidth().height(panelHeight)) {
+                                    for ((i, w) in open.withIndex()) key(w) {
+                                        if (i > 0) HorizontalDivider()
+                                        Column(Modifier.fillMaxWidth().weight(1f).touches(state, w)) {
                                             WidgetHeader(state, w)
-                                            WidgetContent(state, w, selectProperties)
+                                            Box(Modifier.weight(1f).verticalScroll(scrolls.getValue(w))) {
+                                                WidgetContent(state, w, selectProperties)
+                                            }
                                         }
                                     }
                                 }
@@ -177,4 +181,4 @@ private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolea
     return true
 }
 
-private val WIDGET_KEYS = listOf(Key.One, Key.Two, Key.Three, Key.Four, Key.Five)
+private val WIDGET_KEYS = listOf(Key.One, Key.Two, Key.Three, Key.Four)

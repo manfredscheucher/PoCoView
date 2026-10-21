@@ -118,19 +118,16 @@ class AppStateTest {
         val s = state()
         s.randomSet(10, 1_000_000)
         val sig = orderTypeSignature(s.points)
-        s.coordSettings = CoordSettings(iter2 = 200)
+        s.beautifySettings = BeautifySettings(iter2 = 200)
         for (m in MinimizeMethod.entries) {
             s.minimizeMethod = m
             s.minimize()
             s.awaitIdle()
             assertEquals(sig, orderTypeSignature(s.points), m.name)
         }
-        for (m in BeautifyMethod.entries) {
-            s.beautifyMethod = m
-            s.beautify()
-            s.awaitIdle()
-            assertEquals(sig, orderTypeSignature(s.points), m.name)
-        }
+        s.beautify()
+        s.awaitIdle()
+        assertEquals(sig, orderTypeSignature(s.points), "beautify")
         assertTrue(s.points.maxOf { maxOf(it.x, it.y) } < 1_000_000)
     }
 
@@ -183,8 +180,7 @@ class AppStateTest {
         s.randomSet(12, 1000)
         s.optimizeProperty = "crossings"
         s.searchFlowId = "brownian"
-        s.loop = true
-        s.searchProperty()
+        s.searchProperty(repeat = true)
         assertTrue(s.busy != null)
         s.addPoint(Pt(100_000, 100_001))
         assertNull(s.busy)
@@ -225,7 +221,7 @@ class AppStateTest {
         s.load(listOf(Pt(900, 500), Pt(783, 783), Pt(500, 900), Pt(217, 783), Pt(100, 500), Pt(217, 217), Pt(500, 100), Pt(783, 217)))
         s.cellHop("crossings", CellHopParams())
         s.awaitIdle()
-        assertTrue(s.message!!.startsWith("Crossing number: 70 →"), s.message)
+        assertTrue(s.message!!.startsWith("Crossing number: 70 ->"), s.message)
         s.undo()
         assertFalse(s.canUndo)
     }
@@ -253,7 +249,7 @@ class AppStateTest {
             s.searchFlowId = flow
             s.searchProperty()
             s.awaitIdle()
-            assertTrue(s.message!!.startsWith("Crossing number: 70 →"), "$flow: ${s.message}")
+            assertTrue(s.message!!.startsWith("Crossing number: 70 ->"), "$flow: ${s.message}")
             assertTrue(s.canUndo)
         }
     }
@@ -267,7 +263,7 @@ class AppStateTest {
             do p = List(9) { Pt(r.nextLong(0, 1_000_000), r.nextLong(0, 1_000_000)) } while (!org.bytefred.pocoview.core.isGeneralPosition(p))
             s.load(p)
             s.optimizeProperty = "crossings"
-            s.coordSettings = s.coordSettings.copy(oldMaxTrials = 2)
+            s.wrtSettings = s.wrtSettings.copy(maxTrials = 2)
             s.awaitIdle()
             val before = s.done("crossings").count
             val bitsBefore = org.bytefred.pocoview.core.bitsOf(s.points)
@@ -291,8 +287,8 @@ class AppStateTest {
         s.toggleWidget(Widget.DATA) // Properties clicked before Display was opened
         assertEquals(listOf(Widget.DISPLAY, Widget.DATA), s.openWidgets.toList())
         s.changeMaxColumns(3)
-        s.toggleWidget(Widget.POINTS)
-        assertEquals(listOf(Widget.DISPLAY, Widget.DATA, Widget.POINTS), s.openWidgets.toList())
+        s.toggleWidget(Widget.PROPERTIES)
+        assertEquals(listOf(Widget.DISPLAY, Widget.DATA, Widget.PROPERTIES), s.openWidgets.toList())
         s.touchWidget(Widget.DISPLAY)
         s.changeMaxColumns(1) // lowering k closes the least recently clicked ones at once
         assertEquals(listOf(Widget.DISPLAY), s.openWidgets.toList())
@@ -327,5 +323,21 @@ class AppStateTest {
         assertEquals(AppState.START_POINTS, s.points)
         assertEquals(13, s.points.size)
         assertTrue(s.collinear.isEmpty())
+    }
+
+    @Test
+    fun replaceWaitsForConfirmation() {
+        val s = state()
+        val before = s.points
+        s.confirmReplace { s.loadPoints("x", listOf(Pt(0, 0), Pt(1, 0), Pt(0, 1))) }
+        assertEquals(before, s.points)
+        s.pendingReplace!!.invoke()
+        assertEquals(3, s.points.size)
+    }
+
+    @Test
+    fun rangeTextPerAxis() {
+        assertEquals("x 0…5, y -2…7", rangeText(listOf(Pt(0, -2), Pt(5, 7))))
+        assertEquals("-", rangeText(emptyList()))
     }
 }
