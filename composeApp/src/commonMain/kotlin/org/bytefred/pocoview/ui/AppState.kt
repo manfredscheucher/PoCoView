@@ -291,7 +291,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     private var dragUndoPending = false
 
     init {
-        setPoints(randomPointSet(10, 1000), recordUndo = false)
+        setPoints(START_POINTS, recordUndo = false)
         sets = listOf(points)
         requestFit()
     }
@@ -820,6 +820,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         const val SEARCH_TITLE = "Searching for a better configuration"
         val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
         const val DEFAULT_LINE_ALPHA = 0.18f
+        /** The set shown at start: a 13-point set found by Manfred. */
+        val START_POINTS = listOf(
+            Pt(160, 7359), Pt(1768, 6530), Pt(2592, 6679), Pt(4239, 6383), Pt(3955, 5593),
+            Pt(2960, 5759), Pt(2338, 4960), Pt(2880, 4320), Pt(2960, 2520), Pt(5759, 7359),
+            Pt(3076, 5497), Pt(2684, 5783), Pt(3113, 5976),
+        )
         val DEFAULT_SELECTED_COLOR = Color(0xFFFF9800)
         val DEFAULT_INCIDENT_LINE_COLOR = Color(0xFFE53935)
 

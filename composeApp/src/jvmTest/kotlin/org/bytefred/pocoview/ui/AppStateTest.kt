@@ -325,4 +325,12 @@ class AppStateTest {
         assertEquals(AppState.DEFAULT_SELECTED_COLOR, s.selectedColor)
         assertEquals(6f, s.pointRadius)
     }
+
+    @Test
+    fun startsWithManfredsSet() {
+        val s = state()
+        assertEquals(AppState.START_POINTS, s.points)
+        assertEquals(13, s.points.size)
+        assertTrue(s.collinear.isEmpty())
+    }
 }
