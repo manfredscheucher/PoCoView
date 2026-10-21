@@ -1,0 +1,26 @@
+{
+  "name": "n16_no_convex6gon",
+  "description": "Set of 16 points without convex 6-gon.",
+  "reference": "Source: See for example 'Research Problems in Discrete Geometry' by Brass, Moser, Pach, Section 8.2. The drawing can also be found on page 332.",
+  "url": null,
+  "source": "https://www.eurogiga-compose.eu/posezo/n16_no_convex6gon/n16_no_convex6gon.psz",
+  "group": "Singletons",
+  "points": [
+    [0, 30],
+    [20, 29],
+    [38, 23],
+    [51, 12],
+    [63, 0],
+    [151, 121],
+    [158, 139],
+    [161, 160],
+    [160, 60],
+    [163, 80],
+    [172, 96],
+    [280, -3],
+    [288, 12],
+    [304, 24],
+    [322, 30],
+    [343, 32]
+  ]
+}

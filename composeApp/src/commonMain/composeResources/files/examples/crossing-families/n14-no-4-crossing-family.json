@@ -1,0 +1,25 @@
+{
+  "name": "n14-no-4-crossing-family",
+  "description": "14 points without a 4-crossing family (Fig. 2)",
+  "reference": "O. Aichholzer, J. Kynčl, M. Scheucher, B. Vogtenhuber, P. Valtr, On crossing-families in planar point sets, Comput. Geom. 107 (2022) 101899, arXiv:2109.10705",
+  "url": "https://arxiv.org/abs/2109.10705",
+  "source": "arXiv source tarball https://arxiv.org/src/2109.10705v2, file figures/n0014k4fams000000.pdf (Ipe 7.2.14 figure). Exact integers taken from the 'coordinates:' text object (LaTeX array) in the embedded Ipe XML; the same numbers are in the PDF content stream but lie outside the CropBox, i.e. not visible in the rendered paper. Cross-checked: an axis-aligned scaling of these coordinates maps each point onto one of the 14 drawn point marks (max deviation 0.001 pt).",
+  "claim": "cf(S)=3: contains a 3-crossing family but no 4-crossing family (caption of Fig. 2); shows cf(14)=3, together with cf(15)>=4",
+  "group": "Crossing families",
+  "points": [
+    [61, 66],
+    [61, 0],
+    [57, 5],
+    [54, 9],
+    [47, 40],
+    [41, 37],
+    [37, 44],
+    [30, 53],
+    [46, 61],
+    [18, 55],
+    [55, 65],
+    [11, 60],
+    [9, 61],
+    [0, 66]
+  ]
+}

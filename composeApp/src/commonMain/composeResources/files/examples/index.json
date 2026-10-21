@@ -1,0 +1,60 @@
+{
+  "groups": [
+    {
+      "title": "Singletons",
+      "note": "Collected on PoSeZo (https://www.eurogiga-compose.eu/posezo.php)",
+      "files": [
+        "singletons/n6-c1-non-regular-triangulation.json",
+        "singletons/n08-c2-no-monochromatic-3-hole.json",
+        "singletons/n10-c1-1-convex-5-hole.json",
+        "singletons/n12-c1-min-convex-3-4-5-holes.json",
+        "singletons/n12-c1-min-crossing-number-153.json",
+        "singletons/n13-c1-min-convex-3-4-5-holes.json",
+        "singletons/n14-c1-6-convex-5-holes.json",
+        "singletons/n15-c1-9-convex-5-holes.json",
+        "singletons/n18-c1-min-crossing-number-1029.json",
+        "singletons/n22-c2-no-monochromatic-4-hole.json",
+        "singletons/n29-c1-no-convex-6-hole.json",
+        "singletons/n35-c2-no-monochromatic-4-island.json",
+        "singletons/n46-c2-no-monochromatic-convex-4-hole.json",
+        "singletons/n61-c2-no-monochromatic-5-island.json",
+        "singletons/n16-c1-11-convex-5-holes.json",
+        "singletons/n64-c2-no-monochromatic-5-island.json",
+        "singletons/n16-c1-no-convex-6-gon.json",
+        "singletons/n9-c1-universal-for-n6.json",
+        "singletons/n25-c1-no-6-crossing-family.json",
+        "singletons/n16_no_convex6gon.json"
+      ]
+    },
+    {
+      "title": "Crossing families",
+      "note": null,
+      "files": [
+        "crossing-families/n14-no-4-crossing-family.json",
+        "crossing-families/n20-no-5-crossing-family.json",
+        "crossing-families/n25-no-6-crossing-family.json",
+        "crossing-families/n41-no-9-crossing-family.json"
+      ]
+    },
+    {
+      "title": "Universal point sets",
+      "note": null,
+      "files": [
+        "universal/n5-universal.json",
+        "universal/n6-universal.json",
+        "universal/n7-universal.json",
+        "universal/n8-universal.json",
+        "universal/n9-universal.json",
+        "universal/n10-universal.json"
+      ]
+    },
+    {
+      "title": "Miscellaneous",
+      "note": null,
+      "files": [
+        "misc/n17-universal-4-connected-k11-17.json",
+        "misc/n12-11-universal.json"
+      ]
+    }
+  ]
+}

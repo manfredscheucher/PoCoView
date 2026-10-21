@@ -22,6 +22,7 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
+            implementation(compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)
         }
         jvmMain.dependencies {
@@ -34,6 +35,10 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "org.bytefred.pocoview.resources"
 }
 
 compose.desktop {

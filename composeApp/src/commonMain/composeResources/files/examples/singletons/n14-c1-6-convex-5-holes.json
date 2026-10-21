@@ -1,0 +1,24 @@
+{
+  "name": "n14-c1-6-convex-5-holes",
+  "description": "Set of 14 points with 6 convex 5-holes.",
+  "reference": "From: Oswin",
+  "url": null,
+  "source": "https://www.eurogiga-compose.eu/posezo/n14_c1_6_convex_5_holes/n14_c1_6_convex_5_holes.psz",
+  "group": "Singletons",
+  "points": [
+    [0, 64677],
+    [65280, 65280],
+    [32144, 56115],
+    [38443, 42292],
+    [29486, 47302],
+    [28031, 47507],
+    [28497, 46248],
+    [26495, 45981],
+    [26324, 45249],
+    [19359, 44531],
+    [3957, 0],
+    [22031, 40206],
+    [5222, 32611],
+    [48433, 51953]
+  ]
+}

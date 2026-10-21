@@ -1,0 +1,19 @@
+{
+  "name": "n9-c1-universal-for-n6",
+  "description": "Set of 9 points which contains any order type of size 6.",
+  "reference": "From: ?",
+  "url": null,
+  "source": "https://www.eurogiga-compose.eu/posezo/n9_c1_universal_for_n6/n9_c1_universal_for_n6.psz",
+  "group": "Singletons",
+  "points": [
+    [15, 1],
+    [2, 1],
+    [4, 4],
+    [6, 6],
+    [8, 5],
+    [9, 8],
+    [11, 6],
+    [13, 5],
+    [10, 14]
+  ]
+}

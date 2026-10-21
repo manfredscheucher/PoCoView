@@ -1,0 +1,26 @@
+{
+  "name": "n16-c1-no-convex-6-gon",
+  "description": "Set of 16 points without convex 6-gons.",
+  "reference": "Construction from Erdos and Szekeres: On some extremum problems in elementary geometry, Ann. Univ. Sci. Budapest 3-4 (1960-61) 53-62. Explicit coordinates from Kalbfleisch and Stanton: On the maximum number of coplanar points containing no convex N-gons, Utilitas Math. 47 (1995) 235-245.",
+  "url": null,
+  "source": "https://www.eurogiga-compose.eu/posezo/n16_c1_no_convex_6_gon/n16_c1_no_convex_6_gon.psz",
+  "group": "Singletons",
+  "points": [
+    [30, 129],
+    [13, 122],
+    [46, 137],
+    [61, 147],
+    [183, 118],
+    [151, 135],
+    [167, 126],
+    [139, 142],
+    [106, 78],
+    [105, 53],
+    [105, 63],
+    [98, 34],
+    [97, 19],
+    [95, 0],
+    [0, 117],
+    [197, 112]
+  ]
+}
