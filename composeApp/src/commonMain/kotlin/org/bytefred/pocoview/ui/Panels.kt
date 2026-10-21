@@ -185,7 +185,7 @@ private fun DisplayWidget(state: AppState) {
         Dropdown(state.layoutMode.name.lowercase(), LayoutMode.entries, { it.name.lowercase() }) { state.layoutMode = it }
     }
     Spacer(Modifier.height(8.dp))
-    OutlinedButton(onClick = state::resetDisplay) { Text("Defaults") }
+    OutlinedButton(onClick = state::resetDisplay) { Text("Reset to defaults") }
 }
 
 @Composable

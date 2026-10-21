@@ -313,7 +313,14 @@ class AppStateTest {
         s.selectedColor = androidx.compose.ui.graphics.Color.Blue
         s.incidentLines = IncidentLines.HIGHLIGHT
         s.pointRadius = 15f
+        s.showLines = false; s.showLabels = false; s.layoutMode = LayoutMode.PORTRAIT
+        s.changeMaxColumns(4)
+        for (w in Widget.entries) if (w !in s.openWidgets) s.toggleWidget(w)
         s.resetDisplay()
+        assertTrue(s.showLines && s.showLabels)
+        assertEquals(LayoutMode.AUTO, s.layoutMode)
+        assertEquals(2, s.maxColumns)
+        assertEquals(2, s.openWidgets.size)
         assertEquals(IncidentLines.HIDE, s.incidentLines)
         assertEquals(AppState.DEFAULT_SELECTED_COLOR, s.selectedColor)
         assertEquals(6f, s.pointRadius)

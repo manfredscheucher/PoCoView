@@ -251,8 +251,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         while (openWidgets.size > maxColumns) openWidgets.remove(openWidgets.minBy { lastClicked[it] ?: 0L })
     }
 
-    /** Display widget "Defaults". */
+    /** Display widget "Reset to defaults": every setting of the widget. */
     fun resetDisplay() {
+        showLines = true; showLabels = true; layoutMode = LayoutMode.AUTO
+        changeMaxColumns(2)
         pointRadius = 6f; selectedScalePercent = 100; lineWidth = 1f
         lineColor = DEFAULT_LINE_COLOR; lineAlpha = DEFAULT_LINE_ALPHA
         selectedColor = DEFAULT_SELECTED_COLOR

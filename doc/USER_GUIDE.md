@@ -25,7 +25,7 @@ the one that was clicked least recently (opening a widget or clicking into it co
 
 The Display widget sets how things are drawn: point size, line width, colour and opacity of the line
 arrangement, labels, the selected point (size, colour, lines through it), the number of columns and
-the layout (auto/portrait/landscape).
+the layout (auto/portrait/landscape). "Reset to defaults" puts all of them back.
 
 ## Properties
 
