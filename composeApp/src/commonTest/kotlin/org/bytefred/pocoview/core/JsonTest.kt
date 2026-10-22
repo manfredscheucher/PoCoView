@@ -19,13 +19,13 @@ class JsonTest {
 
     @Test
     fun deepNestingIsAnErrorNotACrash() {
-        assertFailsWith<FormatException> { importPointSet("{\"points\": " + "[".repeat(5000) + "]".repeat(5000) + "}") }
+        assertFailsWith<FormatException> { importPointSets("{\"points\": " + "[".repeat(5000) + "]".repeat(5000) + "}") }
     }
 
     @Test
     fun colourMustBeOneWord() {
-        assertFailsWith<FormatException> { importPointSet("""{"points": [[0, 0, "dark red"], [1, 0], [0, 1]]}""") }
-        assertFailsWith<FormatException> { importPointSet("""{"points": [[0, 0, ""], [1, 0], [0, 1]]}""") }
-        assertEquals("R", importPointSet("""{"points": [[0, 0, "R"], [1, 0], [0, 1]]}""")[0].color)
+        assertFailsWith<FormatException> { importPointSets("""{"points": [[0, 0, "dark red"], [1, 0], [0, 1]]}""") }
+        assertFailsWith<FormatException> { importPointSets("""{"points": [[0, 0, ""], [1, 0], [0, 1]]}""") }
+        assertEquals("R", importPointSets("""{"points": [[0, 0, "R"], [1, 0], [0, 1]]}""")[0][0].color)
     }
 }

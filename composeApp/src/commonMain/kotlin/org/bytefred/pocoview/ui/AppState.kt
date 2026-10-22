@@ -38,8 +38,7 @@ import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
 import org.bytefred.pocoview.core.extent
-import org.bytefred.pocoview.core.exportPointSet
-import org.bytefred.pocoview.core.importPointSet
+import org.bytefred.pocoview.core.exportPointSets
 import org.bytefred.pocoview.core.inRange
 import org.bytefred.pocoview.core.minimizeCoords
 import org.bytefred.pocoview.core.minimizeIntegerCoordinates
@@ -197,6 +196,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         private set
     var fileName by mutableStateOf("points")
         private set
+
+    /**
+     * Set to the number of sets when loaded content holds more than one set (null otherwise),
+     * so the UI can tell the user; the UI clears it (sets it to null) after showing it.
+     */
+    var loadedSetsNotice by mutableStateOf<Int?>(null)
     var message by mutableStateOf<String?>(null)
     var busy by mutableStateOf<String?>(null)
         private set
@@ -449,7 +454,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** Loads an example or a generated family member as the only set. */
     fun loadPoints(name: String, p: List<Pt>) = load(name, listOf(p))
 
+    /** Loads several sets (e.g. from `importPointSets`) like a multi-set file; the first one is shown. */
+    fun loadSets(name: String, loaded: List<List<Pt>>) = load(name, loaded)
+
     private fun load(name: String, loaded: List<List<Pt>>) {
+        require(loaded.isNotEmpty()) { "No point set to load" }
         cancelOperation()
         coordinatesDraft = null
         sets = loaded
@@ -460,6 +469,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         clearHistory()
         requestFit()
         message = "Loaded $name: ${loaded.size} set(s), n=${loaded[0].size}"
+        loadedSetsNotice = loaded.size.takeIf { it > 1 }
     }
 
     /** Shows another set of the file. Undo history is per set, so it is cleared. */
@@ -476,14 +486,21 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     private fun storeCurrentSet() {
-        if (setIndex in sets.indices) sets = sets.toMutableList().also { it[setIndex] = points }
+        if (setIndex in sets.indices && sets[setIndex] != points) sets = sets.toMutableList().also { it[setIndex] = points }
     }
 
     /** Suggested file name for saving. */
     fun saveName(format: ExportFormat): String = saveFileName(fileName, format)
 
-    /** The current set as export / file content. */
-    fun exportText(format: ExportFormat, countLine: Boolean): String = exportPointSet(points, format, countLine)
+    /** All sets of the loaded file (the current set's edits included) as export / file content. */
+    fun exportText(format: ExportFormat): String {
+        storeCurrentSet()
+        return exportPointSets(sets, format)
+    }
+
+    /** Transitional for the old Save/Export dialogs: [countLine] is ignored (count lines are always written). */
+    @Deprecated("Count lines are always written", ReplaceWith("exportText(format)"))
+    fun exportText(format: ExportFormat, countLine: Boolean): String = exportText(format)
 
     // ---- properties ------------------------------------------------------------------
 

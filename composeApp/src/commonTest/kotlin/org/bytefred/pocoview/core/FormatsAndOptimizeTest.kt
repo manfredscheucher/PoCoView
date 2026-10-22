@@ -9,28 +9,50 @@ import kotlin.test.assertTrue
 class FormatsAndOptimizeTest {
     private val pts = listOf(Pt(3, 7, "B"), Pt(250, 0, "R"), Pt(9, -200))
 
+    private fun importOne(text: String): List<Pt> = importPointSets(text).single()
+
     @Test
-    fun textRoundtripWithAndWithoutCountLine() {
-        for (countLine in listOf(true, false)) {
-            val t = writeText(pts, countLine)
-            assertEquals(pts, importPointSet(t))
-            assertEquals(listOf(pts), readPointSets("x.txt", t.encodeToByteArray()))
+    fun textAlwaysWritesCountLineAndRoundtrips() {
+        val t = writeText(pts)
+        assertEquals("3\n3 7 B\n250 0 R\n9 -200\n", t)
+        assertEquals(t, exportPointSets(listOf(pts), ExportFormat.TXT))
+        assertEquals(pts, importOne(t))
+        assertEquals(listOf(pts), readPointSets("x.txt", t.encodeToByteArray()))
+        // plain lines without count line are still read as one set
+        assertEquals(listOf(pts), importPointSets("3 7 B\n250 0 R\n9 -200\n"))
+    }
+
+    @Test
+    fun severalSetsRoundtripInBothFormats() {
+        val sets = listOf(pts, pts.reversed(), listOf(Pt(0, 0), Pt(5, 1)))
+        for (fmt in ExportFormat.entries) {
+            val out = exportPointSets(sets, fmt)
+            assertEquals(sets, readPointSets("x.${fmt.extension}", out.encodeToByteArray()), fmt.name)
+            assertEquals(sets, importPointSets(out), fmt.name)
         }
-        assertEquals("3\n3 7 B\n250 0 R\n9 -200\n", writeText(pts, countLine = true))
-        assertEquals("3 7 B\n250 0 R\n9 -200\n", exportPointSet(pts, ExportFormat.TXT, countLine = false))
+        assertEquals("3\n3 7 B\n250 0 R\n9 -200\n2\n0 0\n5 1\n", writeTextSets(listOf(pts, sets[2])))
+        assertEquals(
+            "{\"points\": [[3, 7, \"B\"], [250, 0, \"R\"], [9, -200]]}\n{\"points\": [[0, 0], [5, 1]]}\n",
+            exportPointSets(listOf(pts, sets[2]), ExportFormat.JSON),
+        )
+    }
+
+    @Test
+    fun deprecatedSingleImportRejectsSeveralSets() {
+        assertFailsWith<FormatException> { importPointSet(writeTextSets(listOf(pts, pts))) }
     }
 
     @Test
     fun countLineChecksum() {
-        assertEquals(listOf(Pt(1, 2), Pt(3, 4)), importPointSet("2\n1 2\n3 4\n\n\n"))
-        assertFailsWith<FormatException> { importPointSet("3\n1 2\n3 4\n") }
-        assertFailsWith<FormatException> { importPointSet("1\n1 2\n3 4\n") }
-        assertFailsWith<FormatException> { importPointSet("-3\n1 2\n") }
+        assertEquals(listOf(Pt(1, 2), Pt(3, 4)), importOne("2\n1 2\n3 4\n\n\n"))
+        assertFailsWith<FormatException> { importPointSets("3\n1 2\n3 4\n") }
+        assertFailsWith<FormatException> { importPointSets("1\n1 2\n3 4\n") }
+        assertFailsWith<FormatException> { importPointSets("-3\n1 2\n") }
     }
 
     @Test
     fun textFilesMayHoldSeveralSets() {
-        val two = (writeText(pts, true) + writeText(pts.reversed(), true)).encodeToByteArray()
+        val two = (writeText(pts) + writeText(pts.reversed())).encodeToByteArray()
         for (ext in listOf("txt", "asc", "psz")) assertEquals(listOf(pts, pts.reversed()), readPointSets("x.$ext", two))
         assertEquals(listOf(listOf(Pt(1, 2), Pt(3, 4))), readTextSets("# comment\n1 2\n3 4\n"))
         assertFailsWith<FormatException> { readPointSets("x.txt", "5\n1 2\n".encodeToByteArray()) }
@@ -38,10 +60,11 @@ class FormatsAndOptimizeTest {
 
     @Test
     fun malformedTextGivesFormatExceptions() {
-        assertFailsWith<FormatException> { importPointSet("1 x\n") }
-        assertFailsWith<FormatException> { importPointSet("1 2 red blue\n") }
-        assertFailsWith<FormatException> { importPointSet("1\n") }
-        assertFailsWith<FormatException> { importPointSet("") }
+        assertFailsWith<FormatException> { importPointSets("1 x\n") }
+        assertFailsWith<FormatException> { importPointSets("1 2 red blue\n") }
+        assertFailsWith<FormatException> { importPointSets("1\n") }
+        assertFailsWith<FormatException> { importPointSets("") }
+        assertFailsWith<FormatException> { importPointSets("0\n") }
         assertEquals(listOf(Pt(1, 2), Pt(3, 4)), readText("\uFEFF2\n1 2\n3 4\n"))
         assertEquals(listOf(Pt(1, 2), Pt(3, 4)), readText("1,2\n3,4\n"))
     }
@@ -49,19 +72,39 @@ class FormatsAndOptimizeTest {
     @Test
     fun jsonWriterLayoutAndRoundtrip() {
         val p = listOf(Pt(160, 7359), Pt(1768, 6530, "red"))
-        val expected = "{\n  \"points\": [\n    [160, 7359],\n    [1768, 6530, \"red\"]\n  ]\n}\n"
+        val expected = "{\"points\": [[160, 7359], [1768, 6530, \"red\"]]}\n"
         assertEquals(expected, writeJson(p))
-        assertEquals(expected, exportPointSet(p, ExportFormat.JSON, countLine = true))
-        assertEquals(p, importPointSet(expected))
+        assertEquals(expected, exportPointSets(listOf(p), ExportFormat.JSON))
+        assertEquals(p, importOne(expected))
         assertEquals(listOf(p), readPointSets("a.json", expected.encodeToByteArray()))
-        assertEquals(pts, importPointSet(writeJson(pts)))
+        assertEquals(pts, importOne(writeJson(pts)))
         assertEquals(emptyList(), readJson(writeJson(emptyList())))
+        assertEquals("{\"points\": []}\n", writeJson(emptyList()))
+    }
+
+    @Test
+    fun jsonLinesAndPrettySingleObject() {
+        val pretty = "{\n  \"points\": [\n    [160, 7359],\n    [1768, 6530, \"red\"]\n  ]\n}\n"
+        val p = listOf(Pt(160, 7359), Pt(1768, 6530, "red"))
+        assertEquals(listOf(p), readJsonSets(pretty))
+        assertEquals(listOf(p), importPointSets(pretty))
+        assertEquals(listOf(p), readPointSets("a.json", pretty.encodeToByteArray()))
+        val lines = "{\"points\": [[1, 2], [3, 4]]}\n\n{\"name\": \"x\", \"points\": [[5, 6, \"B\"]]}\n"
+        assertEquals(listOf(listOf(Pt(1, 2), Pt(3, 4)), listOf(Pt(5, 6, "B"))), readJsonSets(lines))
+        assertEquals(2, importPointSets(lines).size)
+        // every line must be a complete, valid object
+        for (bad in listOf(
+            "{\"points\": [[1, 2]]}\nx", "{\"points\": [[1, 2]]}\n{\"points\": [[1.5, 2]]}",
+            "{\"points\": [[1, 2]]}\n[[1, 2]]", "{\n  \"points\": [[1, 2]]\n", "{\"points\": [[1, 2]]} {\"points\": [[3, 4]]}",
+        )) assertFailsWith<FormatException>(bad) { readJsonSets(bad) }
+        val e = assertFailsWith<FormatException> { readJsonSets("{\"points\": [[1, 2]]}\n{\"points\": [[1, 2, 3]]}") }
+        assertTrue(e.message!!.startsWith("Line 2:"), e.message)
     }
 
     @Test
     fun jsonIsStrict() {
         assertEquals(listOf(Pt(1, 2), Pt(-3, 4, "blue")),
-            importPointSet("  {\"name\": \"x\", \"points\": [[1, 2],\n [-3, 4, \"blue\"]]}\n"))
+            importOne("  {\"name\": \"x\", \"points\": [[1, 2],\n [-3, 4, \"blue\"]]}\n"))
         for (bad in listOf(
             "{}", "{\"points\": 3}", "{\"points\": [[1.5, 2]]}", "{\"points\": [[1, 2, 3]]}",
             "{\"points\": [[1]]}", "{\"points\": [[1, 2, \"r\", 4]]}", "{\"points\": [[1, 2]]", "{\"points\": [[1, 2]]} x}",
@@ -69,14 +112,14 @@ class FormatsAndOptimizeTest {
         // arrays are not JSON point sets (the old JSON-lines format is gone)
         assertFailsWith<FormatException> { readPointSets("a.json", "[[1,2],[3,4]]".encodeToByteArray()) }
         // not starting with '{': read as text, which fails
-        assertFailsWith<FormatException> { importPointSet("[[1,2],[3,4]]") }
+        assertFailsWith<FormatException> { importPointSets("[[1,2],[3,4]]") }
     }
 
     @Test
     fun coordinateLimit() {
-        assertFailsWith<FormatException> { importPointSet("${COORD_LIMIT + 1} 0\n") }
-        assertFailsWith<FormatException> { importPointSet("{\"points\": [[0, ${-COORD_LIMIT - 1}]]}") }
-        assertEquals(listOf(Pt(COORD_LIMIT, -COORD_LIMIT)), importPointSet("$COORD_LIMIT ${-COORD_LIMIT}"))
+        assertFailsWith<FormatException> { importPointSets("${COORD_LIMIT + 1} 0\n") }
+        assertFailsWith<FormatException> { importPointSets("{\"points\": [[0, ${-COORD_LIMIT - 1}]]}") }
+        assertEquals(listOf(Pt(COORD_LIMIT, -COORD_LIMIT)), importOne("$COORD_LIMIT ${-COORD_LIMIT}"))
     }
 
     @Test

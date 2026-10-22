@@ -6,9 +6,10 @@ class FormatException(message: String) : Exception(message)
  * Point-set file formats for loading (compatible with pyotlib2):
  *  - text (`.txt`, `.asc`, `.psz`, all the same format): one point per line `x y` or
  *    `x y color` (color = one token). Optionally the first line is the point count n, then
- *    exactly n point lines follow. In files, several sets (each with its count line) may
- *    follow each other. Lines starting with `#` are comments.
- *  - `json`: one object `{"points": [[x, y], [x, y, "color"], ...]}`; other keys are ignored.
+ *    exactly n point lines follow; several sets (each with its count line) may follow each
+ *    other. Lines starting with `#` are comments. Written always with count lines.
+ *  - `json`: one object `{"points": [[x, y], [x, y, "color"], ...]}` per line, one line per
+ *    set; other keys are ignored. A single object may also span several lines (pretty printed).
  *  - `b08`/`pb08`, `b16`/`pb16`, `b32`/`pb32`: Graz order type database, unsigned
  *    little-endian x1 y1 x2 y2 ... without delimiters; n is taken from the file name
  *    ([pointCountFromFileName]). Read only.
@@ -59,7 +60,7 @@ fun readPointSets(name: String, bytes: ByteArray): List<List<Pt>> {
         ?: throw FormatException("Unknown file type: $name (use ${LOAD_EXTENSIONS.joinToString { ".$it" }})")
     val sets = when (fmt) {
         PointFormat.TXT -> readTextSets(bytes.decodeToString())
-        PointFormat.JSON -> listOf(readJson(bytes.decodeToString()))
+        PointFormat.JSON -> readJsonSets(bytes.decodeToString())
         else -> {
             val n = pointCountFromFileName(name)?.takeIf { it > 0 }
                 ?: throw FormatException("Cannot infer n from the file name '$name' (e.g. otypes05.b08 or points_n12.b08)")
@@ -72,15 +73,23 @@ fun readPointSets(name: String, bytes: ByteArray): List<List<Pt>> {
 }
 
 /**
- * Pasted point set, format detected automatically: the trimmed text starts with `{` and ends
- * with `}` -> JSON, otherwise text (with or without count line).
+ * Pasted content, format detected automatically: the trimmed text starts with `{` and ends
+ * with `}` -> JSON ([readJsonSets]), otherwise text ([readTextSets]). May yield several sets.
  */
-fun importPointSet(text: String): List<Pt> {
+fun importPointSets(text: String): List<List<Pt>> {
     val t = text.trim()
-    val p = if (t.startsWith('{') && t.endsWith('}')) readJson(t) else readText(t)
-    if (p.isEmpty()) throw FormatException("No points found")
-    checkRange(p)
-    return p
+    val sets = if (t.startsWith('{') && t.endsWith('}')) readJsonSets(t) else readTextSets(t)
+    if (sets.isEmpty() || sets.any { it.isEmpty() }) throw FormatException("No points found")
+    sets.forEach(::checkRange)
+    return sets
+}
+
+/** Transitional single-set variant of [importPointSets]; fails if the content holds several sets. */
+@Deprecated("Use importPointSets", ReplaceWith("importPointSets(text)"))
+fun importPointSet(text: String): List<Pt> {
+    val sets = importPointSets(text)
+    if (sets.size != 1) throw FormatException("The content holds ${sets.size} point sets")
+    return sets[0]
 }
 
 private fun checkRange(p: List<Pt>) {
@@ -157,8 +166,10 @@ fun readTextSets(text: String): List<List<Pt>> {
 }
 
 /** Strict JSON point set: an object with key "points", an array of [x, y] or [x, y, "color"]. */
-fun readJson(text: String): List<Pt> {
-    val root = parseJson(text) as? Map<*, *> ?: throw FormatException("JSON: expected an object {\"points\": [...]}")
+fun readJson(text: String): List<Pt> = jsonPoints(parseJson(text))
+
+private fun jsonPoints(value: Any?): List<Pt> {
+    val root = value as? Map<*, *> ?: throw FormatException("JSON: expected an object {\"points\": [...]}")
     if ("points" !in root) throw FormatException("JSON: missing key \"points\"")
     val list = root["points"] as? List<*> ?: throw FormatException("JSON: \"points\" must be an array")
     return list.mapIndexed { i, v ->
@@ -171,25 +182,47 @@ fun readJson(text: String): List<Pt> {
     }
 }
 
-/** JSON point set, one point per line. */
-fun writeJson(points: List<Pt>): String = buildString {
-    append("{\n  \"points\": [")
-    if (points.isEmpty()) append("]\n}\n") else {
-        append('\n')
-        points.forEachIndexed { i, q ->
-            append("    [").append(q.x).append(", ").append(q.y)
-            if (q.color != null) append(", ").append(jsonString(q.color))
-            append(']')
-            if (i < points.size - 1) append(',')
-            append('\n')
+/**
+ * JSON content with possibly several sets: either one object (it may span several lines,
+ * pretty printed) or one object per line, one set per line. Blank lines are ignored.
+ */
+fun readJsonSets(text: String): List<List<Pt>> {
+    val whole = try {
+        parseJson(text)
+    } catch (e: FormatException) {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (lines.size < 2) throw e
+        // first line is no complete JSON value -> most likely one broken multi-line object
+        val first = try { parseJson(lines[0]) } catch (_: FormatException) { throw e }
+        return lines.mapIndexed { i, line ->
+            try {
+                jsonPoints(if (i == 0) first else parseJson(line))
+            } catch (le: FormatException) {
+                throw FormatException("Line ${i + 1}: ${le.message}")
+            }
         }
-        append("  ]\n}\n")
     }
+    return listOf(jsonPoints(whole))
 }
 
-/** Text point set: lines `x y [color]`; with [countLine] the first line is the number of points. */
-fun writeText(points: List<Pt>, countLine: Boolean): String = buildString {
-    if (countLine) append(points.size).append('\n')
+/** JSON point set on one line: `{"points": [[x, y], [x, y, "color"], ...]}` + newline. */
+fun writeJson(points: List<Pt>): String = buildString {
+    append("{\"points\": [")
+    points.forEachIndexed { i, q ->
+        if (i > 0) append(", ")
+        append('[').append(q.x).append(", ").append(q.y)
+        if (q.color != null) append(", ").append(jsonString(q.color))
+        append(']')
+    }
+    append("]}\n")
+}
+
+/** Several sets as JSON, one line per set. */
+fun writeJsonSets(sets: List<List<Pt>>): String = sets.joinToString("") { writeJson(it) }
+
+/** Text point set: the count line n, then one line `x y [color]` per point. */
+fun writeText(points: List<Pt>): String = buildString {
+    append(points.size).append('\n')
     for (q in points) {
         append(q.x).append(' ').append(q.y)
         if (q.color != null) append(' ').append(q.color)
@@ -197,8 +230,11 @@ fun writeText(points: List<Pt>, countLine: Boolean): String = buildString {
     }
 }
 
-/** Export / save in [fmt]; [countLine] only applies to [ExportFormat.TXT]. */
-fun exportPointSet(points: List<Pt>, fmt: ExportFormat, countLine: Boolean): String = when (fmt) {
-    ExportFormat.JSON -> writeJson(points)
-    ExportFormat.TXT -> writeText(points, countLine)
+/** Several sets as text, each with its count line, one after another. */
+fun writeTextSets(sets: List<List<Pt>>): String = sets.joinToString("") { writeText(it) }
+
+/** Export / save all [sets] in [fmt] into one string. */
+fun exportPointSets(sets: List<List<Pt>>, fmt: ExportFormat): String = when (fmt) {
+    ExportFormat.JSON -> writeJsonSets(sets)
+    ExportFormat.TXT -> writeTextSets(sets)
 }

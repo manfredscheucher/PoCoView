@@ -8,7 +8,11 @@ import org.bytefred.pocoview.core.CellHopParams
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.orderTypeSignature
+import org.bytefred.pocoview.core.exportPointSets
+import org.bytefred.pocoview.core.importPointSets
+import org.bytefred.pocoview.core.writeJson
 import org.bytefred.pocoview.core.writeText
+import org.bytefred.pocoview.core.writeTextSets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,9 +26,9 @@ class AppStateTest {
 
     private fun state() = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
-    private fun AppState.load(p: List<Pt>) = open("t.txt", writeText(p, countLine = true).encodeToByteArray())
+    private fun AppState.load(p: List<Pt>) = open("t.txt", writeText(p).encodeToByteArray())
 
-    private fun twoSets() = (writeText(square, true) + writeText(pentagon, true)).encodeToByteArray()
+    private fun twoSets() = (writeText(square) + writeText(pentagon)).encodeToByteArray()
 
     private fun AppState.done(id: String) = assertIs<PropState.Done>(results[id], "$id: ${results[id]}").result
 
@@ -169,9 +173,59 @@ class AppStateTest {
             val name = s.saveName(fmt)
             assertEquals("otypes04.${fmt.extension}", name)
             val back = state()
-            back.open(name, s.exportText(fmt, countLine = true).encodeToByteArray())
+            back.open(name, s.exportText(fmt).encodeToByteArray())
+            assertEquals(s.sets, back.sets)
             assertEquals(s.points, back.points)
         }
+    }
+
+    @Test
+    fun saveAndExportWriteAllSetsWithEdits() {
+        for (fmt in ExportFormat.entries) {
+            val s = state()
+            s.open("two.asc", twoSets())
+            s.showSet(1)
+            s.beginDrag(0)
+            s.dragTo(0, Pt(1, 0))
+            val edited = listOf(Pt(1, 0)) + pentagon.drop(1)
+            // export while set 2 is shown: its edit must be in the output, set 1 too
+            val text = s.exportText(fmt)
+            assertEquals(exportPointSets(listOf(square, edited), fmt), text, fmt.name)
+            val back = state()
+            back.open(s.saveName(fmt), text.encodeToByteArray())
+            assertEquals(listOf(square, edited), back.sets, fmt.name)
+            assertEquals(2, back.loadedSetsNotice)
+        }
+    }
+
+    @Test
+    fun loadedSetsNoticeOnlyForSeveralSets() {
+        val s = state()
+        s.open("two.asc", twoSets())
+        assertEquals(2, s.loadedSetsNotice)
+        s.loadedSetsNotice = null
+        s.load(square)
+        assertNull(s.loadedSetsNotice)
+        s.open("two.asc", twoSets())
+        s.loadPoints("x", pentagon)
+        assertNull(s.loadedSetsNotice)
+    }
+
+    @Test
+    fun importOfSeveralSetsLoadsAll() {
+        val s = state()
+        val pasted = "{\"points\": [[0, 0], [10, 0], [10, 10], [0, 10]]}\n" + writeJson(pentagon)
+        s.loadSets("imported", importPointSets(pasted))
+        assertEquals(listOf(square, pentagon), s.sets)
+        assertEquals(0, s.setIndex)
+        assertEquals(square, s.points)
+        assertEquals(2, s.loadedSetsNotice)
+        s.showSet(1)
+        assertEquals(pentagon, s.points)
+        s.loadSets("imported", importPointSets(writeTextSets(listOf(pentagon, square, square))))
+        assertEquals(3, s.sets.size)
+        assertEquals(3, s.loadedSetsNotice)
+        assertEquals(pentagon, s.points)
     }
 
     @Test
