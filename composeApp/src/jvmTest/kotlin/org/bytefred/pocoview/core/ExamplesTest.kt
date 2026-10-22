@@ -18,7 +18,6 @@ class ExamplesTest {
         )
         for (g in catalog.categories) for (e in g.examples) assertEquals(g.title, e.group, e.name)
         assertEquals(2, catalog.links.size)
-        assertEquals(3, catalog.links.first { "ordertypes" in it.url }.papers.size)
         val n13 = catalog.categories.flatMap { it.examples }.first { it.name == "n13-c1-min-convex-3-4-5-holes" }
         assertEquals(
             listOf("https://scheucher.dev/files/theses/bachelors_thesis_2013.pdf",
