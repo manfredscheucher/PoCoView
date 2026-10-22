@@ -32,6 +32,9 @@ abstract class PropertyDef(
     val emphasized: Boolean = false,
 ) {
     abstract suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult
+
+    /** Why this property cannot be evaluated on [p] (then [evaluate] throws), or null. */
+    open fun skipReason(p: List<Pt>): String? = null
 }
 
 /** Max number of structures drawn per property. */
@@ -127,6 +130,53 @@ class CrossingFamilyProperty : PropertyDef("crossfam", "Crossing family", true, 
     }
 }
 
+/**
+ * Monochromatic convex k-holes, or monochromatic k-islands if not [holesOnly] (see
+ * Monochromatic.kt). Drawn as the polygon through the hull vertices; with a selected point
+ * only those containing it (islands: also as an inner point).
+ */
+class MonochromaticProperty(val k: Int, val holesOnly: Boolean) : PropertyDef(
+    id = (if (holesOnly) "monohole" else "monoisland") + k,
+    label = if (holesOnly) "Monochromatic convex $k-holes" else "Monochromatic $k-islands",
+    hasStructures = true,
+    maxN = MONOCHROMATIC_MAX_N,
+) {
+    override fun skipReason(p: List<Pt>) = monochromaticSkipReason(p)
+
+    override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult {
+        val c = countMonochromatic(p, k, holesOnly, selected, ticker)
+        if (!withStructures) return PropertyResult(c.total, selected?.let { c.incident })
+        val list = enumerateMonochromatic(p, k, holesOnly, selected, STRUCTURE_LIMIT, ticker)
+        val expected = if (selected == null) c.total else c.incident
+        return PropertyResult(
+            c.total, selected?.let { c.incident },
+            list.map { Structure(it) }, truncated = list.size < expected,
+        )
+    }
+}
+
+/** Monochromatic general (not necessarily convex) k-holes, k = 4, 5; drawn as the (simple) polygons. */
+class MonochromaticGeneralHoleProperty(val k: Int) : PropertyDef(
+    id = "monogenhole$k",
+    label = "Monochromatic general $k-holes",
+    hasStructures = true,
+    maxN = MONOCHROMATIC_MAX_N,
+) {
+    override fun skipReason(p: List<Pt>) = monochromaticSkipReason(p)
+
+    override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker): PropertyResult {
+        val all = monochromaticGeneralHoles(p, k, ticker)
+        val shown = if (selected == null) all else all.filter { selected in it }
+        return PropertyResult(
+            all.size.toLong(), selected?.let { shown.size.toLong() },
+            if (withStructures) shown.take(STRUCTURE_LIMIT).map { Structure(it) } else null,
+            truncated = withStructures && shown.size > STRUCTURE_LIMIT,
+        )
+    }
+}
+
+const val MONOCHROMATIC_MAX_N = 200
+
 class TriangulationProperty : PropertyDef("triangulations", "Triangulations", false, maxN = 16) {
     override suspend fun evaluate(p: List<Pt>, selected: Int?, withStructures: Boolean, ticker: Ticker) =
         PropertyResult(countTriangulations(p, ticker))
@@ -142,4 +192,7 @@ val ALL_PROPERTIES: List<PropertyDef> = buildList {
     for (k in 3..7) add(PolygonProperty(k, emptyOnly = true))
     for (k in 4..7) add(PolygonProperty(k, emptyOnly = false))
     add(TriangulationProperty())
+    for (k in 3..5) add(MonochromaticProperty(k, holesOnly = true))
+    for (k in 4..5) add(MonochromaticGeneralHoleProperty(k))
+    for (k in 4..6) add(MonochromaticProperty(k, holesOnly = false))
 }
