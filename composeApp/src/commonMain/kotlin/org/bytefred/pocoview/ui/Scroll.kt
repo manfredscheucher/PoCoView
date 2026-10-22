@@ -26,6 +26,7 @@ fun ScrollColumn(
 ) {
     Box(modifier) {
         Column(Modifier.verticalScroll(state).padding(end = 10.dp), content = content)
-        VerticalScrollbarFor(state, Modifier.align(Alignment.CenterEnd).fillMaxHeight())
+        // as tall as the visible content, not as the maximum height
+        Box(Modifier.matchParentSize()) { VerticalScrollbarFor(state, Modifier.align(Alignment.CenterEnd).fillMaxHeight()) }
     }
 }
