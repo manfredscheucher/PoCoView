@@ -378,7 +378,7 @@ private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
         Modifier.fillMaxWidth().clickable { state.confirmReplace { state.loadPoints(e.name, e.points); close() } }
             .padding(start = 32.dp, top = 4.dp, bottom = 4.dp),
     ) {
-        Text("${e.name} (n = ${e.points.size})", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+        Text(e.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
