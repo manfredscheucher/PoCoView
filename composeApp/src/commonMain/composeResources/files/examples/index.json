@@ -66,7 +66,13 @@
     {
       "title": "PoSeZo (Point Set Zoo)",
       "url": "https://www.eurogiga-compose.eu/posezo.php",
-      "description": "Collection of interesting point sets and families"
+      "description": "Collection of interesting point sets and families, by the members of the EuroGIGA project ComPoSe",
+      "papers": [
+        {
+          "title": "Members",
+          "url": "https://www.eurogiga-compose.eu/members.php"
+        }
+      ]
     },
     {
       "title": "Order type database",
