@@ -2,7 +2,7 @@
   "name": "n35-c2-no-monochromatic-4-island",
   "n": 35,
   "colors": 2,
-  "group": "Singletons",
+  "group": "Bicolored sets",
   "description": "Bicolored set of 35 points (17 blue, 18 red) without monochromatic 4-islands.",
   "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
   "url": null,

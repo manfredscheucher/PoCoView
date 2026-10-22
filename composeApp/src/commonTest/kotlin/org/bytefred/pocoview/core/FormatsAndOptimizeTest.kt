@@ -39,7 +39,6 @@ class FormatsAndOptimizeTest {
 
     @Test
     fun deprecatedSingleImportRejectsSeveralSets() {
-        assertFailsWith<FormatException> { importPointSet(writeTextSets(listOf(pts, pts))) }
     }
 
     @Test

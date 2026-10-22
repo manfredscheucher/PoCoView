@@ -61,9 +61,9 @@ private fun Modifier.touches(state: AppState, w: Widget) = pointerInput(w) {
 }
 
 @Composable
-fun App() {
+fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
     MaterialTheme {
-        val state = remember { AppState() }
+        val state = remember { initialState ?: AppState() }
         val view = remember { ViewTransform() }
         val focus = remember { FocusRequester() }
         // scroll positions survive closing and reopening a widget
@@ -73,7 +73,9 @@ fun App() {
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
         // they are ignored while a text field has focus
         Surface(Modifier.fillMaxSize().onKeyEvent { state.textFieldsFocused == 0 && handleKey(it, state, view) }) {
-            var dialog by remember { mutableStateOf(if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME) }
+            var dialog by remember {
+                mutableStateOf(initialDialog ?: if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME)
+            }
             Dialogs(state, dialog, open = { dialog = it }) { dialog = DialogKind.NONE }
             Column(Modifier.fillMaxSize()) {
                 MenuBar(state, view) { dialog = it }
@@ -115,7 +117,7 @@ fun App() {
                                     VerticalDivider()
                                     Column(Modifier.width(columnWidth).fillMaxHeight().touches(state, w)) {
                                         WidgetHeader(state, w)
-                                        Box(Modifier.weight(1f).verticalScroll(scrolls.getValue(w))) {
+                                        ScrollColumn(Modifier.weight(1f), scrolls.getValue(w)) {
                                             WidgetContent(state, w, selectProperties)
                                         }
                                     }
@@ -134,7 +136,7 @@ fun App() {
                                         if (i > 0) HorizontalDivider()
                                         Column(Modifier.fillMaxWidth().weight(1f).touches(state, w)) {
                                             WidgetHeader(state, w)
-                                            Box(Modifier.weight(1f).verticalScroll(scrolls.getValue(w))) {
+                                            ScrollColumn(Modifier.weight(1f), scrolls.getValue(w)) {
                                                 WidgetContent(state, w, selectProperties)
                                             }
                                         }

@@ -85,12 +85,6 @@ fun importPointSets(text: String): List<List<Pt>> {
 }
 
 /** Transitional single-set variant of [importPointSets]; fails if the content holds several sets. */
-@Deprecated("Use importPointSets", ReplaceWith("importPointSets(text)"))
-fun importPointSet(text: String): List<Pt> {
-    val sets = importPointSets(text)
-    if (sets.size != 1) throw FormatException("The content holds ${sets.size} point sets")
-    return sets[0]
-}
 
 private fun checkRange(p: List<Pt>) {
     if (p.any { !it.inRange() }) throw FormatException("Coordinates exceed ±$COORD_LIMIT (exact arithmetic limit)")

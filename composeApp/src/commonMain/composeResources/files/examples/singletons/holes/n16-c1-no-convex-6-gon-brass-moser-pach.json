@@ -2,7 +2,7 @@
   "name": "n16-c1-no-convex-6-gon-brass-moser-pach",
   "n": 16,
   "colors": 1,
-  "group": "Singletons",
+  "group": "Holes and convex gons",
   "description": "Set of 16 points without convex 6-gon.",
   "reference": "See for example 'Research Problems in Discrete Geometry' by Brass, Moser, Pach, Section 8.2. The drawing can also be found on page 332.",
   "url": null,

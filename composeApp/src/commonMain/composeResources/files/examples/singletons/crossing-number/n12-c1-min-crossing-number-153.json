@@ -2,7 +2,7 @@
   "name": "n12-c1-min-crossing-number-153",
   "n": 12,
   "colors": 1,
-  "group": "Singletons",
+  "group": "Crossing number",
   "description": "Unique set of 12 points minimizing the rectilinear crossing number.",
   "reference": "PoSeZo",
   "url": "https://www.eurogiga-compose.eu/posezo.php",

@@ -2,7 +2,7 @@
   "name": "n22-c2-no-monochromatic-4-hole",
   "n": 22,
   "colors": 2,
-  "group": "Singletons",
+  "group": "Bicolored sets",
   "description": "Bicolored set of 22 points (11 blue, 11 red) without monochromatic 4-holes.",
   "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Kann, Pammer, Platzer",
   "url": null,

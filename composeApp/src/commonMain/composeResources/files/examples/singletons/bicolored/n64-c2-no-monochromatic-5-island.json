@@ -2,7 +2,7 @@
   "name": "n64-c2-no-monochromatic-5-island",
   "n": 64,
   "colors": 2,
-  "group": "Singletons",
+  "group": "Bicolored sets",
   "description": "Bicolored set of 64 points (32 blue, 32 red) without monochromatic 5-islands.",
   "reference": "Manfred Scheucher, based on a set of 61 points from ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
   "url": null,

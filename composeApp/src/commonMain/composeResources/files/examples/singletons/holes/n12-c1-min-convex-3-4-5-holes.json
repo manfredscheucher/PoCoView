@@ -2,7 +2,7 @@
   "name": "n12-c1-min-convex-3-4-5-holes",
   "n": 12,
   "colors": 1,
-  "group": "Singletons",
+  "group": "Holes and convex gons",
   "description": "Set of 12 points minimizing the numbers of convex 3-, 4-, and 5-holes.",
   "reference": "Lower bounds for the number of small convex k-holes. O. Aichholzer, R. Fabila-Monroy, T. Hackl, C. Huemer, A. Pilz, B. Vogtenhuber, CCCG 2012",
   "url": null,

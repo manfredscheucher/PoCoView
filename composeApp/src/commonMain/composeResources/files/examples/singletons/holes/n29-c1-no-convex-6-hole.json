@@ -2,7 +2,7 @@
   "name": "n29-c1-no-convex-6-hole",
   "n": 29,
   "colors": 1,
-  "group": "Singletons",
+  "group": "Holes and convex gons",
   "description": "Set of 29 points without convex 6-holes.",
   "reference": "Finding sets of points without empty convex 6-gons. Author: M. H. Overmars (file set29_small1.txt from empty6.zip)",
   "url": "http://www.cs.uu.nl/people/markov/sixgon/",

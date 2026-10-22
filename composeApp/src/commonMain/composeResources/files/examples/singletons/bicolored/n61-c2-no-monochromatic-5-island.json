@@ -2,7 +2,7 @@
   "name": "n61-c2-no-monochromatic-5-island",
   "n": 61,
   "colors": 2,
-  "group": "Singletons",
+  "group": "Bicolored sets",
   "description": "Bicolored set of 61 points (30 blue, 31 red) without monochromatic 5-islands.",
   "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
   "url": null,

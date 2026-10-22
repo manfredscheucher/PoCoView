@@ -43,6 +43,9 @@ depend only on the order type, so they are recomputed only when the order type c
 | Convex k-gons | k points in convex position, k = 4..7 |
 | Crossing family | largest set of segments that pairwise cross (drawn red and bold; up to n = 50). Aichholzer, Kynčl, Scheucher, Vogtenhuber, Valtr, Comput. Geom. 107 (2022) |
 | Triangulations | number of triangulations (exponential, only up to n = 16) |
+| Monochromatic convex k-holes | bicolored sets: empty convex k-gons (no point of any colour inside) with vertices of one colour, k = 3..5 (old pyotlib) |
+| Monochromatic general k-holes | the same for simple, not necessarily convex empty polygons, k = 4, 5 |
+| Monochromatic k-islands | k points of one colour that are all points of S in their convex hull, k = 4..6; drawn through the hull vertices |
 
 Two switches control the view:
 
@@ -80,24 +83,26 @@ are the λ matrix (λ[i][j] = number of points left of i->j) and the order type 
 
 ## Point Set menu
 
-- **Import…**: paste a point set; the format is detected:
-  - JSON: `{"points": [[x, y], [x, y, "color"], ...]}` (may span several lines),
-  - text with a first line n, then exactly n lines `x y [color]`,
-  - text with lines `x y [color]`.
+- **Import…**: paste one or more point sets; the format is detected:
+  - JSON: `{"points": [[x, y], [x, y, "color"], ...]}`, one set per line (a single set may also
+    span several lines),
+  - text: a line n, then exactly n lines `x y [color]`, sets one after another,
+  - text with lines `x y [color]` (one set).
 - **Random…**: n random points in general position on a grid.
-- **Export…**: the current set as JSON or text (optionally with n as first line), to copy.
-- **Examples…**: the generated families (Horton sets, convex position) and a collection of
-  interesting sets with their sources (singletons, crossing families, universal point sets,
-  miscellaneous). Please send interesting sets to manfred.scheucher@proton.me.
+- **Export…**: all sets as JSON (one line per set) or text (n, then n point lines, per set), to copy.
+- **Examples…**: collapsible groups: Families (generated: Horton sets, convex position),
+  Singletons (interesting sets with their original sources, in categories) and Links. Please send
+  interesting sets or feedback to manfred.scheucher@proton.me (the address is clickable).
 - **Open file…** reads `.json`, `.txt`/`.asc`/`.psz` (the same text format; files may hold several
   sets) and the order type database formats `.b08`, `.b16`, `.b32` (unsigned little-endian
   `x1 y1 x2 y2 ...`, n from the file name, e.g. `otypes05.b08`).
-- **Save file…** writes JSON or text.
+- **Save file…** writes all sets of the file as JSON or text (same layout as Export).
 - **Export SVG** / **Export Ipe**: a picture with the line arrangement and the highlighted
   structures; Ipe files open in the Ipe editor.
 
 Import, Random, Examples and Open file ask first, because the current point set is lost. Files with
-several sets can be browsed with the arrows in the toolbar or PageUp/PageDown.
+several sets can be browsed with the arrows in the toolbar or PageUp/PageDown; after loading such a
+file a short note says so (can be switched off).
 
 ## Keyboard
 

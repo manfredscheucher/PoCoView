@@ -2,7 +2,7 @@
   "name": "n46-c2-no-monochromatic-convex-4-hole",
   "n": 46,
   "colors": 2,
-  "group": "Singletons",
+  "group": "Bicolored sets",
   "description": "Bicolored set of 46 points (23 blue, 23 red) without monochromatic convex 4-holes.",
   "reference": "On Erdős-Szekeres problem and related problems. Author: Vitaliy Koshelev",
   "url": "http://arxiv.org/pdf/0910.2700.pdf",

@@ -242,7 +242,10 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
             if (i in state.collinear) drawCircle(Color(0xFFE53935), r + 4f, s, style = Stroke(3f))
             if (i == sel) drawCircle(state.selectedColor, r + 5f, s, style = Stroke(3f))
             if (state.showLabels) {
-                drawText(textMeasurer, "$i", s + Offset(r + 2f, -r - 14f), TextStyle(color = onSurface, fontSize = 11.sp))
+                // only labels inside the canvas: drawText needs room right of / below its position
+                val at = s + Offset(r + 2f, -r - 14f)
+                if (at.x >= 0f && at.y >= 0f && at.x < size.width - 1f && at.y < size.height - 1f)
+                    drawText(textMeasurer, "$i", at, TextStyle(color = onSurface, fontSize = 11.sp))
             }
         }
     }

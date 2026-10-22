@@ -39,21 +39,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextDecoration
+import org.bytefred.pocoview.core.ExampleCatalog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.OutlinedButton
 import org.bytefred.pocoview.core.Example
-import org.bytefred.pocoview.core.ExampleGroup
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.PointSetFamily
 import org.bytefred.pocoview.core.Structure
-import org.bytefred.pocoview.core.importPointSet
+import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.loadExamples
 import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CrossingProperty
+import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
+import org.bytefred.pocoview.core.MonochromaticProperty
 import org.bytefred.pocoview.core.PolygonProperty
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.TriangulationProperty
@@ -161,6 +169,7 @@ fun exportIpe(state: AppState): String {
 fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close: () -> Unit) {
     state.busy?.let { OperationDialog(state, it) }
     state.pendingReplace?.let { action -> ConfirmReplaceDialog(state, action) }
+    state.loadedSetsNotice?.let { count -> if (loadPref(SETS_NOTICE_PREF) != "off") SetsLoadedDialog(state, count) else state.loadedSetsNotice = null }
     when (kind) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
@@ -186,9 +195,8 @@ private fun ConfirmReplaceDialog(state: AppState, action: () -> Unit) = AlertDia
 )
 
 @Composable
-private fun FormatSelect(format: ExportFormat, countLine: Boolean, onFormat: (ExportFormat) -> Unit, onCountLine: (Boolean) -> Unit) {
+private fun FormatSelect(format: ExportFormat, onFormat: (ExportFormat) -> Unit) {
     SelectField("Format", format.extension, ExportFormat.entries, { it.extension }, Modifier.width(160.dp), onFormat)
-    if (format == ExportFormat.TXT) SwitchRow("First line: number of points", countLine, onCountLine)
 }
 
 /** Save the current set as a file (json or txt). */
@@ -196,12 +204,11 @@ private fun FormatSelect(format: ExportFormat, countLine: Boolean, onFormat: (Ex
 private fun SaveDialog(state: AppState, close: () -> Unit) {
     val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
     var format by remember { mutableStateOf(ExportFormat.JSON) }
-    var countLine by remember { mutableStateOf(true) }
     AlertDialog(
         onDismissRequest = close,
         confirmButton = {
             TextButton(onClick = {
-                saver(state.saveName(format), state.exportText(format, countLine).encodeToByteArray())
+                saver(state.saveName(format), state.exportText(format).encodeToByteArray())
                 close()
             }) { Text("Save") }
         },
@@ -209,7 +216,7 @@ private fun SaveDialog(state: AppState, close: () -> Unit) {
         title = { Text("Save file") },
         text = {
             Column(Modifier.widthIn(min = 300.dp)) {
-                FormatSelect(format, countLine, { format = it }, { countLine = it })
+                FormatSelect(format) { format = it }
                 Text(state.saveName(format), style = MaterialTheme.typography.bodySmall)
             }
         },
@@ -220,9 +227,8 @@ private fun SaveDialog(state: AppState, close: () -> Unit) {
 @Composable
 private fun ExportDialog(state: AppState, close: () -> Unit) {
     var format by remember { mutableStateOf(ExportFormat.JSON) }
-    var countLine by remember { mutableStateOf(true) }
     val clipboard = LocalClipboardManager.current
-    val text = state.exportText(format, countLine)
+    val text = state.exportText(format)
     AlertDialog(
         onDismissRequest = close,
         confirmButton = { TextButton(onClick = close) { Text("Close") } },
@@ -232,7 +238,7 @@ private fun ExportDialog(state: AppState, close: () -> Unit) {
         title = { Text("Export") },
         text = {
             Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
-                FormatSelect(format, countLine, { format = it }, { countLine = it })
+                FormatSelect(format) { format = it }
                 OutlinedTextField(
                     text, onValueChange = {}, readOnly = true,
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -253,8 +259,8 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 try {
-                    val p = importPointSet(text)
-                    state.confirmReplace { state.loadPoints("imported", p); close() }
+                    val sets = importPointSets(text)
+                    state.confirmReplace { state.loadSets("imported", sets); close() }
                 } catch (e: Exception) {
                     error = e.message ?: "Cannot read the content"
                 }
@@ -276,9 +282,9 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
     )
 }
 
-private const val IMPORT_FORMATS = """{"points": [[x, y], [x, y, "color"], ...]}
-n, then n lines: x y [color]
-lines: x y [color]"""
+private const val IMPORT_FORMATS = """{"points": [[x, y], [x, y, "color"], ...]}  (one set per line)
+n, then n lines: x y [color]  (sets one after another)
+lines: x y [color]  (one set)"""
 
 @Composable
 private fun RandomDialog(state: AppState, close: () -> Unit) {
@@ -305,56 +311,123 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
     )
 }
 
-/** Bundled example sets (groups) and the generated families. */
+/** Families (generated), the bundled single sets in categories, and links; all collapsible. */
 @Composable
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
-    var groups by remember { mutableStateOf<List<ExampleGroup>?>(null) }
+    var catalog by remember { mutableStateOf<ExampleCatalog?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        try { groups = loadExamples() } catch (e: Exception) { error = e.message ?: "Cannot load the examples" }
+        try { catalog = loadExamples() } catch (e: Exception) { error = e.message ?: "Cannot load the examples" }
     }
+    val open = remember { mutableStateListOf<String>() }
+    fun toggle(key: String) { if (key in open) open.remove(key) else open.add(key) }
+    val uri = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = close,
         confirmButton = { TextButton(onClick = close) { Text("Close") } },
         title = { Text("Examples") },
         text = {
-            Column(Modifier.widthIn(min = 320.dp, max = 640.dp).verticalScroll(rememberScrollState())) {
-                Text("Know a set that belongs here? Please send it to $EMAIL", style = MaterialTheme.typography.bodySmall)
+            ScrollColumn(Modifier.widthIn(min = 320.dp, max = 640.dp).heightIn(max = 560.dp)) {
+                FeedbackBox("Know a set that belongs here, or have general feedback?")
                 Spacer(Modifier.height(8.dp))
-                Text("Families", style = MaterialTheme.typography.titleSmall)
-                for (f in FAMILIES) FamilyRow(state, f, close)
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                if (groups == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
-                for (g in groups.orEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(g.title, style = MaterialTheme.typography.titleSmall)
-                    g.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    for (e in g.examples) ExampleRow(state, e, close)
+                SectionHeader("Families", "Families" in open, level = 0) { toggle("Families") }
+                if ("Families" in open) for (f in FAMILIES) FamilyRow(state, f, close)
+                SectionHeader("Singletons", "Singletons" in open, level = 0) { toggle("Singletons") }
+                if ("Singletons" in open) {
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    if (catalog == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                    for (g in catalog?.categories.orEmpty()) {
+                        val key = "S/" + g.title
+                        SectionHeader("${g.title} (${g.examples.size})", key in open, level = 1) { toggle(key) }
+                        if (key in open) for (e in g.examples) ExampleRow(state, e, close)
+                    }
+                }
+                SectionHeader("Links", "Links" in open, level = 0) { toggle("Links") }
+                if ("Links" in open) for (l in catalog?.links.orEmpty()) Column(
+                    Modifier.fillMaxWidth().clickable { uri.openUri(l.url) }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
+                ) {
+                    Text(l.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                    l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    Text(l.url, style = MaterialTheme.typography.labelSmall)
                 }
             }
         },
     )
 }
 
+/** A collapsible header row: title and an arrow, click toggles. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SectionHeader(title: String, expanded: Boolean, level: Int, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = (16 * level).dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title, Modifier.weight(1f),
+            style = if (level == 0) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+        )
+        ExposedDropdownMenuDefaults.TrailingIcon(expanded)
+    }
+}
+
 @Composable
 private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
+    val uri = LocalUriHandler.current
     Column(
         Modifier.fillMaxWidth().clickable { state.confirmReplace { state.loadPoints(e.name, e.points); close() } }
-            .padding(vertical = 4.dp),
+            .padding(start = 32.dp, top = 4.dp, bottom = 4.dp),
     ) {
         Text("${e.name} (n = ${e.points.size})", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-        e.url?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
+        e.url?.let { u ->
+            Text(
+                u, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uri.openUri(u) },
+            )
+        }
     }
+}
+
+/** Yellow box asking for interesting sets and feedback, with a clickable e-mail address. */
+@Composable
+fun FeedbackBox(question: String) {
+    val uri = LocalUriHandler.current
+    Column(
+        Modifier.fillMaxWidth().background(Color(0xFFFFF3B0), RoundedCornerShape(8.dp))
+            .border(1.dp, Color(0xFFE0C200), RoundedCornerShape(8.dp)).padding(10.dp),
+    ) {
+        Text(question, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF3A3000))
+        Text(
+            EMAIL,
+            style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
+            color = Color(0xFF1A4FB0),
+            modifier = Modifier.clickable { uri.openUri(feedbackMailto()) }.padding(top = 2.dp),
+        )
+    }
+}
+
+private fun feedbackMailto(): String {
+    fun enc(s: String) = buildString {
+        for (b in s.encodeToByteArray()) {
+            val c = (b.toInt() and 0xFF).toChar()
+            if (c.isLetterOrDigit() && c.code < 128 || c in "-_.~") append(c)
+            else append("%" + (b.toInt() and 0xFF).toString(16).uppercase().padStart(2, '0'))
+        }
+    }
+    val subject = "PoCoView: point set / feedback"
+    val body = "Hi Manfred,\n\n(an interesting point set, an idea, or other feedback)\n\n" +
+        "Point set (Point Set > Export, JSON or text):\n\n"
+    return "mailto:$EMAIL?subject=${enc(subject)}&body=${enc(body)}"
 }
 
 @Composable
 private fun FamilyRow(state: AppState, f: PointSetFamily, close: () -> Unit) {
     var n by remember { mutableStateOf(16) }
     var error by remember { mutableStateOf<String?>(null) }
-    Column(Modifier.padding(vertical = 4.dp)) {
+    Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(f.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             NumberField(state, "n", n.toString(), { n = it.toInt(); error = null }, Modifier.width(90.dp))
@@ -384,14 +457,9 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
         title = { Text("Welcome to PoCoView") },
         text = {
             Column {
-                SelectionContainer {
-                    Text(
-                        "Explore planar point sets and their order types.\n\n" +
-                            "Interesting point configurations or ideas? Please send them to $EMAIL " +
-                            "to extend the collection (also noted in Point Set > Examples).",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                Text("Explore planar point sets and their order types.", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(10.dp))
+                FeedbackBox("Interesting point configurations, ideas or general feedback? Please send them, they extend the collection in Point Set > Examples.")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(dontShow, { dontShow = it })
                     Text("Don't show again", style = MaterialTheme.typography.bodyMedium)
@@ -402,6 +470,31 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
 }
 
 const val WELCOME_PREF = "welcome"
+private const val SETS_NOTICE_PREF = "setsNotice"
+
+/** After loading content with several sets. */
+@Composable
+private fun SetsLoadedDialog(state: AppState, count: Int) {
+    var dontShow by remember { mutableStateOf(false) }
+    fun done() { if (dontShow) savePref(SETS_NOTICE_PREF, "off"); state.loadedSetsNotice = null }
+    AlertDialog(
+        onDismissRequest = ::done,
+        confirmButton = { TextButton(onClick = ::done) { Text("OK") } },
+        title = { Text("$count point sets loaded") },
+        text = {
+            Column {
+                Text(
+                    "Showing the first of $count. Switch between them with the arrows < > at the top (or PageUp / PageDown).",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(dontShow, { dontShow = it })
+                    Text("Don't show again", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+    )
+}
 private const val EMAIL = "manfred.scheucher@proton.me"
 
 /** Shown while an optimization runs: progress and Abort. */
@@ -423,7 +516,7 @@ private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDi
     onDismissRequest = close,
     confirmButton = { TextButton(onClick = close) { Text("Close") } },
     title = { Text(title) },
-    text = { Text(text, Modifier.verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodyMedium) },
+    text = { ScrollColumn(Modifier.heightIn(max = 520.dp)) { Text(text, style = MaterialTheme.typography.bodyMedium) } },
 )
 
 /** A colour swatch; click opens a palette with a hex field (#RRGGBB). */
@@ -469,18 +562,19 @@ fun parseHexColor(s: String): Color? {
 /** Choose which properties are shown (and computed) in the Properties widget; grouped in columns. */
 @Composable
 private fun PropertyPicker(state: AppState, close: () -> Unit) {
+    val mono = { p: PropertyDef -> p is MonochromaticProperty || p is MonochromaticGeneralHoleProperty }
     val groups = listOf(
-        "General" to ALL_PROPERTIES.filter { it !is PolygonProperty },
+        "General" to ALL_PROPERTIES.filter { it !is PolygonProperty && !mono(it) },
         "k-holes" to ALL_PROPERTIES.filter { it is PolygonProperty && it.emptyOnly },
         "Convex k-gons" to ALL_PROPERTIES.filter { it is PolygonProperty && !it.emptyOnly },
+        "Monochromatic (bicolored sets)" to ALL_PROPERTIES.filter(mono),
     )
     AlertDialog(
         onDismissRequest = close,
         confirmButton = { TextButton(onClick = close) { Text("Done") } },
         title = { Text("Select properties") },
         text = {
-            FlowRow(
-                Modifier.verticalScroll(rememberScrollState()),
+            ScrollColumn(Modifier.heightIn(max = 560.dp)) { FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -492,7 +586,7 @@ private fun PropertyPicker(state: AppState, close: () -> Unit) {
                         TextButton(onClick = { props.forEach { state.setShown(it.id, false) } }) { Text("none") }
                     }
                 }
-            }
+            } }
         },
     )
 }

@@ -15,25 +15,35 @@ data class Example(
     val note: String? = null,
 )
 
-/** A group of examples as listed in files/examples/index.json. */
-data class ExampleGroup(val title: String, val note: String?, val examples: List<Example>)
+/** A category of examples as listed in files/examples/index.json. */
+data class ExampleGroup(val title: String, val examples: List<Example>)
+
+/** A link shown with the examples (collections, databases). */
+data class ExampleLink(val title: String, val url: String, val description: String?)
+
+/** Everything bundled: the categories of single sets and the links. */
+data class ExampleCatalog(val categories: List<ExampleGroup>, val links: List<ExampleLink>)
 
 private const val EXAMPLES_DIR = "files/examples/"
 
-/** Loads all bundled examples, in the group and file order of the index. */
-suspend fun loadExamples(): List<ExampleGroup> {
+/** Loads all bundled examples, in the category and file order of the index. */
+suspend fun loadExamples(): ExampleCatalog {
     val index = parseJson(readExampleFile("index.json")).asObject("index.json")
-    return index.list("groups", "index.json").map { g ->
-        val group = g.asObject("index.json group")
+    val categories = index.list("categories", "index.json").map { g ->
+        val cat = g.asObject("index.json category")
         ExampleGroup(
-            title = group.string("title", "index.json group"),
-            note = group.optString("note", "index.json group"),
-            examples = group.list("files", "index.json group").map { f ->
+            title = cat.string("title", "index.json category"),
+            examples = cat.list("files", "index.json category").map { f ->
                 val file = f as? String ?: throw FormatException("index.json: file names must be strings")
                 parseExample(readExampleFile(file), file)
             },
         )
     }
+    val links = index.list("links", "index.json").map { l ->
+        val o = l.asObject("index.json link")
+        ExampleLink(o.string("title", "index.json link"), o.string("url", "index.json link"), o.optString("description", "index.json link"))
+    }
+    return ExampleCatalog(categories, links)
 }
 
 /** Parses one example file: the JSON point format plus the metadata keys. */

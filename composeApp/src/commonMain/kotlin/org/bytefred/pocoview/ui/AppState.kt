@@ -499,9 +499,6 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     /** Transitional for the old Save/Export dialogs: [countLine] is ignored (count lines are always written). */
-    @Deprecated("Count lines are always written", ReplaceWith("exportText(format)"))
-    fun exportText(format: ExportFormat, countLine: Boolean): String = exportText(format)
-
     // ---- properties ------------------------------------------------------------------
 
     fun setToggle(id: String, t: PropToggle) {
@@ -552,6 +549,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             results[prop.id] = when {
                 !generalPosition -> PropState.Skipped("not in general position")
                 p.size > prop.maxN -> PropState.Skipped("n > ${prop.maxN}")
+                prop.skipReason(p) != null -> PropState.Skipped(prop.skipReason(p)!!)
                 else -> cache[key]?.let { PropState.Done(it) } ?: PropState.Computing.also { todo.add(Triple(prop, key, draw)) }
             }
         }
