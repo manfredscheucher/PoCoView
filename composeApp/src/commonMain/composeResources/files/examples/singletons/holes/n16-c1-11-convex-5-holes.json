@@ -4,8 +4,13 @@
   "colors": 1,
   "group": "Holes and convex gons",
   "description": "Set of 16 points with 11 convex 5-holes.",
-  "reference": "Order type by Manfred Scheucher, realized by Oswin Aichholzer",
-  "url": null,
+  "reference": "Manfred Scheucher",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n16_c1_11_convex_5_holes/n16_c1_11_convex_5_holes.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n16_c1_11_convex_5_holes/n16_c1_11_convex_5_holes.psz",
   "points": [
     [0, 0],

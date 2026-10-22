@@ -5,7 +5,12 @@
   "group": "Miscellaneous",
   "description": "11-universal set of 12 points (Listing 1)",
   "reference": "M. Scheucher, H. Schrezenmaier, R. Steiner, A note on universal point sets for planar graphs, GD 2019, arXiv:1811.06482",
-  "url": "https://arxiv.org/abs/1811.06482",
+  "links": [
+    {
+      "title": "arXiv",
+      "url": "https://arxiv.org/abs/1811.06482"
+    }
+  ],
   "source": "Listing 1 of arXiv:1811.06482v3",
   "points": [
     [214, 0],

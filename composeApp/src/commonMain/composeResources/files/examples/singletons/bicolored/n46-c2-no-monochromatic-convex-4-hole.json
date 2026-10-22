@@ -5,7 +5,16 @@
   "group": "Bicolored sets",
   "description": "Bicolored set of 46 points (23 blue, 23 red) without monochromatic convex 4-holes.",
   "reference": "On Erdős-Szekeres problem and related problems. Author: Vitaliy Koshelev",
-  "url": "http://arxiv.org/pdf/0910.2700.pdf",
+  "links": [
+    {
+      "title": "arXiv",
+      "url": "https://arxiv.org/abs/0910.2700"
+    },
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n46_c2_no_monochromatic_convex_4_hole/n46_c2_no_monochromatic_convex_4_hole.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n46_c2_no_monochromatic_convex_4_hole/n46_c2_no_monochromatic_convex_4_hole.psz",
   "points": [
     [226, 610, "B"],

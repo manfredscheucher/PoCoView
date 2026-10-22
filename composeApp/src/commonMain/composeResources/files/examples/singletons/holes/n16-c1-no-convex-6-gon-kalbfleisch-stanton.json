@@ -5,7 +5,12 @@
   "group": "Holes and convex gons",
   "description": "Set of 16 points without convex 6-gons.",
   "reference": "Construction from Erdos and Szekeres: On some extremum problems in elementary geometry, Ann. Univ. Sci. Budapest 3-4 (1960-61) 53-62. Explicit coordinates from Kalbfleisch and Stanton: On the maximum number of coplanar points containing no convex N-gons, Utilitas Math. 47 (1995) 235-245.",
-  "url": null,
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n16_c1_no_convex_6_gon/n16_c1_no_convex_6_gon.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n16_c1_no_convex_6_gon/n16_c1_no_convex_6_gon.psz",
   "points": [
     [30, 129],

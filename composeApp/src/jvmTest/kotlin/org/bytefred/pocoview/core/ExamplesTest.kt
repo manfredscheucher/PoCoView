@@ -19,7 +19,15 @@ class ExamplesTest {
         for (g in catalog.categories) for (e in g.examples) assertEquals(g.title, e.group, e.name)
         assertEquals(2, catalog.links.size)
         val n13 = catalog.categories.flatMap { it.examples }.first { it.name == "n13-c1-min-convex-3-4-5-holes" }
-        assertEquals("https://scheucher.dev/files/theses/bachelors_thesis_2013.pdf", n13.url)
+        assertEquals(
+            listOf("https://scheucher.dev/files/theses/bachelors_thesis_2013.pdf",
+                "https://www.eurogiga-compose.eu/posezo/n13_c1_min_convex_3_4_5_holes/n13_c1_min_convex_3_4_5_holes.php"),
+            n13.links.map { it.url },
+        )
+        // no link to the PoSeZo main page per example, no dead links
+        for (e in catalog.categories.flatMap { it.examples }) for (l in e.links) {
+            assertTrue(l.url != "https://www.eurogiga-compose.eu/posezo.php" && "markov/sixgon" !in l.url, "${e.name}: ${l.url}")
+        }
     }
 
     @Test
@@ -49,6 +57,6 @@ class ExamplesTest {
         assertEquals(Pt(612, 666), l2.first())
         assertEquals(Pt(980, 0), l2.last())
         assertEquals(Pt(122, 197), all.getValue("n12-c1-11-universal").points.last())
-        assertEquals("https://arxiv.org/abs/2109.10705", all.getValue("n41-c1-no-9-crossing-family").url)
+        assertEquals(listOf("https://arxiv.org/abs/2109.10705"), all.getValue("n41-c1-no-9-crossing-family").links.map { it.url })
     }
 }

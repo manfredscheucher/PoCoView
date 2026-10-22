@@ -5,7 +5,12 @@
   "group": "Crossing families",
   "description": "41 points without a 9-crossing family (Fig. 7)",
   "reference": "O. Aichholzer, J. Kynčl, M. Scheucher, B. Vogtenhuber, P. Valtr, On crossing-families in planar point sets, Comput. Geom. 107 (2022) 101899, arXiv:2109.10705",
-  "url": "https://arxiv.org/abs/2109.10705",
+  "links": [
+    {
+      "title": "arXiv",
+      "url": "https://arxiv.org/abs/2109.10705"
+    }
+  ],
   "source": "arXiv source tarball https://arxiv.org/src/2109.10705v2, file figures/n41_no9fam.pdf (Ipe 7.2.14 figure). Exact integers taken from the 'coordinates:' text object (LaTeX array) in the embedded Ipe XML; the same numbers are in the PDF content stream but lie outside the CropBox, i.e. not visible in the rendered paper. Cross-checked: an axis-aligned scaling of these coordinates maps each point onto one of the 41 drawn point marks (max deviation 0.001 pt).",
   "claim": "no 9-crossing family (caption of Fig. 7); gives cf(n)<=8*ceil(n/41) (Corollary)",
   "points": [

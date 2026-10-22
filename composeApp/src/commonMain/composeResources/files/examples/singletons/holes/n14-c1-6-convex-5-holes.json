@@ -4,8 +4,13 @@
   "colors": 1,
   "group": "Holes and convex gons",
   "description": "Set of 14 points with 6 convex 5-holes.",
-  "reference": "Found by Oswin Aichholzer (unpublished), collected on PoSeZo",
-  "url": "https://www.eurogiga-compose.eu/posezo.php",
+  "reference": "by Oswin Aichholzer (unpublished)",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n14_c1_6_convex_5_holes/n14_c1_6_convex_5_holes.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n14_c1_6_convex_5_holes/n14_c1_6_convex_5_holes.psz",
   "points": [
     [0, 64677],

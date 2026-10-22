@@ -382,10 +382,10 @@ private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-        e.url?.let { u ->
-            Text(
-                u, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
-                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uri.openUri(u) },
+        if (e.links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (l in e.links) Text(
+                l.title, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uri.openUri(l.url) },
             )
         }
     }

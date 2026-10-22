@@ -5,7 +5,12 @@
   "group": "Universal point sets",
   "description": "9-universal set of 9 points (every planar graph on 9 vertices embeds on it) (Fig. 5)",
   "reference": "J. Cardinal, M. Hoffmann, V. Kusters, On universal point sets for planar graphs, J. Graph Algorithms Appl. 19(1) (2015) 529-547, doi:10.7155/jgaa.00374",
-  "url": "https://jgaa.info/index.php/jgaa/article/view/paper374/2614",
+  "links": [
+    {
+      "title": "Paper (JGAA)",
+      "url": "https://jgaa.info/index.php/jgaa/article/view/paper374/2614"
+    }
+  ],
   "source": "Figure 5 (bottom-middle) of the paper, coordinates from the PDF text layer (https://jgaa.info/index.php/jgaa/article/download/paper374/2614/2421)",
   "claim": "Each set is n-universal for planar graphs with |P| = n: every planar graph on n vertices admits a plane straight-line embedding on P (Theorem 3: such sets exist for all 1 <= n <= 10).",
   "points": [

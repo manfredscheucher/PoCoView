@@ -4,8 +4,13 @@
   "colors": 2,
   "group": "Bicolored sets",
   "description": "Bicolored set of 61 points (30 blue, 31 red) without monochromatic 5-islands.",
-  "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
-  "url": null,
+  "reference": "by Payer, Wohlmuth",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n61_c2_no_monochromatic_5_island/n61_c2_no_monochromatic_5_island.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n61_c2_no_monochromatic_5_island/n61_c2_no_monochromatic_5_island.psz",
   "points": [
     [4502, 8191, "R"],

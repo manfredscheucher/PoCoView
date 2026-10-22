@@ -9,7 +9,8 @@ data class Example(
     val description: String,
     val group: String,
     val reference: String?,
-    val url: String?,
+    /** Direct links: paper, thesis, the set's PoSeZo entry, … */
+    val links: List<ExampleLink>,
     val points: List<Pt>,
     /** Optional remark, e.g. "same order type as …". */
     val note: String? = null,
@@ -54,7 +55,10 @@ fun parseExample(text: String, file: String): Example {
         description = o.string("description", file),
         group = o.string("group", file),
         reference = o.optString("reference", file),
-        url = o.optString("url", file),
+        links = (o["links"] as? List<*> ?: emptyList<Any?>()).map { l ->
+            val lo = l.asObject("$file link")
+            ExampleLink(lo.string("title", "$file link"), lo.string("url", "$file link"), lo.optString("description", "$file link"))
+        },
         points = o.list("points", file).map { point(it, file) },
         note = o.optString("note", file),
     ).also {

@@ -4,8 +4,13 @@
   "colors": 2,
   "group": "Bicolored sets",
   "description": "Bicolored set of 64 points (32 blue, 32 red) without monochromatic 5-islands.",
-  "reference": "Manfred Scheucher, based on a set of 61 points from ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Payer, Wohlmuth",
-  "url": null,
+  "reference": "Manfred Scheucher",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n64_c2_no_monochromatic_5_island/n64_c2_no_monochromatic_5_island.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n64_c2_no_monochromatic_5_island/n64_c2_no_monochromatic_5_island.psz",
   "points": [
     [0, 0, "R"],

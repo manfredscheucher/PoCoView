@@ -5,7 +5,12 @@
   "group": "Holes and convex gons",
   "description": "Set of 29 points without convex 6-holes.",
   "reference": "Finding sets of points without empty convex 6-gons. Author: M. H. Overmars (file set29_small1.txt from empty6.zip)",
-  "url": "http://www.cs.uu.nl/people/markov/sixgon/",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n29_c1_no_convex_6_hole/n29_c1_no_convex_6_hole.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n29_c1_no_convex_6_hole/n29_c1_no_convex_6_hole.psz",
   "points": [
     [436, 535],

@@ -5,7 +5,12 @@
   "group": "Miscellaneous",
   "description": "Set of 9 points which contains any order type of size 6.",
   "reference": "PoSeZo",
-  "url": "https://www.eurogiga-compose.eu/posezo.php",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n9_c1_universal_for_n6/n9_c1_universal_for_n6.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n9_c1_universal_for_n6/n9_c1_universal_for_n6.psz",
   "points": [
     [15, 1],

@@ -5,7 +5,12 @@
   "group": "Crossing number",
   "description": "Unique set of 18 points minimizing the rectilinear crossing number.",
   "reference": "PoSeZo",
-  "url": "https://www.eurogiga-compose.eu/posezo.php",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n18_c1_min_crossing_number_1029/n18_c1_min_crossing_number_1029.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n18_c1_min_crossing_number_1029/n18_c1_min_crossing_number_1029.psz",
   "points": [
     [69, 0],

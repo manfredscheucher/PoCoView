@@ -4,8 +4,13 @@
   "colors": 2,
   "group": "Bicolored sets",
   "description": "Bicolored set of 22 points (11 blue, 11 red) without monochromatic 4-holes.",
-  "reference": "ECA class room exercise (TU Graz, 2012, Oswin Aichholzer/Thomas Hackl) submitted by Kann, Pammer, Platzer",
-  "url": null,
+  "reference": "by Kann, Pammer, Platzer",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n22_c2_no_monochromatic_4_hole/n22_c2_no_monochromatic_4_hole.php"
+    }
+  ],
   "source": "https://www.eurogiga-compose.eu/posezo/n22_c2_no_monochromatic_4_hole/n22_c2_no_monochromatic_4_hole.psz",
   "points": [
     [102202, 956, "R"],
