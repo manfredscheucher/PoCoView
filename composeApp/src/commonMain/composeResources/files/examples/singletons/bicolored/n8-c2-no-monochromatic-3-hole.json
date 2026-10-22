@@ -4,7 +4,7 @@
   "colors": 2,
   "group": "Bicolored sets",
   "description": "Maximal bicolored set of points (8) without monochromatic 3-holes (empty triangles).",
-  "reference": "PoSeZo",
+  "reference": null,
   "links": [
     {
       "title": "PoSeZo entry",

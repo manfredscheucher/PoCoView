@@ -4,7 +4,7 @@
   "colors": 1,
   "group": "Crossing number",
   "description": "Unique set of 18 points minimizing the rectilinear crossing number.",
-  "reference": "PoSeZo",
+  "reference": null,
   "links": [
     {
       "title": "PoSeZo entry",
