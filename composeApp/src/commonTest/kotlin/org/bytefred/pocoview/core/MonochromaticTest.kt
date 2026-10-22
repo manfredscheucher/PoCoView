@@ -174,4 +174,28 @@ class MonochromaticTest {
             assertEquals(v, got, "$id $p")
         }
     }
+
+    @Test
+    fun generalHolesAreSimplePolygonsInBoundaryOrder() = runTest {
+        val r = kotlin.random.Random(11)
+        var nonConvex = 0
+        repeat(6) {
+            var p: List<Pt>
+            do p = List(12) { Pt(r.nextLong(0, 1000), r.nextLong(0, 1000), if (r.nextBoolean()) "R" else "B") }
+            while (!isGeneralPosition(p))
+            for (k in 4..5) for (poly in monochromaticGeneralHoles(p, k)) {
+                val e = poly.indices.map { poly[it] to poly[(it + 1) % poly.size] }
+                // consecutive vertices are boundary edges: no two non-adjacent edges cross
+                for (i in e.indices) for (j in i + 1 until e.size) {
+                    if (j == i + 1 || (i == 0 && j == e.size - 1)) continue
+                    assertTrue(!segmentsCross(p[e[i].first], p[e[i].second], p[e[j].first], p[e[j].second]), poly.toList().toString())
+                }
+                // counter-clockwise (positive area)
+                val area2 = e.sumOf { (a, b) -> p[a].x * p[b].y - p[b].x * p[a].y }
+                assertTrue(area2 > 0, poly.toList().toString())
+                if ((poly.indices).any { orient(p[poly[it]], p[poly[(it + 1) % poly.size]], p[poly[(it + 2) % poly.size]]) < 0 }) nonConvex++
+            }
+        }
+        assertTrue(nonConvex > 0, "expected some non-convex general holes")
+    }
 }

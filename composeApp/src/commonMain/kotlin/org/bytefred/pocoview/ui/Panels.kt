@@ -46,6 +46,13 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -447,9 +454,13 @@ private fun DataTab(state: AppState) {
     val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
     // the draft lives in the state, so closing the widget does not lose an unapplied edit
     val draft = state.coordinatesDraft
+    val mark = MaterialTheme.colorScheme.tertiaryContainer
+    val sel = state.selected
     OutlinedTextField(
         draft ?: current, onValueChange = { state.coordinatesDraft = it },
         textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        // the line of the selected point is highlighted
+        visualTransformation = remember(sel, mark) { LineHighlight(sel, mark) },
         modifier = Modifier.fillMaxWidth().height(200.dp).textFocus(state),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -461,13 +472,32 @@ private fun DataTab(state: AppState) {
         Text("λ matrix", style = MaterialTheme.typography.titleSmall)
         val l = smallLambda(p)
         val w = (p.size - 2).toString().length + 1
-        val sel = state.selected
         Text(
-            l.mapIndexed { i, row ->
-                row.joinToString("") { it.toString().padStart(w) } + if (i == sel) "  *" else ""
-            }.joinToString("\n"),
+            highlightLine(
+                l.mapIndexed { i, row -> row.joinToString("") { it.toString().padStart(w) } + if (i == sel) "  *" else "" }
+                    .joinToString("\n"),
+                sel, mark,
+            ),
             fontFamily = FontFamily.Monospace, fontSize = 11.sp,
             modifier = Modifier.horizontalScroll(rememberScrollState()),
         )
     }
+}
+
+/** [text] with line [line] (0-based) on a [color] background. */
+private fun highlightLine(text: String, line: Int?, color: Color): AnnotatedString = buildAnnotatedString {
+    append(text)
+    if (line == null || line < 0) return@buildAnnotatedString
+    var start = 0
+    repeat(line) {
+        start = text.indexOf('\n', start).takeIf { it >= 0 }?.plus(1) ?: return@buildAnnotatedString
+    }
+    val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
+    if (end > start) addStyle(SpanStyle(background = color), start, end)
+}
+
+/** Highlights one line of a text field without changing the text (offsets unchanged). */
+private class LineHighlight(private val line: Int?, private val color: Color) : VisualTransformation {
+    override fun filter(text: AnnotatedString) =
+        TransformedText(highlightLine(text.text, line, color), OffsetMapping.Identity)
 }
