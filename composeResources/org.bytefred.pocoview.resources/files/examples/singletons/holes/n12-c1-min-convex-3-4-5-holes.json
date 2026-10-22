@@ -1,0 +1,29 @@
+{
+  "name": "n12-c1-min-convex-3-4-5-holes",
+  "n": 12,
+  "colors": 1,
+  "group": "Holes and convex gons",
+  "description": "Set of 12 points minimizing the numbers of convex 3-, 4-, and 5-holes.",
+  "reference": "Lower bounds for the number of small convex k-holes. O. Aichholzer, R. Fabila-Monroy, T. Hackl, C. Huemer, A. Pilz, B. Vogtenhuber, CCCG 2012",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n12_c1_min_convex_3_4_5_holes/n12_c1_min_convex_3_4_5_holes.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n12_c1_min_convex_3_4_5_holes/n12_c1_min_convex_3_4_5_holes.psz",
+  "points": [
+    [0, 0],
+    [100, 0],
+    [50, 87],
+    [50, 38],
+    [55, 32],
+    [53, 19],
+    [47, 19],
+    [45, 32],
+    [41, 4],
+    [59, 4],
+    [25, 40],
+    [75, 40]
+  ]
+}

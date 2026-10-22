@@ -1,0 +1,43 @@
+{
+  "name": "n25-c1-no-6-crossing-family-graz-prague",
+  "n": 25,
+  "colors": 1,
+  "group": "Crossing families",
+  "description": "Set of 25 points which does not contain a crossing family of size 6 or more.",
+  "reference": "B. Aronov, P. Erdos, W. Goddard, D.J. Kleitman, M. Klugerman, J. Pach, L.J. Schulman, Crossing families. Combinatorica 14 (1994), 127-134 (upper-bound argument). Example obtained within Graz-Prague bilateral project CZ 18-2015, 'Erdos-Szekeres type questions for point sets'.",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n25-c1-no-6-crossing-family/n25-c1-no-6-crossing-family.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n25-c1-no-6-crossing-family/n25-c1-no-6-crossing-family.psz",
+  "note": "Same labeled order type as crossing-families/n25-c1-no-6-crossing-family (Fig. 6 of the crossing families paper), other coordinates.",
+  "points": [
+    [211, 768],
+    [659, 194],
+    [641, 192],
+    [624, 189],
+    [610, 188],
+    [598, 188],
+    [238, 709],
+    [244, 696],
+    [224, 736],
+    [421, 305],
+    [324, 414],
+    [370, 263],
+    [300, 456],
+    [345, 249],
+    [215, 749],
+    [283, 397],
+    [227, 293],
+    [223, 354],
+    [190, 242],
+    [186, 254],
+    [31, 67],
+    [26, 54],
+    [22, 43],
+    [15, 29],
+    [-10, -10]
+  ]
+}

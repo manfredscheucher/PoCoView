@@ -1,0 +1,35 @@
+{
+  "name": "n13-c1-min-convex-3-4-5-holes",
+  "n": 13,
+  "colors": 1,
+  "group": "Holes and convex gons",
+  "description": "Set of 13 points minimizing the numbers of convex 3-, 4-, and 5-holes.",
+  "reference": "Manfred Scheucher, Bachelor's thesis, TU Graz, 2013",
+  "links": [
+    {
+      "title": "Bachelor's thesis (PDF)",
+      "url": "https://scheucher.dev/files/theses/bachelors_thesis_2013.pdf"
+    },
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n13_c1_min_convex_3_4_5_holes/n13_c1_min_convex_3_4_5_holes.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n13_c1_min_convex_3_4_5_holes/n13_c1_min_convex_3_4_5_holes.psz",
+  "note": "Symmetric layout by Thomas Hackl.",
+  "points": [
+    [160, 7359],
+    [1768, 6530],
+    [2592, 6679],
+    [4239, 6383],
+    [3955, 5593],
+    [2960, 5759],
+    [2338, 4960],
+    [2880, 4320],
+    [2960, 2520],
+    [5759, 7359],
+    [3076, 5497],
+    [2684, 5783],
+    [3113, 5976]
+  ]
+}

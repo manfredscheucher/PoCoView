@@ -1,0 +1,32 @@
+{
+  "name": "n15-c1-9-convex-5-holes",
+  "n": 15,
+  "colors": 1,
+  "group": "Holes and convex gons",
+  "description": "Set of 15 points with 9 convex 5-holes.",
+  "reference": "by Oswin Aichholzer (unpublished)",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n15_c1_9_convex_5_holes/n15_c1_9_convex_5_holes.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n15_c1_9_convex_5_holes/n15_c1_9_convex_5_holes.psz",
+  "points": [
+    [0, 62035],
+    [65280, 65280],
+    [29017, 42686],
+    [28073, 43222],
+    [27580, 43180],
+    [27723, 42707],
+    [26856, 42289],
+    [26977, 42113],
+    [24450, 40872],
+    [24201, 38628],
+    [18887, 0],
+    [29771, 62134],
+    [52452, 63860],
+    [12179, 28100],
+    [42831, 62949]
+  ]
+}

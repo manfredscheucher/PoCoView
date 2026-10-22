@@ -1,0 +1,27 @@
+{
+  "name": "n10-c1-1-convex-5-hole",
+  "n": 10,
+  "colors": 1,
+  "group": "Holes and convex gons",
+  "description": "Set of 10 points with only one convex 5-hole.",
+  "reference": null,
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n10_c1_1_convex_5_hole/n10_c1_1_convex_5_hole.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n10_c1_1_convex_5_hole/n10_c1_1_convex_5_hole.psz",
+  "points": [
+    [42792, 20304],
+    [12156, 0],
+    [0, 44412],
+    [27110, 29396],
+    [21312, 33564],
+    [35052, 25200],
+    [28260, 45984],
+    [34200, 39360],
+    [27648, 61512],
+    [62400, 53640]
+  ]
+}

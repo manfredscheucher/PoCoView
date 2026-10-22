@@ -1,0 +1,77 @@
+{
+  "categories": [
+    {
+      "title": "Holes and convex gons",
+      "files": [
+        "singletons/holes/n10-c1-1-convex-5-hole.json",
+        "singletons/holes/n12-c1-min-convex-3-4-5-holes.json",
+        "singletons/holes/n13-c1-min-convex-3-4-5-holes.json",
+        "singletons/holes/n14-c1-6-convex-5-holes.json",
+        "singletons/holes/n15-c1-9-convex-5-holes.json",
+        "singletons/holes/n16-c1-11-convex-5-holes.json",
+        "singletons/holes/n16-c1-no-convex-6-gon-brass-moser-pach.json",
+        "singletons/holes/n16-c1-no-convex-6-gon-kalbfleisch-stanton.json",
+        "singletons/holes/n29-c1-no-convex-6-hole.json"
+      ]
+    },
+    {
+      "title": "Crossing number",
+      "files": [
+        "singletons/crossing-number/n12-c1-min-crossing-number-153.json",
+        "singletons/crossing-number/n18-c1-min-crossing-number-1029.json"
+      ]
+    },
+    {
+      "title": "Bicolored sets",
+      "files": [
+        "singletons/bicolored/n8-c2-no-monochromatic-3-hole.json",
+        "singletons/bicolored/n22-c2-no-monochromatic-4-hole.json",
+        "singletons/bicolored/n35-c2-no-monochromatic-4-island.json",
+        "singletons/bicolored/n46-c2-no-monochromatic-convex-4-hole.json",
+        "singletons/bicolored/n61-c2-no-monochromatic-5-island.json",
+        "singletons/bicolored/n64-c2-no-monochromatic-5-island.json"
+      ]
+    },
+    {
+      "title": "Crossing families",
+      "files": [
+        "singletons/crossing-families/n14-c1-no-4-crossing-family.json",
+        "singletons/crossing-families/n20-c1-no-5-crossing-family.json",
+        "singletons/crossing-families/n25-c1-no-6-crossing-family.json",
+        "singletons/crossing-families/n25-c1-no-6-crossing-family-graz-prague.json",
+        "singletons/crossing-families/n41-c1-no-9-crossing-family.json"
+      ]
+    },
+    {
+      "title": "Universal point sets",
+      "files": [
+        "singletons/universal/n5-c1-5-universal.json",
+        "singletons/universal/n6-c1-6-universal.json",
+        "singletons/universal/n7-c1-7-universal.json",
+        "singletons/universal/n8-c1-8-universal.json",
+        "singletons/universal/n9-c1-9-universal.json",
+        "singletons/universal/n10-c1-10-universal.json"
+      ]
+    },
+    {
+      "title": "Miscellaneous",
+      "files": [
+        "singletons/misc/n9-c1-universal-for-n6.json",
+        "singletons/misc/n12-c1-11-universal.json",
+        "singletons/misc/n17-c1-universal-4-connected-k11-17.json"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "PoSeZo (Point Set Zoo)",
+      "url": "https://www.eurogiga-compose.eu/posezo.php",
+      "description": "Collection of interesting point sets and families, by the members of the EuroGIGA project ComPoSe"
+    },
+    {
+      "title": "Order type database",
+      "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+      "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "n17-c1-universal-4-connected-k11-17",
+  "n": 17,
+  "colors": 1,
+  "group": "Miscellaneous",
+  "description": "17 points p1..p17: {p1..pk} is universal for 4-connected planar graphs on k vertices, k = 11..17 (Listing 2)",
+  "reference": "M. Scheucher, H. Schrezenmaier, R. Steiner, A note on universal point sets for planar graphs, GD 2019, arXiv:1811.06482",
+  "links": [
+    {
+      "title": "arXiv",
+      "url": "https://arxiv.org/abs/1811.06482"
+    }
+  ],
+  "source": "Listing 2 of arXiv:1811.06482v3",
+  "points": [
+    [612, 666],
+    [754, 635],
+    [415, 709],
+    [884, 597],
+    [596, 695],
+    [890, 977],
+    [384, 716],
+    [834, 609],
+    [424, 707],
+    [974, 10],
+    [890, 962],
+    [306, 805],
+    [301, 810],
+    [4, 736],
+    [0, 735],
+    [975, 6],
+    [980, 0]
+  ]
+}

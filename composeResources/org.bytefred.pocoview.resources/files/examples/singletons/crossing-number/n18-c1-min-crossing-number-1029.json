@@ -1,0 +1,35 @@
+{
+  "name": "n18-c1-min-crossing-number-1029",
+  "n": 18,
+  "colors": 1,
+  "group": "Crossing number",
+  "description": "Unique set of 18 points minimizing the rectilinear crossing number.",
+  "reference": null,
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n18_c1_min_crossing_number_1029/n18_c1_min_crossing_number_1029.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n18_c1_min_crossing_number_1029/n18_c1_min_crossing_number_1029.psz",
+  "points": [
+    [69, 0],
+    [0, 154],
+    [123, 137],
+    [99, 117],
+    [103, 129],
+    [116, 134],
+    [118, 134],
+    [121, 136],
+    [46, 135],
+    [17, 136],
+    [8, 147],
+    [5, 151],
+    [3, 152],
+    [57, 79],
+    [76, 52],
+    [71, 30],
+    [68, 20],
+    [69, 10]
+  ]
+}

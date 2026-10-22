@@ -1,0 +1,29 @@
+{
+  "name": "n12-c1-11-universal",
+  "n": 12,
+  "colors": 1,
+  "group": "Miscellaneous",
+  "description": "11-universal set of 12 points (Listing 1)",
+  "reference": "M. Scheucher, H. Schrezenmaier, R. Steiner, A note on universal point sets for planar graphs, GD 2019, arXiv:1811.06482",
+  "links": [
+    {
+      "title": "arXiv",
+      "url": "https://arxiv.org/abs/1811.06482"
+    }
+  ],
+  "source": "Listing 1 of arXiv:1811.06482v3",
+  "points": [
+    [214, 0],
+    [0, 13],
+    [2, 16],
+    [9, 26],
+    [124, 12],
+    [133, 11],
+    [148, 9],
+    [213, 1],
+    [211, 4],
+    [210, 6],
+    [116, 179],
+    [122, 197]
+  ]
+}

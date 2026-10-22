@@ -1,0 +1,25 @@
+{
+  "name": "n8-c2-no-monochromatic-3-hole",
+  "n": 8,
+  "colors": 2,
+  "group": "Bicolored sets",
+  "description": "Maximal bicolored set of points (8) without monochromatic 3-holes (empty triangles).",
+  "reference": null,
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n08_c2_no_monochromatic_3_hole/n08_c2_no_monochromatic_3_hole.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n08_c2_no_monochromatic_3_hole/n08_c2_no_monochromatic_3_hole.psz",
+  "points": [
+    [0, 0, "B"],
+    [0, 30, "B"],
+    [40, 10, "R"],
+    [40, 20, "R"],
+    [60, 10, "B"],
+    [60, 20, "B"],
+    [100, 0, "R"],
+    [100, 30, "R"]
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "n16-c1-11-convex-5-holes",
+  "n": 16,
+  "colors": 1,
+  "group": "Holes and convex gons",
+  "description": "Set of 16 points with 11 convex 5-holes.",
+  "reference": "Manfred Scheucher",
+  "links": [
+    {
+      "title": "PoSeZo entry",
+      "url": "https://www.eurogiga-compose.eu/posezo/n16_c1_11_convex_5_holes/n16_c1_11_convex_5_holes.php"
+    }
+  ],
+  "source": "https://www.eurogiga-compose.eu/posezo/n16_c1_11_convex_5_holes/n16_c1_11_convex_5_holes.psz",
+  "points": [
+    [0, 0],
+    [359, 597],
+    [392, 306],
+    [402, 287],
+    [381, 272],
+    [389, 276],
+    [382, 271],
+    [392, 263],
+    [383, 253],
+    [390, 254],
+    [397, 262],
+    [365, 222],
+    [393, 239],
+    [386, 198],
+    [441, 178],
+    [554, 0]
+  ]
+}
