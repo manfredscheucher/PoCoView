@@ -349,6 +349,11 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     Text(l.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     Text(l.url, style = MaterialTheme.typography.labelSmall)
+                    for (p in l.papers) Text(
+                        p.title, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { uri.openUri(p.url) }.padding(top = 2.dp),
+                    )
                 }
             }
         },

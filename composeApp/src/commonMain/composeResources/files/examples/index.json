@@ -71,7 +71,21 @@
     {
       "title": "Order type database",
       "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
-      "description": "Order types of small point sets (O. Aichholzer, TU Graz)"
+      "description": "All order types of up to 10 points (and n = 11), with properties. O. Aichholzer, F. Aurenhammer, H. Krasser",
+      "papers": [
+        {
+          "title": "O. Aichholzer, F. Aurenhammer, H. Krasser. Enumerating Order Types for Small Point Sets with Applications. Proc. 17th Ann. ACM Symp. Computational Geometry, 11-18, 2001",
+          "url": "https://publications.ist.tugraz.at/abstracts/aak-eotsp-01/index.html"
+        },
+        {
+          "title": "O. Aichholzer, H. Krasser. The Point Set Order Type Data Base: A Collection of Applications and Results. Proc. 13th CCCG, 17-20, 2001",
+          "url": "https://publications.ist.tugraz.at/abstracts/ak-psotd-01/index.html"
+        },
+        {
+          "title": "O. Aichholzer, H. Krasser. Abstract Order Type Extension and New Results on the Rectilinear Crossing Number. Comput. Geom. 36(1):2-15, 2006",
+          "url": "https://publications.ist.tugraz.at/abstracts/ak-aoten-06/index.html"
+        }
+      ]
     }
   ]
 }

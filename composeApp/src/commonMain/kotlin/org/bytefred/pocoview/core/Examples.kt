@@ -20,7 +20,7 @@ data class Example(
 data class ExampleGroup(val title: String, val examples: List<Example>)
 
 /** A link shown with the examples (collections, databases). */
-data class ExampleLink(val title: String, val url: String, val description: String?)
+data class ExampleLink(val title: String, val url: String, val description: String?, val papers: List<ExampleLink> = emptyList())
 
 /** Everything bundled: the categories of single sets and the links. */
 data class ExampleCatalog(val categories: List<ExampleGroup>, val links: List<ExampleLink>)
@@ -42,7 +42,11 @@ suspend fun loadExamples(): ExampleCatalog {
     }
     val links = index.list("links", "index.json").map { l ->
         val o = l.asObject("index.json link")
-        ExampleLink(o.string("title", "index.json link"), o.string("url", "index.json link"), o.optString("description", "index.json link"))
+        val papers = (o["papers"] as? List<*> ?: emptyList<Any?>()).map { q ->
+            val po = q.asObject("index.json paper")
+            ExampleLink(po.string("title", "index.json paper"), po.string("url", "index.json paper"), null)
+        }
+        ExampleLink(o.string("title", "index.json link"), o.string("url", "index.json link"), o.optString("description", "index.json link"), papers)
     }
     return ExampleCatalog(categories, links)
 }
