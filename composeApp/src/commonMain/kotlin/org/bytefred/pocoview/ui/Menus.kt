@@ -46,6 +46,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
+import org.bytefred.pocoview.GeneratedBuildInfo
 import org.bytefred.pocoview.core.ExampleCatalog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -179,7 +180,7 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
         DialogKind.RANDOM -> RandomDialog(state, close)
         DialogKind.EXAMPLES -> ExamplesDialog(state, close)
         DialogKind.WELCOME -> WelcomeDialog(close = close, showExamples = { open(DialogKind.EXAMPLES) })
-        DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT, close)
+        DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT + "\n\n" + buildInfo(), close)
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
 }
@@ -619,6 +620,16 @@ An interactive editor and viewer for point configurations and their order types:
 Successor of qtvis (C++/Qt) and the pyotlib2 editor; the optimizers are ports of pyotlib / pyotlib2.
 
 Kotlin Multiplatform + Compose; runs in the browser and on the desktop (JVM)."""
+
+/** Commit, commit date and build date (GeneratedBuildInfo, written at build time). */
+private fun buildInfo(): String {
+    val sha = GeneratedBuildInfo.COMMIT_SHA
+    val lines = mutableListOf<String>()
+    if (sha != "unknown") lines += "commit " + if (GeneratedBuildInfo.IS_DIRTY == "dirty") "$sha (modified)" else sha
+    if (GeneratedBuildInfo.COMMIT_DATE != "unknown") lines += "committed ${GeneratedBuildInfo.COMMIT_DATE}"
+    lines += "built ${GeneratedBuildInfo.BUILD_DATE}"
+    return lines.joinToString("\n")
+}
 
 private const val SHORTCUTS = """Esc: deselect
 Del / Backspace: delete the selected point
