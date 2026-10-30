@@ -91,7 +91,8 @@ are the λ matrix (λ[i][j] = number of points left of i->j) and the order type 
 - **Random…**: n random points in general position on a grid.
 - **Export…**: all sets as JSON (one line per set) or text (n, then n point lines, per set), to copy.
 - **Examples…**: collapsible groups: Families (generated: Horton sets, convex position),
-  Singletons (interesting sets with their original sources, in categories) and Links. Please send
+  Singletons (interesting sets with their original sources, in categories) and Links. Select a family
+  or set (a family also asks for n), then Load. Please send
   interesting sets or feedback to manfred.scheucher@proton.me (the address is clickable).
 - **Open file…** reads `.json`, `.txt`/`.asc`/`.psz` (the same text format; files may hold several
   sets) and the order type database formats `.b08`, `.b16`, `.b32` (unsigned little-endian

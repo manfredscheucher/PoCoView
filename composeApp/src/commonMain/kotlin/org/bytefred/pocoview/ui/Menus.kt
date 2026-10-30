@@ -3,6 +3,7 @@ package org.bytefred.pocoview.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.OutlinedTextField
@@ -51,7 +52,10 @@ import org.bytefred.pocoview.core.ExampleCatalog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.semantics.Role
 import org.bytefred.pocoview.core.Example
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
@@ -180,7 +184,7 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
         DialogKind.RANDOM -> RandomDialog(state, close)
         DialogKind.EXAMPLES -> ExamplesDialog(state, close)
         DialogKind.WELCOME -> WelcomeDialog(close = close, showExamples = { open(DialogKind.EXAMPLES) })
-        DialogKind.ABOUT -> TextDialog("About PoCoView", ABOUT + "\n\n" + buildInfo(), close)
+        DialogKind.ABOUT -> AboutDialog(close)
         DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
     }
 }
@@ -312,7 +316,17 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
     )
 }
 
-/** Families (generated), the bundled single sets in categories, and links; all collapsible. */
+/** What is selected in the Examples dialog: a family (generated with n) or a bundled set. */
+private sealed interface ExampleChoice {
+    data class Family(val family: PointSetFamily) : ExampleChoice
+    data class Single(val example: Example) : ExampleChoice
+}
+
+/**
+ * Families (generated), the bundled single sets in categories, and links; all collapsible.
+ * Families and sets are radio buttons; the selected one shows its details (a family also its n).
+ * Load replaces the current set with it (after [AppState.confirmReplace]).
+ */
 @Composable
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     var catalog by remember { mutableStateOf<ExampleCatalog?>(null) }
@@ -322,17 +336,43 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     }
     val open = remember { mutableStateListOf<String>() }
     fun toggle(key: String) { if (key in open) open.remove(key) else open.add(key) }
+    var selected by remember { mutableStateOf<ExampleChoice?>(null) }
+    val familyN = remember { mutableStateMapOf<String, Int>() }
+    var nError by remember { mutableStateOf<String?>(null) }
+    fun load() {
+        when (val choice = selected) {
+            null -> {}
+            is ExampleChoice.Family -> {
+                val f = choice.family
+                val n = familyN[f.id] ?: DEFAULT_FAMILY_N
+                if (n !in 1..f.maxN) nError = "n must be 1..${f.maxN}"
+                else state.confirmReplace { state.loadPoints("${f.id}_n${f.size(n)}", f.generate(n)); close() }
+            }
+            is ExampleChoice.Single -> {
+                val e = choice.example
+                state.confirmReplace { state.loadPoints(e.name, e.points); close() }
+            }
+        }
+    }
     val uri = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = close,
-        confirmButton = { TextButton(onClick = close) { Text("Close") } },
+        confirmButton = { TextButton(onClick = ::load, enabled = selected != null) { Text("Load") } },
+        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
         title = { Text("Examples") },
         text = {
             ScrollColumn(Modifier.widthIn(min = 320.dp, max = 640.dp).heightIn(max = 560.dp)) {
                 FeedbackBox("Know a set that belongs here, or have general feedback?")
                 Spacer(Modifier.height(8.dp))
                 SectionHeader("Families", "Families" in open, level = 0) { toggle("Families") }
-                if ("Families" in open) for (f in FAMILIES) FamilyRow(state, f, close)
+                if ("Families" in open) for (f in FAMILIES) {
+                    val choice = ExampleChoice.Family(f)
+                    RadioRow(f.name, selected == choice, indent = 16) { selected = choice; nError = null }
+                    if (selected == choice) FamilyDetails(state, f, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
+                        familyN[f.id] = it
+                        nError = null
+                    }
+                }
                 SectionHeader("Singletons", "Singletons" in open, level = 0) { toggle("Singletons") }
                 if ("Singletons" in open) {
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -340,12 +380,16 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     for (g in catalog?.categories.orEmpty()) {
                         val key = "S/" + g.title
                         SectionHeader("${g.title} (${g.examples.size})", key in open, level = 1) { toggle(key) }
-                        if (key in open) for (e in g.examples) ExampleRow(state, e, close)
+                        if (key in open) for (e in g.examples) {
+                            val choice = ExampleChoice.Single(e)
+                            RadioRow(e.name, selected == choice, indent = 32) { selected = choice }
+                            if (selected == choice) ExampleDetails(e)
+                        }
                     }
                 }
                 SectionHeader("Links", "Links" in open, level = 0) { toggle("Links") }
                 if ("Links" in open) for (l in catalog?.links.orEmpty()) Column(
-                    Modifier.fillMaxWidth().clickable { uri.openUri(l.url) }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
+                    Modifier.fillMaxWidth().clickable { openUriSafely(uri, l.url) }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
                 ) {
                     Text(l.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
@@ -354,6 +398,21 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             }
         },
     )
+}
+
+private const val DEFAULT_FAMILY_N = 16
+
+/** A radio button row; a click selects it. */
+@Composable
+private fun RadioRow(label: String, selected: Boolean, indent: Int, onSelect: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
+            .padding(start = indent.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+    }
 }
 
 /** A collapsible header row: title and an arrow, click toggles. */
@@ -372,21 +431,18 @@ private fun SectionHeader(title: String, expanded: Boolean, level: Int, onClick:
     }
 }
 
+/** The details of the selected bundled set: description, note, reference, links. */
 @Composable
-private fun ExampleRow(state: AppState, e: Example, close: () -> Unit) {
+private fun ExampleDetails(e: Example) {
     val uri = LocalUriHandler.current
-    Column(
-        Modifier.fillMaxWidth().clickable { state.confirmReplace { state.loadPoints(e.name, e.points); close() } }
-            .padding(start = 32.dp, top = 4.dp, bottom = 4.dp),
-    ) {
-        Text(e.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+    Column(Modifier.padding(start = 64.dp, bottom = 8.dp)) {
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
         if (e.links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             for (l in e.links) Text(
                 l.title, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
-                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { uri.openUri(l.url) },
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { openUriSafely(uri, l.url) },
             )
         }
     }
@@ -405,7 +461,7 @@ fun FeedbackBox(question: String) {
             EMAIL,
             style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
             color = Color(0xFF1A4FB0),
-            modifier = Modifier.clickable { uri.openUri(feedbackMailto()) }.padding(top = 2.dp),
+            modifier = Modifier.clickable { openUriSafely(uri, feedbackMailto()) }.padding(top = 2.dp),
         )
     }
 }
@@ -424,22 +480,11 @@ private fun feedbackMailto(): String {
     return "mailto:$EMAIL?subject=${enc(subject)}&body=${enc(body)}"
 }
 
+/** The details of the selected family: its n, description and references. */
 @Composable
-private fun FamilyRow(state: AppState, f: PointSetFamily, close: () -> Unit) {
-    var n by remember { mutableStateOf(16) }
-    var error by remember { mutableStateOf<String?>(null) }
-    Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(f.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            NumberField(state, "n", n.toString(), { n = it.toInt(); error = null }, Modifier.width(90.dp))
-            OutlinedButton(onClick = {
-                if (n !in 1..f.maxN) error = "n must be 1..${f.maxN}"
-                else {
-                    val size = f.size(n)
-                    state.confirmReplace { state.loadPoints("${f.id}_n$size", f.generate(n)); close() }
-                }
-            }) { Text("Generate") }
-        }
+private fun FamilyDetails(state: AppState, f: PointSetFamily, n: Int, error: String?, onN: (Int) -> Unit) {
+    Column(Modifier.padding(start = 48.dp, bottom = 8.dp)) {
+        NumberField(state, "n", n.toString(), { onN(it.toInt()) }, Modifier.width(90.dp))
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text(f.description, style = MaterialTheme.typography.bodySmall)
         for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
@@ -511,6 +556,52 @@ private fun OperationDialog(state: AppState, title: String) = AlertDialog(
         }
     },
 )
+
+/** About: description, feedback box, the projects with their licenses, build identity. */
+@Composable
+private fun AboutDialog(close: () -> Unit) = AlertDialog(
+    onDismissRequest = close,
+    confirmButton = { TextButton(onClick = close) { Text("OK") } },
+    title = { Text("PoCoView") },
+    text = {
+        ScrollColumn(Modifier.heightIn(max = 520.dp)) {
+            Text(ABOUT, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(8.dp))
+            FeedbackBox("PoCoView is in early development. Feedback is very welcome:")
+            Spacer(Modifier.height(8.dp))
+            ProjectLine("PoCoView", "https://github.com/manfredscheucher/PoCoView", "this app")
+            ProjectLine(
+                "pyotlib2", "https://github.com/manfredscheucher/pyotlib2",
+                "the Python library whose editor PoCoView replaces and whose optimizers it ports",
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(buildLine(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    },
+)
+
+/** One About line "[name] (MIT): note"; only the name is a link. */
+@Composable
+private fun ProjectLine(name: String, url: String, note: String) {
+    val uri = LocalUriHandler.current
+    Row {
+        Text(
+            name,
+            style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
+            color = Color(0xFF1A4FB0),
+            modifier = Modifier.clickable { openUriSafely(uri, url) }.padding(vertical = 2.dp),
+        )
+        Text(" (MIT): $note", Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * Opens a link without ever crashing the app: the JVM throws when the desktop can't browse (and
+ * Android would when no browser or mail app is installed). Then nothing happens.
+ */
+private fun openUriSafely(uri: UriHandler, url: String) {
+    try { uri.openUri(url) } catch (e: Exception) { }
+}
 
 @Composable
 private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDialog(
@@ -613,23 +704,17 @@ private fun PickerRow(state: AppState, p: PropertyDef) {
     }
 }
 
-private const val ABOUT = """PoCoView - Point Configuration Viewer
+private const val ABOUT = "PoCoView (Point Configuration Viewer) is an interactive editor and viewer for point sets and " +
+    "their order types. It counts and visualizes convex hulls, onion layers, crossings, k-holes, k-gons and " +
+    "triangulations, and can minimize or beautify coordinates while keeping the order type."
 
-An interactive editor and viewer for point configurations and their order types: load and save point sets (also the order type database formats), move, add and delete points, and count or visualize convex hull, onion layers, crossings, k-holes, k-gons and triangulations, also restricted to a selected point. Coordinates can be minimized and beautified while keeping the order type.
-
-Successor of qtvis (C++/Qt) and the pyotlib2 editor; the optimizers are ports of pyotlib / pyotlib2.
-
-Kotlin Multiplatform + Compose; runs in the browser and on the desktop (JVM)."""
-
-/** Commit, commit date and build date (GeneratedBuildInfo, written at build time). */
-private fun buildInfo(): String {
+/** "sha · committed <date> · built <date>" (GeneratedBuildInfo, written at build time); unknown parts are left out. */
+private fun buildLine(): String = buildList {
     val sha = GeneratedBuildInfo.COMMIT_SHA
-    val lines = mutableListOf<String>()
-    if (sha != "unknown") lines += "commit " + if (GeneratedBuildInfo.IS_DIRTY == "dirty") "$sha (modified)" else sha
-    if (GeneratedBuildInfo.COMMIT_DATE != "unknown") lines += "committed ${GeneratedBuildInfo.COMMIT_DATE}"
-    lines += "built ${GeneratedBuildInfo.BUILD_DATE}"
-    return lines.joinToString("\n")
-}
+    if (sha != "unknown") add(if (GeneratedBuildInfo.IS_DIRTY == "dirty") "$sha (modified)" else sha)
+    if (GeneratedBuildInfo.COMMIT_DATE != "unknown") add("committed ${GeneratedBuildInfo.COMMIT_DATE}")
+    add("built ${GeneratedBuildInfo.BUILD_DATE}")
+}.joinToString(" · ")
 
 private const val SHORTCUTS = """Esc: deselect
 Del / Backspace: delete the selected point
