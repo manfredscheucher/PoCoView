@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -51,6 +52,9 @@ class ViewTransform {
     var ox by mutableDoubleStateOf(0.0)
     var oy by mutableDoubleStateOf(0.0)
     var size by mutableStateOf(IntSize.Zero)
+
+    /** The [AppState.fitRequest] this view was last fitted for: a re-created canvas keeps the zoom. */
+    var fittedRequest = -1
 
     fun toScreen(p: Pt) = Offset((ox + p.x * scale).toFloat(), (oy - p.y * scale).toFloat())
     fun toWorld(s: Offset) = Pt(((s.x - ox) / scale).roundToLong(), ((oy - s.y) / scale).roundToLong())
@@ -116,6 +120,9 @@ fun tokenColor(token: String?): Color? = when (token?.uppercase()) {
     else -> null
 }
 
+/** Ctrl+click opens the context menu like a right-click (macOS). */
+expect val ctrlClickIsRightClick: Boolean
+
 private const val HIT_RADIUS = 16f
 private const val TOUCH_SLOP = 4f
 
@@ -125,9 +132,15 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
     val textMeasurer = rememberTextMeasurer()
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    // fit on request and once the canvas has a size; a later resize keeps the user's zoom
+    // fit on request and once the canvas has a size; a later resize keeps the user's zoom, and so
+    // does a canvas re-created by a layout switch (the request was already handled)
     val sized = view.size.width > 0 && view.size.height > 0
-    LaunchedEffect(state.fitRequest, sized) { if (sized) view.fit(state.points) }
+    LaunchedEffect(state.fitRequest, sized) {
+        if (sized && view.fittedRequest != state.fitRequest) {
+            view.fit(state.points)
+            view.fittedRequest = state.fitRequest
+        }
+    }
 
     // the point whose context menu is open (right-click on it) and where it opens
     var pointMenu by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
@@ -173,21 +186,27 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                                     c.consume()
                                 }
                                 PointerEventType.Press -> {
-                                    onInteract()
-                                    if (ev.buttons.isSecondaryPressed) {
-                                        // right-click: the context menu of the point under it, nothing on empty space
+                                    if (st.menuSwallowsPress) {
+                                        // the press only closes the open menu (its popup is not focusable)
+                                        st.openMenu = null
                                         down = null; dragPoint = null
-                                        if (pressed.size == 1) hit(pressed[0].position)?.let { pointMenu = it to pressed[0].position }
-                                    } else if (pressed.size == 1) {
-                                        val pos = pressed[0].position
-                                        down = pos; last = pos; moved = false; dragStarted = false
-                                        hitAtDown = hit(pos)
-                                        dragPoint = if (st.tool != Tool.DELETE) hitAtDown else null
-                                    } else if (pressed.size == 2) {
-                                        // second finger: switch to pinch zoom + two-finger pan
-                                        dragPoint = null; moved = true
-                                        pinchDist = (pressed[0].position - pressed[1].position).getDistance()
-                                        pinchCenter = (pressed[0].position + pressed[1].position) / 2f
+                                    } else {
+                                        onInteract()
+                                        if (ev.buttons.isSecondaryPressed || ctrlClickIsRightClick && ev.keyboardModifiers.isCtrlPressed) {
+                                            // right-click: the context menu of the point under it, nothing on empty space
+                                            down = null; dragPoint = null
+                                            if (pressed.size == 1) hit(pressed[0].position)?.let { pointMenu = it to pressed[0].position }
+                                        } else if (pressed.size == 1) {
+                                            val pos = pressed[0].position
+                                            down = pos; last = pos; moved = false; dragStarted = false
+                                            hitAtDown = hit(pos)
+                                            dragPoint = if (st.tool != Tool.DELETE) hitAtDown else null
+                                        } else if (pressed.size == 2) {
+                                            // second finger: switch to pinch zoom + two-finger pan
+                                            dragPoint = null; moved = true
+                                            pinchDist = (pressed[0].position - pressed[1].position).getDistance()
+                                            pinchCenter = (pressed[0].position + pressed[1].position) / 2f
+                                        }
                                     }
                                     ev.changes.forEach { it.consume() }
                                 }
@@ -272,6 +291,8 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
             // a zero-size anchor at the pointer: the menu opens right there
             Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
                 DropdownMenu(expanded = true, onDismissRequest = { pointMenu = null }) {
+                    // numbered like the point labels
+                    MenuHeading("Point $i")
                     // the points may have changed meanwhile (an operation): only a valid index
                     DropdownMenuItem(text = { Text("Select") }, onClick = {
                         pointMenu = null

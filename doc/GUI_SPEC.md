@@ -25,7 +25,7 @@ Accepted packages (all four):
   title closes it, Escape closes, bar scrolls sideways on narrow screens. App shortcuts are
   ignored while a menu is open.
 - Bar shows the file name (and "set i/n") on the right instead of "PoCoView" on the left.
-- File menu starts with Examples…; "Info" becomes "Help". Radio groups in menus get a grey heading.
+- Point Set menu starts with Examples…; "Info" becomes "Help". Radio groups in menus get a grey heading.
 - Draggable split between canvas and widget columns (ktoy `SplitPane`).
 - ktoy `ScrollbarBox` (vertical and horizontal thumbs).
 - Examples dialog state (expanded groups, selection, scroll) survives closing.
@@ -92,6 +92,25 @@ Decisions on open points:
   part of the status line, which follows the points. An edit still clears the message.
 - Implemented: Delete in the context menu is one undo step like any delete. Right-click on empty
   space does nothing (no pan, no add).
+
+Review fixes (decided with reviewer, following ktoy):
+- 12: one "Save changes?" dialog before Load/Examples/Import/Random/Open file and window close/Cmd+Q:
+  "Save JSON", "Save text", Discard, Cancel; a save goes on with the action, a failed or cancelled
+  save cancels it. Replaces the [Replace]/[Cancel] confirm and the two-step close.
+- 13: an unapplied coordinates edit in the Data widget counts as an unsaved change (saving the
+  points does not apply it, so the dialog stays until Discard or Cancel).
+- 14: the menu stays "Point Set"; only this spec's wording was fixed.
+- 15: Help pages are plain paragraphs without bold lead-ins; only the keys on the shortcuts page are bold.
+- 16: line width is remembered like the other Display settings.
+- 17: "Reset to defaults" also resets the divider positions (and forgets them); property switches and
+  colours stay.
+- 18: "set i/n" stays in the menu bar and the toolbar.
+
+Other review fixes: a file that cannot be read or written shows the error dialog instead of crashing
+(a failed save counts as not saved and does not quit); a canvas click that closes a menu does nothing
+else; Escape closes a menu also after a View check item; the point context menu is headed "Point i";
+Ctrl+click is a right-click on macOS; a layout switch keeps the zoom. On the web, Compose already
+suppresses the browser's context menu.
 
 Not taken over: simulator-specific parts (Step/Run bar, PC highlights, per-layer menus), Android-only
 parts (PoCoView has jvm + js), ktoy's portrait window size, File → Empty.

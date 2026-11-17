@@ -273,7 +273,7 @@ class AppStateTest {
         val before = s.points
         assertNull(s.parseImport("1 2\nx y\n"))
         assertTrue(s.error!!.startsWith("Cannot import the text: "), s.error)
-        assertNull(s.pendingReplace)
+        assertNull(s.pendingLeave)
         assertEquals(before, s.points)
         s.error = null
         assertEquals(listOf(square), s.parseImport(writeText(square)))
@@ -300,7 +300,7 @@ class AppStateTest {
         s.load(listOf(Pt(900, 500), Pt(783, 783), Pt(500, 900), Pt(217, 783), Pt(100, 500), Pt(217, 217), Pt(500, 100), Pt(783, 217)))
         s.cellHop("crossings", CellHopParams())
         s.awaitIdle()
-        assertTrue(s.message!!.startsWith("Crossing number: 70 ->"), s.message)
+        assertTrue(s.status!!.text.startsWith("Crossing number: 70 ->"), s.status?.text)
         s.undo()
         assertFalse(s.canUndo)
     }
@@ -313,7 +313,7 @@ class AppStateTest {
         val before = s.points
         s.cellHop("crossings", CellHopParams(trials = 1))
         s.awaitIdle()
-        assertTrue(s.message!!.contains("no configuration below 1"), s.message)
+        assertTrue(s.status!!.text.contains("no configuration below 1"), s.status?.text)
         assertEquals(before, s.points)
         assertFalse(s.canUndo)
     }
@@ -328,7 +328,7 @@ class AppStateTest {
             s.searchFlowId = flow
             s.searchProperty()
             s.awaitIdle()
-            assertTrue(s.message!!.startsWith("Crossing number: 70 ->"), "$flow: ${s.message}")
+            assertTrue(s.status!!.text.startsWith("Crossing number: 70 ->"), "$flow: ${s.status?.text}")
             assertTrue(s.canUndo)
         }
     }
@@ -348,10 +348,10 @@ class AppStateTest {
             val bitsBefore = org.bytefred.pocoview.core.bitsOf(s.points)
             s.minimizeWrtProperty()
             s.awaitIdle()
-            assertTrue(org.bytefred.pocoview.core.isGeneralPosition(s.points), s.message)
-            assertTrue(s.done("crossings").count <= before, s.message)
-            assertTrue(org.bytefred.pocoview.core.bitsOf(s.points) <= bitsBefore, s.message)
-            assertTrue(s.message!!.startsWith("Minimize w.r.t."), s.message)
+            assertTrue(org.bytefred.pocoview.core.isGeneralPosition(s.points), s.status?.text)
+            assertTrue(s.done("crossings").count <= before, s.status?.text)
+            assertTrue(org.bytefred.pocoview.core.bitsOf(s.points) <= bitsBefore, s.status?.text)
+            assertTrue(s.status!!.text.startsWith("Minimize w.r.t."), s.status?.text)
         }
     }
 
@@ -405,15 +405,15 @@ class AppStateTest {
     }
 
     @Test
-    fun replaceWaitsForConfirmationAfterAnEdit() {
+    fun replaceWaitsForSaveChangesAfterAnEdit() {
         val s = state()
         s.deletePoint(0)
         val before = s.points
-        s.confirmReplace("Load") { s.loadPoints("x", listOf(Pt(0, 0), Pt(1, 0), Pt(0, 1))) }
+        s.leave { s.loadPoints("x", listOf(Pt(0, 0), Pt(1, 0), Pt(0, 1))) }
         assertEquals(before, s.points)
-        assertEquals("Load", s.pendingReplace!!.action)
-        s.pendingReplace!!.run()
+        s.discardAndLeave()
         assertEquals(3, s.points.size)
+        assertNull(s.pendingLeave)
     }
 
     @Test
@@ -452,7 +452,7 @@ class AppStateTest {
         s.optimizeProperty = "triangulations"
         s.minimizeWrtProperty()
         assertNull(s.busy)
-        assertTrue(s.message!!.contains("n >"), s.message)
+        assertTrue(s.status!!.text.contains("n >"), s.status?.text)
     }
 
     @Test

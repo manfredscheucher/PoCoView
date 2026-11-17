@@ -70,6 +70,17 @@ class RenderTest {
             render(state(), d)
             render(state(), d, w = 420, h = 860)
         }
+        for (page in HelpPage.entries) render(state().apply { helpPage = page }, DialogKind.HELP, w = 420, h = 860)
+    }
+
+    @Test
+    fun saveChangesRendersOverADialog() {
+        val s = state()
+        s.deletePoint(0)
+        s.coordinatesDraft = "1 2"
+        s.leave {}
+        render(s, DialogKind.EXAMPLES)
+        render(s, DialogKind.SAVE, w = 420, h = 860)
     }
 
     @Test
@@ -118,9 +129,8 @@ class RenderTest {
     }
 
     @Test
-    fun everyHelpPageHasAMenuEntryAndText() {
-        assertEquals(HelpPage.entries.toList(), DialogKind.entries.mapNotNull { it.help })
-        for (page in HelpPage.entries) assertTrue(helpText(page).all { (bold, text) -> bold.isNotBlank() && text.isNotBlank() }, page.title)
+    fun everyHelpPageHasText() {
+        for (page in HelpPage.entries) assertTrue(helpText(page).isNotEmpty() && helpText(page).all { it.isNotBlank() }, page.title)
     }
 
     @Test

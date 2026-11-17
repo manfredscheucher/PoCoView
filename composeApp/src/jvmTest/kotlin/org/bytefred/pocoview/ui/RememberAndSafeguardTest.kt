@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.Pt
+import java.io.File
+import kotlin.io.path.createTempDirectory
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,6 +36,7 @@ class RememberAndSafeguardTest {
         s.changeMaxColumns(3)
         s.toggleWidget(Widget.DISPLAY)
         s.pointRadius = 9.5f
+        s.lineWidth = 3.5f
         s.lineColor = Color(0xFF123456)
         s.lineAlpha = 0.5f
         s.selectedScalePercent = 250
@@ -54,6 +57,7 @@ class RememberAndSafeguardTest {
         assertEquals(LayoutMode.PORTRAIT, t.layoutMode)
         assertEquals(listOf(Widget.PROPERTIES, Widget.OPTIMIZE, Widget.DISPLAY), t.openWidgets.toList())
         assertEquals(9.5f, t.pointRadius)
+        assertEquals(3.5f, t.lineWidth)
         assertEquals(IncidentLines.HIGHLIGHT, t.incidentLines)
         assertEquals(mapOf(null to 3f, Widget.DISPLAY to 0.5f), t.wideWeights)
         assertEquals(PropToggle(count = true, draw = false), t.toggles["triangulations"])
@@ -135,28 +139,29 @@ class RememberAndSafeguardTest {
     }
 
     @Test
-    fun replaceAsksOnlyWithUnsavedChanges() {
+    fun saveChangesAsksOnlyWithUnsavedChanges() {
         val s = state()
         var runs = 0
         // the start set and a fresh load are clean: the action runs right away
-        s.confirmReplace("Load") { runs++ }
+        s.leave { runs++ }
         assertEquals(1, runs)
         s.loadPoints("t", triangle)
-        s.confirmReplace("Load") { runs++ }
+        s.leave { runs++ }
         assertEquals(2, runs)
-        assertNull(s.pendingReplace)
+        assertNull(s.pendingLeave)
 
         s.addPoint(Pt(7, 7))
         assertTrue(s.unsavedChanges)
-        s.confirmReplace("Import") { runs++ }
+        s.leave { runs++ }
         assertEquals(2, runs)
-        assertEquals("Import", s.pendingReplace?.action)
-        s.pendingReplace = null
+        assertNotNull(s.pendingLeave)
+        s.cancelLeave()
+        assertNull(s.pendingLeave)
 
         // undo back to the loaded points: nothing to lose
         s.undo()
         assertFalse(s.unsavedChanges)
-        s.confirmReplace("Load") { runs++ }
+        s.leave { runs++ }
         assertEquals(3, runs)
     }
 
@@ -170,7 +175,7 @@ class RememberAndSafeguardTest {
         s.beginSave(ExportFormat.TXT)
         s.fileSaved("points.txt")
         assertFalse(s.unsavedChanges)
-        assertEquals("Saved points.txt", s.message)
+        assertEquals("Saved points.txt", s.status?.text)
         // edits in another set of a multi-set file count too
         s.loadSets("two", listOf(triangle, triangle.map { Pt(it.x + 1, it.y) }))
         s.showSet(1)
@@ -181,34 +186,111 @@ class RememberAndSafeguardTest {
     }
 
     @Test
-    fun closeAsksOnlyWithUnsavedChanges() {
+    fun saveChangesFlowSaveDiscardCancel() {
         val s = state()
         var quits = 0
-        s.requestClose { quits++ }
-        assertEquals(1, quits)
-
         s.deletePoint(0)
-        s.requestClose { quits++ }
-        assertNotNull(s.pendingClose)
-        s.cancelClose()
-        assertNull(s.pendingClose)
-        assertEquals(1, quits)
 
-        s.requestClose { quits++ }
-        s.discardAndClose()
-        assertEquals(2, quits)
-
-        // Save…: a cancelled save cancels the close, a successful one quits
-        s.requestClose { quits++ }
+        // Cancel, and a cancelled or failed save (null), cancel the action
+        s.leave { quits++ }
+        s.cancelLeave()
+        s.leave { quits++ }
         s.beginSave(ExportFormat.JSON)
         s.fileSaved(null)
-        assertNull(s.pendingClose)
+        assertNull(s.pendingLeave)
+        assertEquals(0, quits)
+        assertTrue(s.unsavedChanges)
+
+        // Discard goes on without saving
+        s.leave { quits++ }
+        s.discardAndLeave()
+        assertEquals(1, quits)
+        assertTrue(s.unsavedChanges)
+
+        // a format button: saves, then goes on
+        s.leave { quits++ }
+        s.beginSave(ExportFormat.TXT)
+        s.fileSaved("points.txt")
         assertEquals(2, quits)
-        s.requestClose { quits++ }
+        assertNull(s.pendingLeave)
+        assertFalse(s.unsavedChanges)
+    }
+
+    @Test
+    fun aFailedSaveKeepsTheChangesAndDoesNotQuit() {
+        val dir = createTempDirectory("pocoview").toFile()
+        val s = state()
+        var quits = 0
+        s.deletePoint(0)
+        s.leave { quits++ }
+        // a directory cannot be written as a file
+        writeFile(dir, s.beginSave(ExportFormat.JSON), onError = { s.error = it }, onSaved = s::fileSaved)
+        assertTrue(s.error!!.startsWith("Cannot save ${dir.name}: "), s.error)
+        assertTrue(s.unsavedChanges)
+        assertNull(s.pendingLeave)
+        assertEquals(0, quits)
+
+        var opened = false
+        readFile(File(dir, "missing.json"), onError = { s.error = it }) { _, _ -> opened = true }
+        assertFalse(opened)
+        assertTrue(s.error!!.startsWith("Cannot open missing.json: "), s.error)
+        dir.delete()
+    }
+
+    @Test
+    fun anUnappliedCoordinatesDraftIsAnUnsavedChange() {
+        val s = state()
+        assertFalse(s.unsavedChanges)
+        s.coordinatesDraft = s.coordinatesText()
+        assertFalse(s.unsavedChanges, "a draft equal to the points changes nothing")
+        s.coordinatesDraft = s.coordinatesText() + "\n1 2"
+        assertTrue(s.unsavedChanges)
+        assertFalse(s.pointsUnsaved)
+
+        // saving the points does not save the draft: "Save changes?" stays
+        var runs = 0
+        s.leave { runs++ }
         s.beginSave(ExportFormat.JSON)
         s.fileSaved("points.json")
-        assertEquals(3, quits)
-        assertNull(s.pendingClose)
+        assertEquals(0, runs)
+        assertNotNull(s.pendingLeave)
+        s.discardAndLeave()
+        assertEquals(1, runs)
+
+        s.coordinatesDraft = null
+        assertFalse(s.unsavedChanges)
+    }
+
+    @Test
+    fun resetToDefaultsAlsoResetsTheDividers() {
+        val s = state()
+        s.wideWeights = mapOf(null to 3f, Widget.PROPERTIES to 0.5f)
+        s.stackedWeights = mapOf(Widget.OPTIMIZE to 2f)
+        s.setPropertyColor("hole5", Color(0xFFABCDEF))
+        s.saveDisplayPrefs()
+        assertNotNull(loadPref(WIDE_WEIGHTS_PREF))
+
+        s.resetDisplay()
+        assertTrue(s.wideWeights.isEmpty())
+        assertTrue(s.stackedWeights.isEmpty())
+        assertNull(loadPref(WIDE_WEIGHTS_PREF))
+        assertNull(loadPref(STACKED_WEIGHTS_PREF))
+        assertTrue(state().wideWeights.isEmpty())
+        // property colours are not display settings
+        assertEquals(Color(0xFFABCDEF), state().colorOf("hole5"))
+    }
+
+    @Test
+    fun lineWidthIsRemembered() {
+        val s = state()
+        s.lineWidth = 2.5f
+        s.saveDisplayPrefs()
+        assertEquals(2.5f, state().lineWidth)
+        // clamped to the slider range
+        savePref(LINE_WIDTH_PREF, "99")
+        assertEquals(AppState.LINE_WIDTH_RANGE.endInclusive, state().lineWidth)
+        s.resetDisplay()
+        assertEquals(1f, state().lineWidth)
     }
 
     @Test
@@ -218,10 +300,10 @@ class RememberAndSafeguardTest {
         s.loadPoints("t", triangle)
         assertTrue(s.status!!.transient)
         scope.advanceTimeBy(AppState.INFO_DURATION_MS - 100)
-        assertNotNull(s.message)
+        assertNotNull(s.status?.text)
         scope.advanceTimeBy(200)
         scope.runCurrent()
-        assertNull(s.message)
+        assertNull(s.status?.text)
 
         // an optimizer's result (here: it cannot run) stays
         s.optimizeProperty = "triangulations"
@@ -230,7 +312,7 @@ class RememberAndSafeguardTest {
         assertFalse(s.status!!.transient)
         scope.advanceTimeBy(10 * AppState.INFO_DURATION_MS)
         scope.runCurrent()
-        assertTrue(s.message!!.contains("n >"), s.message)
+        assertTrue(s.status!!.text.contains("n >"), s.status?.text)
 
         // a newer info is not cut short by an older one's timer
         s.showInfo("Copied")
@@ -238,6 +320,6 @@ class RememberAndSafeguardTest {
         s.showInfo("Saved x.json")
         scope.advanceTimeBy(AppState.INFO_DURATION_MS / 2 + 100)
         scope.runCurrent()
-        assertEquals("Saved x.json", s.message)
+        assertEquals("Saved x.json", s.status?.text)
     }
 }

@@ -17,7 +17,10 @@ import org.w3c.files.get
 // Browser: open via a hidden <input type=file> + FileReader, save via a Blob download.
 
 @Composable
-actual fun rememberFileOpener(onOpened: (name: String, bytes: ByteArray) -> Unit): () -> Unit = {
+actual fun rememberFileOpener(
+    onError: (message: String) -> Unit,
+    onOpened: (name: String, bytes: ByteArray) -> Unit,
+): () -> Unit = {
     val input = document.createElement("input") as HTMLInputElement
     input.type = "file"
     input.accept = LOAD_EXTENSIONS.joinToString(",") { ".$it" }
@@ -29,6 +32,7 @@ actual fun rememberFileOpener(onOpened: (name: String, bytes: ByteArray) -> Unit
                 val buf = reader.result as ArrayBuffer
                 onOpened(file.name, Int8Array(buf).unsafeCast<ByteArray>())
             }
+            reader.onerror = { onError("Cannot open ${file.name}: ${reader.error?.message ?: "read error"}") }
             reader.readAsArrayBuffer(file)
         }
     }
@@ -36,14 +40,23 @@ actual fun rememberFileOpener(onOpened: (name: String, bytes: ByteArray) -> Unit
 }
 
 @Composable
-actual fun rememberFileSaver(onSaved: (name: String?) -> Unit): (fileName: String, bytes: ByteArray) -> Unit = { fileName, bytes ->
-    val blob = Blob(arrayOf(bytes.unsafeCast<Int8Array>()), BlobPropertyBag(type = "application/octet-stream"))
-    val url = URL.createObjectURL(blob)
-    val a = document.createElement("a") as HTMLAnchorElement
-    a.href = url
-    a.download = fileName
-    a.click()
-    // revoking right away can abort the download in some browsers
-    window.setTimeout({ URL.revokeObjectURL(url) }, 10_000)
-    onSaved(fileName)
+actual fun rememberFileSaver(
+    onError: (message: String) -> Unit,
+    onSaved: (name: String?) -> Unit,
+): (fileName: String, bytes: ByteArray) -> Unit = { fileName, bytes ->
+    val saved = try {
+        val blob = Blob(arrayOf(bytes.unsafeCast<Int8Array>()), BlobPropertyBag(type = "application/octet-stream"))
+        val url = URL.createObjectURL(blob)
+        val a = document.createElement("a") as HTMLAnchorElement
+        a.href = url
+        a.download = fileName
+        a.click()
+        // revoking right away can abort the download in some browsers
+        window.setTimeout({ URL.revokeObjectURL(url) }, 10_000)
+        true
+    } catch (e: Throwable) {
+        onError("Cannot save $fileName: ${e.message ?: "download failed"}")
+        false
+    }
+    onSaved(if (saved) fileName else null)
 }

@@ -54,6 +54,9 @@ import org.bytefred.pocoview.core.readText
 import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /** Minimize methods (M); both keep the labeled order type. */
 enum class MinimizeMethod(val label: String) {
@@ -122,9 +125,6 @@ data class PropToggle(val count: Boolean, val draw: Boolean)
  */
 class StatusMessage(val text: String, val transient: Boolean)
 
-/** A replacing action ([run]) waiting for "[action]?" to be confirmed; [action] names it ("Load"). */
-class PendingReplace(val action: String, val run: () -> Unit)
-
 /**
  * All GUI state and actions. Plain Compose state + a coroutine scope; properties are
  * evaluated in a cancellable background job and cached on the order type signature
@@ -161,12 +161,18 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     fun searchValue(flow: PropertySearchFlow, param: SearchParam): Any = searchValues["${flow.id}.${param.name}"] ?: param.default
 
-    /** Random point set settings (Point Set -> Random). */
+    /** Random point set settings (Point Set → Random). */
     var randomN by mutableStateOf(12)
     var randomGrid by mutableStateOf(1000L)
 
     /** Unapplied edit of the coordinate list (Data widget); null = shows the current points. */
     var coordinatesDraft by mutableStateOf<String?>(null)
+
+    /** The points as the Data widget's coordinate text, one `x y` or `x y color` per line. */
+    fun coordinatesText(): String = points.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
+
+    /** The Data widget holds coordinates that differ from the points and are not applied. */
+    val unappliedDraft: Boolean get() = coordinatesDraft.let { it != null && it != coordinatesText() }
 
     /** Number of focused text fields: keyboard shortcuts are off while one has focus. */
     var textFieldsFocused by mutableIntStateOf(0)
@@ -176,6 +182,25 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     /** The keyboard shortcuts apply: no text field has focus and no menu is open. */
     val shortcutsActive: Boolean get() = textFieldsFocused == 0 && openMenu == null
+
+    /** When an outside click last closed a menu (see [closeMenuByOutsideClick]). */
+    private var menuClosedAt: TimeMark? = null
+
+    /** An outside click closed the open menu; that click must not also edit the canvas. */
+    fun closeMenuByOutsideClick() {
+        menuClosedAt = TimeSource.Monotonic.markNow()
+        openMenu = null
+    }
+
+    /**
+     * A canvas press only closes the menu: one is open, or it was just closed by this same
+     * press (the menu's outside-click dismissal may come before the canvas sees the press).
+     */
+    val menuSwallowsPress: Boolean
+        get() = openMenu != null || menuClosedAt?.let { it.elapsedNow() < MENU_CLICK_GUARD } == true
+
+    /** The Help page the Help dialog shows. */
+    var helpPage by mutableStateOf(HelpPage.GENERAL)
 
     /** What the Examples dialog shows, kept while it is closed. */
     val examples = ExamplesState()
@@ -231,7 +256,6 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** The status line message (see [showInfo] and [showNote]). */
     var status by mutableStateOf<StatusMessage?>(null)
         private set
-    val message: String? get() = status?.text
 
     /** A load or parse error, shown in a modal error dialog until the user clears it with OK. */
     var error by mutableStateOf<String?>(null)
@@ -297,7 +321,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         while (openWidgets.size > maxColumns) openWidgets.remove(openWidgets.minBy { lastClicked[it] ?: 0L })
     }
 
-    /** Display widget "Reset to defaults": every setting of the widget, also forgetting the stored ones. */
+    /**
+     * Display widget "Reset to defaults": every setting of the widget and the divider positions,
+     * also forgetting the stored ones. The property switches and colours stay.
+     */
     fun resetDisplay() {
         showLines = true; showLabels = true; layoutMode = LayoutMode.AUTO
         changeMaxColumns(2)
@@ -305,6 +332,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         lineColor = DEFAULT_LINE_COLOR; lineAlpha = DEFAULT_LINE_ALPHA
         selectedColor = DEFAULT_SELECTED_COLOR
         incidentLines = IncidentLines.HIDE; incidentLineColor = DEFAULT_INCIDENT_LINE_COLOR; incidentLineWidth = 2f
+        wideWeights = emptyMap(); stackedWeights = emptyMap()
         for (key in RESET_PREFS) removePref(key)
         // other settings the reset changed (open widgets) are stored as usual
         saveDisplayPrefs(except = RESET_PREFS)
@@ -318,6 +346,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         MAX_WIDGETS_PREF to maxColumns.toString(),
         OPEN_WIDGETS_PREF to openWidgets.joinToString(",") { it.name },
         POINT_SIZE_PREF to pointRadius.toString(),
+        LINE_WIDTH_PREF to lineWidth.toString(),
         LINE_COLOR_PREF to lineColor.toHex(),
         LINE_ALPHA_PREF to lineAlpha.toString(),
         SELECTED_SIZE_PREF to selectedScalePercent.toString(),
@@ -363,6 +392,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             closeExtraWidgets()
         }
         floatPref(POINT_SIZE_PREF, POINT_RADIUS_RANGE)?.let { pointRadius = it }
+        floatPref(LINE_WIDTH_PREF, LINE_WIDTH_RANGE)?.let { lineWidth = it }
         colorPref(LINE_COLOR_PREF)?.let { lineColor = it }
         floatPref(LINE_ALPHA_PREF, LINE_ALPHA_RANGE)?.let { lineAlpha = it }
         intPref(SELECTED_SIZE_PREF, SELECTED_SCALE_RANGE)?.let { selectedScalePercent = it }
@@ -426,7 +456,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         if (setIndex in sets.indices) sets.toMutableList().also { it[setIndex] = points } else listOf(points)
 
     /** The points differ from the last load or save. */
-    val unsavedChanges: Boolean get() = currentSets() != savedSets
+    val pointsUnsaved: Boolean get() = currentSets() != savedSets
+
+    /** The points are unsaved or the Data widget has an unapplied edit. */
+    val unsavedChanges: Boolean get() = pointsUnsaved || unappliedDraft
 
     // ---- status line -------------------------------------------------------------------
 
@@ -582,7 +615,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         try {
             load(name, readPointSets(name, bytes))
         } catch (e: Exception) {
-            error = "Cannot open $name: ${e.message}"
+            error = "Cannot open $name: ${e.message ?: "unknown format"}"
         }
     }
 
@@ -595,32 +628,27 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             null
         }
 
-    /** An action that replaces the point set, waiting for the user's confirmation (dialog). */
-    var pendingReplace by mutableStateOf<PendingReplace?>(null)
-
-    /** Runs [run], which replaces the points; with unsaved changes only after "[action]?" is confirmed. */
-    fun confirmReplace(action: String, run: () -> Unit) {
-        if (unsavedChanges) pendingReplace = PendingReplace(action, run) else run()
-    }
-
-    /** Closing the app with unsaved changes: the quit action, waiting for "Save changes?". */
-    var pendingClose by mutableStateOf<(() -> Unit)?>(null)
+    /**
+     * What Load / Examples / Import / Random / Open file or closing the app wants to do once the
+     * user has answered "Save changes?"; the dialog shows while it is set (ktoy's).
+     */
+    var pendingLeave by mutableStateOf<(() -> Unit)?>(null)
         private set
 
-    /** Runs [quit] right away, or with unsaved changes after "Save changes?" (Save… / Discard). */
-    fun requestClose(quit: () -> Unit) {
-        if (unsavedChanges) pendingClose = quit else quit()
+    /** Runs [action] (which replaces the points or quits), asking "Save changes?" first if there are unsaved changes. */
+    fun leave(action: () -> Unit) {
+        if (unsavedChanges) pendingLeave = action else action()
     }
 
-    /** "Discard": quits without saving. */
-    fun discardAndClose() {
-        val quit = pendingClose ?: return
-        pendingClose = null
-        quit()
+    /** "Discard": drops the changes and goes on with the pending action. */
+    fun discardAndLeave() {
+        val action = pendingLeave ?: return
+        pendingLeave = null
+        action()
     }
 
-    fun cancelClose() {
-        pendingClose = null
+    fun cancelLeave() {
+        pendingLeave = null
     }
 
     /** Loads an example or a generated family member as the only set, switching on [showProperties]. */
@@ -685,19 +713,20 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     /**
-     * A file save finished as [name], or was cancelled (null). The saved sets are the new clean
-     * state; a waiting close goes on once nothing is unsaved, a cancelled save cancels it.
+     * A file save finished as [name], or was cancelled or failed (null). The saved sets are the new
+     * clean state; a pending action goes on once nothing is unsaved (else "Save changes?" stays), a
+     * cancelled or failed save cancels it.
      */
     fun fileSaved(name: String?) {
         val saved = savingSets
         savingSets = null
         if (name == null) {
-            cancelClose()
+            cancelLeave()
             return
         }
         if (saved != null) savedSets = saved
         showInfo("Saved $name")
-        if (!unsavedChanges) discardAndClose()
+        if (!unsavedChanges) discardAndLeave()
     }
 
     // ---- properties ------------------------------------------------------------------
@@ -1032,12 +1061,17 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
         /** The stored settings "Reset to defaults" (Display widget) forgets. */
         private val RESET_PREFS = setOf(
-            LAYOUT_PREF, MAX_WIDGETS_PREF, POINT_SIZE_PREF, LINE_COLOR_PREF, LINE_ALPHA_PREF, SELECTED_SIZE_PREF,
-            SELECTED_COLOR_PREF, INCIDENT_LINES_PREF, INCIDENT_COLOR_PREF, INCIDENT_WIDTH_PREF, LINES_PREF, LABELS_PREF,
+            LAYOUT_PREF, MAX_WIDGETS_PREF, POINT_SIZE_PREF, LINE_WIDTH_PREF, LINE_COLOR_PREF, LINE_ALPHA_PREF,
+            SELECTED_SIZE_PREF, SELECTED_COLOR_PREF, INCIDENT_LINES_PREF, INCIDENT_COLOR_PREF, INCIDENT_WIDTH_PREF,
+            LINES_PREF, LABELS_PREF, WIDE_WEIGHTS_PREF, STACKED_WEIGHTS_PREF,
         )
+
+        // a canvas press this soon after an outside click closed a menu is that same click
+        private val MENU_CLICK_GUARD = 500.milliseconds
 
         /** Slider ranges of the Display widget (stored values are clamped to them). */
         val POINT_RADIUS_RANGE = 2f..20f
+        val LINE_WIDTH_RANGE = 0.5f..5f
         val LINE_ALPHA_RANGE = 0.02f..1f
         val SELECTED_SCALE_RANGE = 100..400
         val INCIDENT_WIDTH_RANGE = 0.5f..8f

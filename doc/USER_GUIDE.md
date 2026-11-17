@@ -14,28 +14,34 @@
 - **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
   stays the same.
 - Undo/redo are in the Edit menu.
+- The **Help** menu has short pages (General, Properties, Optimize, Keyboard shortcuts) and About.
+- Info like "Loaded …" or "Saved …" shows in the status line and fades after 3 s; optimizer results
+  stay until the next message. A file or text that cannot be read opens an error dialog.
 
 ## Widgets
 
 The panels are widgets: Properties, Optimize, Data and Display. The buttons in the toolbar
 (also View menu, keys 1 to 4) show or hide them. In landscape each open widget is a column right of
 the canvas, in the order they were opened; in portrait they are stacked below the canvas, each with
-its own part of the height.
+its own part of the height. The dividers between the canvas and the widgets, and between the widgets,
+can be dragged.
 
 At most k widgets are open (Display widget, "Max. widgets", default 2). Opening one more closes
 the one that was clicked least recently (opening a widget or clicking into it counts).
 
 The Display widget sets how things are drawn: point size, line width, colour and opacity of the line
 arrangement, labels, the selected point (size, colour, lines through it), the number of widgets and
-the layout (auto/portrait/landscape). "Reset to defaults" puts all of them back.
+the layout (auto/portrait/landscape). "Reset to defaults" puts all of them and the divider positions
+back.
 
 These display settings, the open widgets, the divider positions, and the shown/drawn properties with
 their colours are remembered for the next start.
 
 ## Properties
 
-The Properties widget lists the properties you picked with View > Select properties…. All of them
-depend only on the order type, so they are recomputed only when the order type changes.
+The Properties widget lists the properties you picked with View → Select properties…. Most of them
+depend only on the order type, so they are recomputed only when the order type changes; the
+monochromatic ones also depend on the colours.
 
 | Property | Meaning |
 |---|---|
@@ -82,11 +88,16 @@ until you press Abort in the progress dialog. A whole run is one undo step.
 
 ## Data
 
-The coordinates as text, one `x y` or `x y color` per line. Edit them and press Apply, or Revert to go back. Below
-are the λ matrix (λ[i][j] = number of points left of i->j) and the order type hash.
+The coordinates as text, one `x y` or `x y color` per line. Edit them and press Apply, or Revert to
+go back. Below are the λ matrix (λ[i][j] = number of points left of i->j, up to 30 points) and the
+order type hash.
 
 ## Point Set menu
 
+- **Examples…**: collapsible groups: Families (generated: Horton sets, convex position),
+  Singletons (interesting sets with their original sources, in categories) and Links. Select a family
+  or set (a family also asks for n), then Load. Please send interesting sets or feedback to
+  manfred.scheucher@proton.me (the address is clickable).
 - **Import…**: paste one or more point sets; the format is detected:
   - JSON: `{"points": [[x, y], [x, y, "color"], ...]}`, one set per line (a single set may also
     span several lines),
@@ -94,10 +105,6 @@ are the λ matrix (λ[i][j] = number of points left of i->j) and the order type 
   - text with lines `x y [color]` (one set).
 - **Random…**: n random points in general position on a grid.
 - **Export…**: all sets as JSON (one line per set) or text (n, then n point lines, per set), to copy.
-- **Examples…**: collapsible groups: Families (generated: Horton sets, convex position),
-  Singletons (interesting sets with their original sources, in categories) and Links. Select a family
-  or set (a family also asks for n), then Load. Please send
-  interesting sets or feedback to manfred.scheucher@proton.me (the address is clickable).
 - **Open file…** reads `.json`, `.txt`/`.asc`/`.psz` (the same text format; files may hold several
   sets) and the order type database formats `.b08`, `.b16`, `.b32` (unsigned little-endian
   `x1 y1 x2 y2 ...`, n from the file name, e.g. `otypes05.b08`).
@@ -105,27 +112,36 @@ are the λ matrix (λ[i][j] = number of points left of i->j) and the order type 
 - **Export SVG** / **Export Ipe**: a picture with the line arrangement and the highlighted
   structures; Ipe files open in the Ipe editor.
 
-Import, Random, Examples and Open file ask first if the points changed since they were loaded or
-saved (otherwise nothing is lost). Closing the desktop app with such changes asks Save… / Discard / Cancel. Files with
-several sets can be browsed with the arrows in the toolbar or PageUp/PageDown; after loading such a
-file a short note says so (can be switched off).
+If the points changed since they were loaded or saved, Examples, Import, Random and Open file first
+ask "Save changes?": Save JSON or Save text saves and then goes on, Discard goes on without saving,
+Cancel stops. An unapplied edit in the Data widget counts as a change. On the desktop, closing the
+app asks the same.
+
+Files with several sets can be browsed with the arrows in the toolbar or PageUp/PageDown; after
+loading such a file a short note says so (can be switched off).
 
 ## Keyboard
 
 | Key | Action |
 |---|---|
-| Esc | deselect |
-| Del | delete the selected point |
-| Ctrl+Z / Ctrl+Shift+Z | undo / redo |
-| + / - | zoom |
-| Home | fit |
-| V / A / D | tools Move / Add / Delete |
+| Esc | deselect, or close the open menu |
+| Del or Backspace | delete the selected point |
+| Ctrl+Z | undo |
+| Ctrl+Shift+Z or Ctrl+Y | redo |
+| + / - | zoom in / out |
+| Home or 0 | fit |
+| V / A / D | mode Move / Add / Delete |
 | F | lock order type |
 | L | line arrangement |
 | H | highlight |
 | I | incident only |
-| 1 .. 4 | show / hide a widget |
+| 1 to 4 | show or hide Properties, Optimize, Data, Display |
 | M | minimize |
 | B | beautify |
 | Enter | qtvis minimizer |
-| PageUp / PageDown | previous / next set |
+| PageUp or , | previous set of the file |
+| PageDown or . | next set of the file |
+| Mouse | drag a point to move it, drag empty space to pan, wheel or pinch to zoom, right-click a point for its menu |
+
+On a Mac, Cmd works like Ctrl and Ctrl+click like a right-click. The keys do nothing while you type
+in a field or a menu is open (except Esc).

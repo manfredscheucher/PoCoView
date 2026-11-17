@@ -164,7 +164,7 @@ private fun DisplayWidget(state: AppState) {
     Text("Point size: ${state.pointRadius.roundToInt()} px", style = MaterialTheme.typography.bodyMedium)
     Slider(state.pointRadius, { state.pointRadius = it }, valueRange = AppState.POINT_RADIUS_RANGE)
     Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px", style = MaterialTheme.typography.bodyMedium)
-    Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
+    Slider(state.lineWidth, { state.lineWidth = it }, valueRange = AppState.LINE_WIDTH_RANGE)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Line colour", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         ColorChooser(state, state.lineColor) { state.lineColor = it }
@@ -457,6 +457,9 @@ private fun OptimizeTab(state: AppState) {
     }
 }
 
+/** The Data widget shows the λ matrix up to this many points. */
+const val LAMBDA_MATRIX_MAX_N = 30
+
 @Composable
 private fun DataTab(state: AppState) {
     val p = state.points
@@ -468,7 +471,7 @@ private fun DataTab(state: AppState) {
     Text("Hash: ${state.orderTypeHash}", style = MonoStyle)
     Spacer(Modifier.height(8.dp))
     Text("Coordinates", style = MaterialTheme.typography.titleSmall)
-    val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
+    val current = state.coordinatesText()
     // the draft lives in the state, so closing the widget does not lose an unapplied edit
     val draft = state.coordinatesDraft
     val mark = MaterialTheme.colorScheme.tertiaryContainer
@@ -484,7 +487,7 @@ private fun DataTab(state: AppState) {
         OutlinedButton(onClick = { state.applyCoordinatesText(draft ?: current) }, enabled = draft != null) { Text("Apply") }
         OutlinedButton(onClick = { state.coordinatesDraft = null }, enabled = draft != null) { Text("Revert") }
     }
-    if (p.size in 1..30) {
+    if (p.size in 1..LAMBDA_MATRIX_MAX_N) {
         Spacer(Modifier.height(8.dp))
         Text("λ matrix", style = MaterialTheme.typography.titleSmall)
         val l = smallLambda(p)

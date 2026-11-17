@@ -1,14 +1,11 @@
 package org.bytefred.pocoview.ui
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +15,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -30,67 +31,59 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.mutableStateListOf
-import org.bytefred.pocoview.GeneratedBuildInfo
-import org.bytefred.pocoview.GeneratedLicenses
-import org.bytefred.pocoview.core.ExampleCatalog
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material3.RadioButton
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.semantics.Role
-import org.bytefred.pocoview.core.Example
-import org.bytefred.pocoview.core.ExportFormat
-import org.bytefred.pocoview.core.FAMILIES
-import org.bytefred.pocoview.core.PointSetFamily
-import org.bytefred.pocoview.core.Structure
-import org.bytefred.pocoview.core.loadExamples
-import org.bytefred.pocoview.core.ALL_PROPERTIES
-import org.bytefred.pocoview.core.CrossingProperty
-import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
-import org.bytefred.pocoview.core.MonochromaticProperty
-import org.bytefred.pocoview.core.PolygonProperty
-import org.bytefred.pocoview.core.PropertyDef
-import org.bytefred.pocoview.core.TriangulationProperty
-import kotlin.math.roundToInt
-import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import org.bytefred.pocoview.GeneratedBuildInfo
+import org.bytefred.pocoview.GeneratedLicenses
+import org.bytefred.pocoview.core.ALL_PROPERTIES
+import org.bytefred.pocoview.core.CrossingProperty
+import org.bytefred.pocoview.core.Example
+import org.bytefred.pocoview.core.ExampleCatalog
+import org.bytefred.pocoview.core.ExportFormat
+import org.bytefred.pocoview.core.FAMILIES
+import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
+import org.bytefred.pocoview.core.MonochromaticProperty
+import org.bytefred.pocoview.core.PointSetFamily
+import org.bytefred.pocoview.core.PolygonProperty
+import org.bytefred.pocoview.core.PropertyDef
+import org.bytefred.pocoview.core.Structure
+import org.bytefred.pocoview.core.TriangulationProperty
+import org.bytefred.pocoview.core.loadExamples
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-/** Which dialog is open (the menu bar and the properties widget open them); [help]: the Help page it shows. */
-enum class DialogKind(val help: HelpPage? = null) {
-    NONE, PROPERTIES, ABOUT, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME,
-    HELP_GENERAL(HelpPage.GENERAL), HELP_PROPERTIES(HelpPage.PROPERTIES), HELP_OPTIMIZE(HelpPage.OPTIMIZE),
-    HELP_SHORTCUTS(HelpPage.SHORTCUTS),
-}
+/** Which dialog is open (the menu bar and the properties widget open them); HELP shows [AppState.helpPage]. */
+enum class DialogKind { NONE, PROPERTIES, ABOUT, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME, HELP }
 
 /**
  * A menu title that opens a [DropdownMenu] (ktoy's). Plain clickable text rather than a
@@ -124,7 +117,7 @@ private fun MenuButton(state: AppState, label: String, items: @Composable () -> 
             onDismissRequest = {
                 if (state.openMenu == label) {
                     dismissedAt = TimeSource.Monotonic.markNow()
-                    state.openMenu = null
+                    state.closeMenuByOutsideClick()
                 }
             },
             properties = PopupProperties(focusable = false),
@@ -156,9 +149,9 @@ private fun Item(state: AppState, text: String, enabled: Boolean = true, onClick
 private fun CheckItem(text: String, checked: Boolean, onToggle: () -> Unit) =
     DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = onToggle)
 
-/** The grey heading of a radio group in a menu; its items are indented. */
+/** The grey heading of a radio group in a menu (its items are indented), or of a context menu. */
 @Composable
-private fun MenuHeading(text: String) = Text(
+fun MenuHeading(text: String) = Text(
     text,
     style = MaterialTheme.typography.labelMedium,
     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -168,8 +161,8 @@ private fun MenuHeading(text: String) = Text(
 /** Point Set / Edit / View / Help on the left, the file name (and "set i/n") on the right. */
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
-    val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
-    val saver = rememberFileSaver { name -> if (name != null) state.showInfo("Saved $name") }
+    val opener = rememberFileOpener(onError = { state.error = it }) { name, bytes -> state.open(name, bytes) }
+    val saver = rememberFileSaver(onError = { state.error = it }) { name -> if (name != null) state.showInfo("Saved $name") }
     // Escape closes an open menu: the popups are not focusable (see MenuButton),
     // so the bar takes the focus while a menu is open
     val barFocus = remember { FocusRequester() }
@@ -197,7 +190,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Random…") { openDialog(DialogKind.RANDOM) }
                 Item(state, "Export…") { openDialog(DialogKind.EXPORT) }
                 HorizontalDivider()
-                Item(state, "Open file…") { state.confirmReplace("Open") { opener() } }
+                Item(state, "Open file…") { state.leave { opener() } }
                 Item(state, "Save file…") { openDialog(DialogKind.SAVE) }
                 HorizontalDivider()
                 Item(state, "Export SVG") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
@@ -234,7 +227,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Select properties…") { openDialog(DialogKind.PROPERTIES) }
             }
             MenuButton(state, "Help") {
-                for (kind in DialogKind.entries) kind.help?.let { page -> Item(state, page.title) { openDialog(kind) } }
+                for (page in HelpPage.entries) Item(state, page.title) { state.helpPage = page; openDialog(DialogKind.HELP) }
                 Item(state, "About PoCoView") { openDialog(DialogKind.ABOUT) }
             }
         }
@@ -279,23 +272,29 @@ fun exportIpe(state: AppState): String {
 
 @Composable
 fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close: () -> Unit) {
+    val saver = rememberFileSaver(onError = { state.error = it }, onSaved = state::fileSaved)
+    fun save(format: ExportFormat) = saver(state.saveName(format), state.beginSave(format))
     state.busy?.let { OperationDialog(state, it) }
-    state.pendingReplace?.let { ConfirmReplaceDialog(state, it) }
-    // hidden while its Save… is choosing the format
-    if (state.pendingClose != null && kind != DialogKind.SAVE) SaveChangesDialog(state) { open(DialogKind.SAVE) }
     state.loadedSetsNotice?.let { count -> if (loadPref(SETS_NOTICE_PREF) != "off") SetsLoadedDialog(state, count) else state.loadedSetsNotice = null }
     when (kind) {
         DialogKind.NONE -> {}
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
         DialogKind.IMPORT -> ImportDialog(state, close)
         DialogKind.EXPORT -> ExportDialog(state, close)
-        DialogKind.SAVE -> SaveDialog(state, close)
+        DialogKind.SAVE -> SaveChoiceDialog("Save file", null, onPick = { save(it); close() }, onDismiss = close) {
+            TextButton(onClick = close) { Text("Cancel") }
+        }
         DialogKind.RANDOM -> RandomDialog(state, close)
         DialogKind.EXAMPLES -> ExamplesDialog(state, close)
         DialogKind.WELCOME -> WelcomeDialog(close = close, showExamples = { open(DialogKind.EXAMPLES) })
         DialogKind.ABOUT -> AboutDialog(close)
-        DialogKind.HELP_GENERAL, DialogKind.HELP_PROPERTIES, DialogKind.HELP_OPTIMIZE, DialogKind.HELP_SHORTCUTS ->
-            HelpDialog(checkNotNull(kind.help), close)
+        DialogKind.HELP -> HelpDialog(state.helpPage, close)
+    }
+    // Load / Examples / Import / Random / Open file / closing with unsaved changes (ktoy's);
+    // after the other dialogs, so it shows on top of the one that asked
+    if (state.pendingLeave != null) SaveChoiceDialog("Save changes?", unsavedText(state), onPick = ::save, onDismiss = state::cancelLeave) {
+        TextButton(onClick = state::discardAndLeave) { Text("Discard") }
+        TextButton(onClick = state::cancelLeave) { Text("Cancel") }
     }
     // last, so it shows on top of the dialog the error came from
     state.error?.let { ErrorDialog(it) { state.error = null } }
@@ -310,58 +309,41 @@ private fun ErrorDialog(message: String, onDismiss: () -> Unit) = AlertDialog(
     confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
 )
 
-/** Asked before an action replaces points that differ from the last load or save (ktoy's wording). */
-@Composable
-private fun ConfirmReplaceDialog(state: AppState, pending: PendingReplace) = AlertDialog(
-    onDismissRequest = { state.pendingReplace = null },
-    confirmButton = { TextButton(onClick = { state.pendingReplace = null; pending.run() }) { Text(pending.action) } },
-    dismissButton = { TextButton(onClick = { state.pendingReplace = null }) { Text("Cancel") } },
-    title = { Text("${pending.action}?") },
-    text = { Text("${pending.action} discards your changes to ${state.fileName}.", style = MaterialTheme.typography.bodyMedium) },
-)
-
-/** Closing the app with unsaved changes; [save] opens the Save dialog, which quits after saving. */
-@Composable
-private fun SaveChangesDialog(state: AppState, save: () -> Unit) = AlertDialog(
-    onDismissRequest = state::cancelClose,
-    confirmButton = {
-        Row {
-            TextButton(onClick = save) { Text("Save…") }
-            TextButton(onClick = state::discardAndClose) { Text("Discard") }
-            TextButton(onClick = state::cancelClose) { Text("Cancel") }
-        }
-    },
-    title = { Text("Save changes?") },
-    text = { Text("${state.fileName} has unsaved changes.", style = MaterialTheme.typography.bodyMedium) },
-)
+/** What "Save changes?" says is unsaved. */
+private fun unsavedText(state: AppState): String = buildList {
+    if (state.pointsUnsaved) add("Your changes to “${state.fileName}” are not saved.")
+    if (state.unappliedDraft) add("The coordinates edited in the Data widget are not applied.")
+}.joinToString(" ")
 
 @Composable
 private fun FormatSelect(format: ExportFormat, onFormat: (ExportFormat) -> Unit) {
     SelectField("Format", format.extension, ExportFormat.entries, { it.extension }, Modifier.width(160.dp), onFormat)
 }
 
-/** Save all sets as a file: one full-width button per format (ktoy's). Cancel also cancels a waiting close. */
+/**
+ * Which format to save all sets as (ktoy's): [message], one full-width button per format, and
+ * [buttons] below them (Cancel, or Discard / Cancel in "Save changes?").
+ */
 @Composable
-private fun SaveDialog(state: AppState, close: () -> Unit) {
-    val saver = rememberFileSaver(state::fileSaved)
-    fun cancel() { state.cancelClose(); close() }
-    AlertDialog(
-        onDismissRequest = ::cancel,
-        confirmButton = { TextButton(onClick = ::cancel) { Text("Cancel") } },
-        title = { Text("Save file") },
-        text = {
-            Column(Modifier.widthIn(min = 300.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (format in ExportFormat.entries) FilledTonalButton(
-                    onClick = {
-                        saver(state.saveName(format), state.beginSave(format))
-                        close()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(saveLabel(format)) }
+private fun SaveChoiceDialog(
+    title: String,
+    message: String?,
+    onPick: (ExportFormat) -> Unit,
+    onDismiss: () -> Unit,
+    buttons: @Composable () -> Unit,
+) = AlertDialog(
+    onDismissRequest = onDismiss,
+    confirmButton = { Row { buttons() } },
+    title = { Text(title) },
+    text = {
+        Column(Modifier.widthIn(min = 300.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            message?.let { Text(it, Modifier.padding(bottom = 4.dp), style = MaterialTheme.typography.bodyMedium) }
+            for (format in ExportFormat.entries) FilledTonalButton(onClick = { onPick(format) }, Modifier.fillMaxWidth()) {
+                Text(saveLabel(format))
             }
-        },
-    )
-}
+        }
+    },
+)
 
 private fun saveLabel(format: ExportFormat) = when (format) {
     ExportFormat.JSON -> "Save JSON"
@@ -401,7 +383,7 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
         buttons = {
             TextButton(onClick = close) { Text("Cancel") }
             TextButton(onClick = {
-                state.parseImport(text)?.let { sets -> state.confirmReplace("Import") { state.loadSets("imported", sets); close() } }
+                state.parseImport(text)?.let { sets -> state.leave { state.loadSets("imported", sets); close() } }
             }) { Text("Import") }
         },
     ) {
@@ -426,7 +408,7 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 error = state.randomSetError(state.randomN, state.randomGrid)
-                if (error == null) state.confirmReplace("Generate") { state.randomSet(state.randomN, state.randomGrid); close() }
+                if (error == null) state.leave { state.randomSet(state.randomN, state.randomGrid); close() }
             }) { Text("Generate") }
         },
         dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
@@ -456,7 +438,7 @@ sealed interface ExampleChoice {
  */
 class ExamplesState {
     var catalog by mutableStateOf<ExampleCatalog?>(null)
-    var error by mutableStateOf<String?>(null)
+    var loadError by mutableStateOf<String?>(null)
     val expanded = mutableStateListOf<String>()
     var selected by mutableStateOf<ExampleChoice?>(null)
     val familyN = mutableStateMapOf<String, Int>()
@@ -466,7 +448,7 @@ class ExamplesState {
 /**
  * Families (generated), the bundled single sets in categories, and links; all collapsible.
  * Families and sets are radio buttons; the selected one shows its details (a family also its n).
- * Load replaces the current set with it (after [AppState.confirmReplace]).
+ * Load replaces the current set with it (after "Save changes?", [AppState.leave]).
  */
 @Composable
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
@@ -475,10 +457,10 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
         if (ex.catalog == null) {
             try {
                 ex.catalog = loadExamples()
-                ex.error = null
+                ex.loadError = null
             } catch (e: Exception) {
-                ex.error = e.message ?: "unknown error"
-                state.error = "Cannot load the examples: ${ex.error}"
+                ex.loadError = e.message ?: "unknown error"
+                state.error = "Cannot load the examples: ${ex.loadError}"
             }
         }
     }
@@ -487,7 +469,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     var selected by ex::selected
     val familyN = ex.familyN
     val catalog = ex.catalog
-    val error = ex.error
+    val loadError = ex.loadError
     var nError by remember { mutableStateOf<String?>(null) }
     fun load() {
         when (val choice = selected) {
@@ -496,11 +478,11 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 val f = choice.family
                 val n = familyN[f.id] ?: DEFAULT_FAMILY_N
                 if (n !in 1..f.maxN) nError = "n must be 1..${f.maxN}"
-                else state.confirmReplace("Load") { state.loadPoints("${f.id}_n${f.size(n)}", f.generate(n)); close() }
+                else state.leave { state.loadPoints("${f.id}_n${f.size(n)}", f.generate(n)); close() }
             }
             is ExampleChoice.Single -> {
                 val e = choice.example
-                state.confirmReplace("Load") { state.loadPoints(e.name, e.points, e.properties); close() }
+                state.leave { state.loadPoints(e.name, e.points, e.properties); close() }
             }
         }
     }
@@ -528,8 +510,8 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             TreeHeader("Singletons", "Singletons" in open, depth = 0) { toggle("Singletons") }
             HorizontalDivider()
             if ("Singletons" in open) {
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                if (catalog == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                if (catalog == null && loadError == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
                 for (g in catalog?.categories.orEmpty()) {
                     val key = "S/" + g.title
                     TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { toggle(key) }
@@ -623,7 +605,7 @@ private fun feedbackMailto(): String {
     }
     val subject = "PoCoView: point set / feedback"
     val body = "Hi Manfred,\n\n(an interesting point set, an idea, or other feedback)\n\n" +
-        "Point set (Point Set > Export, JSON or text):\n\n"
+        "Point set (Point Set → Export, JSON or text):\n\n"
     return "mailto:$EMAIL?subject=${enc(subject)}&body=${enc(body)}"
 }
 
@@ -652,7 +634,7 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
             Column {
                 Text("Explore planar point sets and their order types.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
-                FeedbackBox("Interesting point configurations, ideas or general feedback? Please send them, they extend the collection in Point Set > Examples.")
+                FeedbackBox("Interesting point configurations, ideas or general feedback? Please send them, they extend the collection in Point Set → Examples.")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(dontShow, { dontShow = it })
                     Text("Don't show again", style = MaterialTheme.typography.bodyMedium)

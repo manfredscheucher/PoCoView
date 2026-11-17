@@ -75,7 +75,7 @@ fun App(
         // the display settings are stored while the app is shown
         LaunchedEffect(state) { state.keepDisplayPrefs() }
         LaunchedEffect(closeRequests) {
-            if (closeRequests > 0) state.requestClose { state.saveDisplayPrefs(); onClose() }
+            if (closeRequests > 0) state.leave { state.saveDisplayPrefs(); onClose() }
         }
         val view = remember { ViewTransform() }
         val focus = remember { FocusRequester() }
@@ -84,8 +84,8 @@ fun App(
         val columnsScroll = rememberScrollState()
 
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
-        // they are ignored while a text field has focus or a menu is open
-        Surface(Modifier.fillMaxSize().onKeyEvent { state.shortcutsActive && handleKey(it, state, view) }) {
+        // they are ignored while a text field has focus or a menu is open (Escape closes the menu)
+        Surface(Modifier.fillMaxSize().onKeyEvent { closeMenuOnEscape(it, state) || state.shortcutsActive && handleKey(it, state, view) }) {
             var dialog by remember {
                 mutableStateOf(initialDialog ?: if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME)
             }
@@ -104,8 +104,11 @@ fun App(
                         Box(m.focusRequester(focus).focusable()) {
                             // the canvas is composed inside BoxWithConstraints (subcomposition),
                             // so request the initial focus from here, once it is attached
-                            // (again after a widget was opened or closed: keeps the shortcuts working)
-                            LaunchedEffect(state.openWidgets.toList()) { if (state.textFieldsFocused == 0) focus.requestFocus() }
+                            // (again after a widget was opened or closed: keeps the shortcuts working);
+                            // not while a menu is open: the menu bar holds the focus for Escape
+                            LaunchedEffect(state.openWidgets.toList()) {
+                                if (state.textFieldsFocused == 0 && state.openMenu == null) focus.requestFocus()
+                            }
                             PointCanvas(state, view, onInteract = { focus.requestFocus() })
                         }
                     }
@@ -148,6 +151,13 @@ fun App(
             }
         }
     } }
+}
+
+/** Escape closes the open menu (the menu bar handles it too, while it has the focus). */
+private fun closeMenuOnEscape(e: KeyEvent, state: AppState): Boolean {
+    if (e.type != KeyEventType.KeyDown || e.key != Key.Escape || state.openMenu == null) return false
+    state.openMenu = null
+    return true
 }
 
 private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolean {
