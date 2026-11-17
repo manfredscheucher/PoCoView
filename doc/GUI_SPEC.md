@@ -128,5 +128,6 @@ Triangulations (exponential) is no longer shown by default. Example files may li
 The menu bar shows "PoCoView" in bold on the right (as in the ksat playground), on the web followed by
 "Point configuration viewer". The bottom status bar is gone: the file name (with " · set i/n"), n, the
 general position warning and the message moved to the right end of the toolbar row, one line with
-ellipsis; with less than 280 dp left in its row it wraps to a line of its own. The start set is the
+ellipsis. The status text keeps a minimum width of 280 dp (Claude's decision, shown to Manfred):
+with less room left in its row it wraps to a line of its own instead of shrinking to a few letters. The start set is the
 example n13-c1-min-convex-3-4-5-holes, so that is the initial file name (was "points").
