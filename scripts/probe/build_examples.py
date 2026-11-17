@@ -1,8 +1,8 @@
-"""One-off: builds composeApp/src/commonMain/composeResources/files/examples/ from the research scratch data."""
+"""One-off: builds composeApp/examples/ from the research scratch data."""
 import json, os, sys
 
 S = sys.argv[1]  # scratchpad dir
-OUT = sys.argv[2]  # .../composeResources/files/examples
+OUT = sys.argv[2]  # composeApp/examples
 COLOR = {"B": "B", "BLUE": "B", "R": "R", "RED": "R"}
 
 def read_psz(path):

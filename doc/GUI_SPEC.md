@@ -2,6 +2,10 @@
 
 Requests and decisions about the GUI. Newest first.
 
+## 2026-11-17: Examples without loading
+
+The Examples dialog shows the sets at once (no "Loading…"): the example files are embedded into the
+code at build time (`composeApp/examples/`, `generateExamples`) instead of being read as resources.
 
 ## 2026-11-17: Optimize widget simplification (decided, not implemented yet)
 

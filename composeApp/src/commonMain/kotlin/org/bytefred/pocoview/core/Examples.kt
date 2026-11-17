@@ -1,9 +1,6 @@
 package org.bytefred.pocoview.core
 
-import org.bytefred.pocoview.resources.Res
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-
-/** One bundled example point set (a file under composeResources/files/examples/). */
+/** One bundled example point set (a file under composeApp/examples/, embedded at build time). */
 data class Example(
     val name: String,
     val description: String,
@@ -18,7 +15,7 @@ data class Example(
     val properties: List<String> = emptyList(),
 )
 
-/** A category of examples as listed in files/examples/index.json. */
+/** A category of examples as listed in composeApp/examples/index.json. */
 data class ExampleGroup(val title: String, val examples: List<Example>)
 
 /** A link shown with the examples (collections, databases). */
@@ -27,18 +24,20 @@ data class ExampleLink(val title: String, val url: String, val description: Stri
 /** Everything bundled: the categories of single sets and the links. */
 data class ExampleCatalog(val categories: List<ExampleGroup>, val links: List<ExampleLink>)
 
-private const val EXAMPLES_DIR = "files/examples/"
+/** All bundled examples, parsed at first use. */
+val EXAMPLES: ExampleCatalog by lazy { loadExamples() }
 
-/** Loads all bundled examples, in the category and file order of the index. */
-suspend fun loadExamples(): ExampleCatalog {
-    val index = parseJson(readExampleFile("index.json")).asObject("index.json")
+/** Parses all bundled examples ([GeneratedExamples]), in the category and file order of the index. */
+fun loadExamples(): ExampleCatalog {
+    val index = parseJson(GeneratedExamples.INDEX).asObject("index.json")
     val categories = index.list("categories", "index.json").map { g ->
         val cat = g.asObject("index.json category")
         ExampleGroup(
             title = cat.string("title", "index.json category"),
             examples = cat.list("files", "index.json category").map { f ->
                 val file = f as? String ?: throw FormatException("index.json: file names must be strings")
-                parseExample(readExampleFile(file), file)
+                val text = GeneratedExamples.FILES[file] ?: throw FormatException("index.json: $file is not bundled")
+                parseExample(text, file)
             },
         )
     }
@@ -74,9 +73,6 @@ fun parseExample(text: String, file: String): Example {
         if (!Regex("n${it.points.size}-c[0-9]+-[a-z0-9-]+").matches(it.name)) throw FormatException("$file: name '${it.name}' does not follow n<N>-c<colors>-<description>")
     }
 }
-
-@OptIn(ExperimentalResourceApi::class)
-private suspend fun readExampleFile(file: String): String = Res.readBytes(EXAMPLES_DIR + file).decodeToString()
 
 private fun point(v: Any?, file: String): Pt {
     val c = v as? List<*>

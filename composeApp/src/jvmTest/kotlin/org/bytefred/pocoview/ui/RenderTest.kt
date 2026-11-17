@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import org.bytefred.pocoview.GeneratedLicenses
+import org.bytefred.pocoview.core.EXAMPLES
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.loadExamples
@@ -15,7 +16,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -44,7 +44,7 @@ class RenderTest {
 
     @Test
     fun everyExampleAndFamilyRenders() {
-        val sets = runBlocking { loadExamples() }.categories.flatMap { it.examples }.map { it.name to it.points } +
+        val sets = loadExamples().categories.flatMap { it.examples }.map { it.name to it.points } +
             FAMILIES.map { it.id to it.generate(minOf(16, it.maxN)) }
         for ((name, pts) in sets) {
             val s = state()
@@ -113,8 +113,7 @@ class RenderTest {
         ex.selected = family
         ex.familyN[family.family.id] = 7
         render(s, DialogKind.EXAMPLES)
-        val catalog = assertNotNull(ex.catalog, "the catalog is loaded on the first opening")
-        for ((i, g) in catalog.categories.withIndex()) if (i % 2 == 0) ex.expanded += "S/" + g.title
+        for ((i, g) in EXAMPLES.categories.withIndex()) if (i % 2 == 0) ex.expanded += "S/" + g.title
         render(s, DialogKind.EXAMPLES)
         val target = ex.scroll.maxValue / 2
         assertTrue(target > 0, "the expanded tree must scroll")
@@ -122,7 +121,6 @@ class RenderTest {
         render(s)
         render(s, DialogKind.EXAMPLES)
         assertEquals(target, ex.scroll.value, "scroll position")
-        assertSame(catalog, ex.catalog)
         assertEquals(family, ex.selected)
         assertEquals(7, ex.familyN[family.family.id])
         assertTrue("Singletons" in ex.expanded)

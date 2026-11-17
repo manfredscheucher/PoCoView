@@ -29,10 +29,12 @@ something looks odd, check the original first.
 
 ## Example point sets
 
-Bundled under `composeApp/src/commonMain/composeResources/files/examples/`: one JSON file per set
-in a subfolder per group (`singletons/`, `crossing-families/`, `universal/`, `misc/`), listed in
-`index.json` (groups in order). Generated families (Horton sets, convex position) are code in
-`core/Families.kt` (`PointSetFamily`).
+Source files in `composeApp/examples/`: one JSON file per set in a subfolder per group
+(`singletons/holes/`, `singletons/crossing-families/`, …), listed in `index.json` (groups in order).
+The `generateExamples` Gradle task embeds `index.json` and every listed file into the generated
+`GeneratedExamples.kt`, so the app has them at once (no resource reads); `core/Examples.kt` parses
+them at first use. Generated families (Horton sets, convex position) are code in `core/Families.kt`
+(`PointSetFamily`).
 
 File = the app's JSON point format plus metadata:
 
@@ -55,8 +57,9 @@ File = the app's JSON point format plus metadata:
 
 Names: `n<N>-c<colors>-<description>`, lowercase words joined by `-`, numbers without leading
 zeros; two sets with the same description get their source as a suffix
-(`n16-c1-no-convex-6-gon-kalbfleisch-stanton`). The loader checks the name and `n`. To add a set,
-add its file and list it in `index.json`.
+(`n16-c1-no-convex-6-gon-kalbfleisch-stanton`). The loader checks the name and `n` (`ExamplesTest`
+runs it over all sets). To add a set, add its file under `composeApp/examples/` and list it in
+`index.json`; the next build embeds it.
 
 `properties` (optional) lists property ids that are switched on when the example is loaded, for
 properties that are off by default but essential for that set (e.g. `triangulations`, which is

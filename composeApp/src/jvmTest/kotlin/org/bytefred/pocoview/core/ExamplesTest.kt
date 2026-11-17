@@ -1,6 +1,5 @@
 package org.bytefred.pocoview.core
 
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -8,7 +7,7 @@ import kotlin.test.assertTrue
 
 class ExamplesTest {
     @Test
-    fun groupsAndCounts() = runTest {
+    fun groupsAndCounts() {
         val catalog = loadExamples()
         assertEquals(
             listOf(
@@ -40,7 +39,7 @@ class ExamplesTest {
     }
 
     @Test
-    fun everySetIsDistinctAndInGeneralPosition() = runTest {
+    fun everySetIsDistinctAndInGeneralPosition() {
         for (e in loadExamples().categories.flatMap { it.examples }) {
             assertEquals(e.points.size, e.points.map { it.x to it.y }.toSet().size, "duplicates in ${e.name}")
             assertTrue(isGeneralPosition(e.points), "not in general position: ${e.name}")
@@ -51,7 +50,7 @@ class ExamplesTest {
     }
 
     @Test
-    fun spotChecks() = runTest {
+    fun spotChecks() {
         val all = loadExamples().categories.flatMap { it.examples }.associateBy { it.name }
         val bi = all.getValue("n8-c2-no-monochromatic-3-hole").points
         assertEquals(Pt(0, 0, "B"), bi[0])

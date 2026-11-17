@@ -65,8 +65,8 @@ import org.bytefred.pocoview.GeneratedBuildInfo
 import org.bytefred.pocoview.GeneratedLicenses
 import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CrossingProperty
+import org.bytefred.pocoview.core.EXAMPLES
 import org.bytefred.pocoview.core.Example
-import org.bytefred.pocoview.core.ExampleCatalog
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
@@ -76,7 +76,6 @@ import org.bytefred.pocoview.core.PolygonProperty
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.Structure
 import org.bytefred.pocoview.core.TriangulationProperty
-import org.bytefred.pocoview.core.loadExamples
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -441,13 +440,10 @@ sealed interface ExampleChoice {
 }
 
 /**
- * What the Examples dialog remembers between openings ([AppState.examples]): the loaded catalog,
- * the expanded nodes (everything starts collapsed), the selection, the n per family and the
+ * What the Examples dialog remembers between openings ([AppState.examples]): the expanded nodes (everything starts collapsed), the selection, the n per family and the
  * scroll position. Reopening shows the tree exactly as it was left.
  */
 class ExamplesState {
-    var catalog by mutableStateOf<ExampleCatalog?>(null)
-    var loadError by mutableStateOf<String?>(null)
     val expanded = mutableStateListOf<String>()
     var selected by mutableStateOf<ExampleChoice?>(null)
     val familyN = mutableStateMapOf<String, Int>()
@@ -462,23 +458,10 @@ class ExamplesState {
 @Composable
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     val ex = state.examples
-    LaunchedEffect(Unit) {
-        if (ex.catalog == null) {
-            try {
-                ex.catalog = loadExamples()
-                ex.loadError = null
-            } catch (e: Exception) {
-                ex.loadError = e.message ?: "unknown error"
-                state.error = "Cannot load the examples: ${ex.loadError}"
-            }
-        }
-    }
     val open = ex.expanded
     fun toggle(key: String) { if (key in open) open.remove(key) else open.add(key) }
     var selected by ex::selected
     val familyN = ex.familyN
-    val catalog = ex.catalog
-    val loadError = ex.loadError
     var nError by remember { mutableStateOf<String?>(null) }
     fun load() {
         when (val choice = selected) {
@@ -519,9 +502,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             TreeHeader("Singletons", "Singletons" in open, depth = 0) { toggle("Singletons") }
             HorizontalDivider()
             if ("Singletons" in open) {
-                loadError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                if (catalog == null && loadError == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
-                for (g in catalog?.categories.orEmpty()) {
+                for (g in EXAMPLES.categories) {
                     val key = "S/" + g.title
                     TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { toggle(key) }
                     if (key in open) for (e in g.examples) {
@@ -533,7 +514,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             }
             TreeHeader("Links", "Links" in open, depth = 0) { toggle("Links") }
             HorizontalDivider()
-            if ("Links" in open) for (l in catalog?.links.orEmpty()) Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
+            if ("Links" in open) for (l in EXAMPLES.links) Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
                 LinkText(l.title, l.url, MaterialTheme.typography.bodyLarge)
                 l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 Text(l.url, style = MaterialTheme.typography.labelSmall)
