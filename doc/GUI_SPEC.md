@@ -2,6 +2,25 @@
 
 Requests and decisions about the GUI. Newest first.
 
+
+## 2026-11-17: Optimize widget simplification (decided, not implemented yet)
+
+Manfred: far too many options and settings. The widget offers only Minimize or Beautify, and
+"Keep order type" or "Keep property". If the search finds a configuration that improves the
+property, a dialog asks whether to take it. Claude first proposes the exact new UI and checks it
+with a reviewer, then implements it.
+
+Minimize, two approaches (Manfred):
+1. Minimize the diameter as an integer: going from x to x-1 is a success. The set is squeezed and
+   points wander.
+2. Minimize the number of bits: success only when the diameter drops below the next power of two,
+   i.e. fewer bits are needed. The whole range 0..2^k-1 is used (the set may even be stretched if
+   there is room), and the task is to make all LSBs even (or all odd) so that one bit can be
+   removed for all coordinates together.
+
+Feedback boxes in ktoy, ksat-chess and the ksat playground: use a question like PoCoView's
+("Ideas or general feedback?" + mail) instead of "... is in early development".
+
 ## 2026-11-17: Adopt ktoy's look and usability
 
 Request: "take over the look of ktoy; it looks much better there, maybe also usability", with
