@@ -117,8 +117,9 @@ sealed interface PropState {
 data class PropToggle(val count: Boolean, val draw: Boolean)
 
 /**
- * A status line message. A [transient] one (pure info such as "Saved …") disappears after
- * [AppState.INFO_DURATION_MS]; the others (optimizer results, warnings) stay until the next message.
+ * A status message (shown in the toolbar). A [transient] one (pure info such as "Saved …")
+ * disappears after [AppState.INFO_DURATION_MS]; the others (optimizer results, warnings) stay until
+ * the next message.
  */
 class StatusMessage(val text: String, val transient: Boolean)
 
@@ -247,10 +248,10 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         private set
     var setIndex by mutableIntStateOf(0)
         private set
-    var fileName by mutableStateOf("points")
+    var fileName by mutableStateOf("n13-c1-min-convex-3-4-5-holes")
         private set
 
-    /** The file name for the menu bar, with "set i/n" when the file holds several sets. */
+    /** The file name for the toolbar status, with "set i/n" when the file holds several sets. */
     val title: String get() = if (sets.size > 1) "$fileName · set ${setIndex + 1}/${sets.size}" else fileName
 
     /**
@@ -259,7 +260,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     var loadedSetsNotice by mutableStateOf<Int?>(null)
 
-    /** The status line message (see [showInfo] and [showNote]). */
+    /** The status message (see [showInfo] and [showNote]). */
     var status by mutableStateOf<StatusMessage?>(null)
         private set
 
@@ -467,7 +468,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** The points are unsaved or the Data widget has an unapplied edit. */
     val unsavedChanges: Boolean get() = pointsUnsaved || unappliedDraft
 
-    // ---- status line -------------------------------------------------------------------
+    // ---- status ------------------------------------------------------------------------
 
     /** Pure info ("Saved …", "Loaded …"): disappears after [INFO_DURATION_MS]. */
     fun showInfo(text: String) {
@@ -1088,7 +1089,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         const val SEARCH_TITLE = "Searching for a better configuration"
         val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
         const val DEFAULT_LINE_ALPHA = 0.18f
-        /** The set shown at start: a 13-point set found by Manfred. */
+        /** The set shown at start: the example n13-c1-min-convex-3-4-5-holes (its name is the initial file name). */
         val START_POINTS = listOf(
             Pt(160, 7359), Pt(1768, 6530), Pt(2592, 6679), Pt(4239, 6383), Pt(3955, 5593),
             Pt(2960, 5759), Pt(2338, 4960), Pt(2880, 4320), Pt(2960, 2520), Pt(5759, 7359),

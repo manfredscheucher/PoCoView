@@ -54,9 +54,11 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 import org.bytefred.pocoview.GeneratedBuildInfo
@@ -155,7 +157,7 @@ fun MenuHeading(text: String) = Text(
     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
 )
 
-/** Point Set / Edit / View / Help on the left, the file name (and "set i/n") on the right. */
+/** Point Set / Edit / View / Help on the left, the app name (and on the web a subtitle) on the right. */
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener(onError = { state.error = it }) { name, bytes -> state.open(name, bytes) }
@@ -225,13 +227,14 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "About PoCoView") { openDialog(DialogKind.ABOUT) }
             }
         }
-        // one line + ellipsis, shrinking (weight), so a long name cannot push the menus off-screen
+        // one line + ellipsis, shrinking (weight), so the header cannot push the menus off-screen
         Text(
-            state.title,
-            style = MonoStyle,
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("PoCoView") }
+                if (isWeb) append("  Point configuration viewer")
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End,
             modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
         )
     }
@@ -305,7 +308,7 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
     state.error?.let { ErrorDialog(it) { state.error = null } }
 }
 
-/** A load or parse error the user must see (the status line is for info): one OK button. */
+/** A load or parse error the user must see (the toolbar status is for info): one OK button. */
 @Composable
 private fun ErrorDialog(message: String, onDismiss: () -> Unit) = AlertDialog(
     onDismissRequest = onDismiss,

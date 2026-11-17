@@ -122,3 +122,11 @@ parts (PoCoView has jvm + js), ktoy's portrait window size, File → Empty.
 
 Triangulations (exponential) is no longer shown by default. Example files may list property ids in
 `"properties"` to switch them on when loaded (like ktoy's `# io: yes`); no example uses it yet.
+
+## 2026-11-17: Header and status in the toolbar
+
+The menu bar shows "PoCoView" in bold on the right (as in the ksat playground), on the web followed by
+"Point configuration viewer". The bottom status bar is gone: the file name (with " · set i/n"), n, the
+general position warning and the message moved to the right end of the toolbar row, one line with
+ellipsis; with less than 280 dp left in its row it wraps to a line of its own. The start set is the
+example n13-c1-min-convex-3-4-5-holes, so that is the initial file name (was "points").

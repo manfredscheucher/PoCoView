@@ -147,7 +147,6 @@ fun App(
                         SplitPane(panels(1f), state.stackedWeights, { state.stackedWeights = it }, horizontal = false, Modifier.fillMaxSize())
                     }
                 }
-                StatusBar(state)
             }
         }
     } }

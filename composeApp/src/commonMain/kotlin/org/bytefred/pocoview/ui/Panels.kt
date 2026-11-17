@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
@@ -66,7 +68,7 @@ import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.smallLambda
 import kotlin.math.roundToInt
 
-/** Second row below the menu bar: editing tools, order type lock, navigation in multi-set files. */
+/** Second row below the menu bar: editing tools, order type lock, navigation in multi-set files, status. */
 @Composable
 fun ToolBar(state: AppState) {
     FlowRow(
@@ -95,40 +97,43 @@ fun ToolBar(state: AppState) {
             Text("${state.setIndex + 1} / ${state.sets.size}", Modifier.align(Alignment.CenterVertically))
             TextButton(onClick = { state.showSet(state.setIndex + 1) }, enabled = state.setIndex < state.sets.size - 1) { Text(">") }
         }
+        ToolbarStatus(state)
     }
+}
+
+/**
+ * The rest of the toolbar row: the file name (and "set i/n"), n, the permanent general position
+ * warning, and the running operation or the last message. One line with ellipsis, so it never
+ * pushes the buttons away; when the row is full it wraps to a line of its own.
+ */
+@Composable
+private fun FlowRowScope.ToolbarStatus(state: AppState) {
+    val status = state.status
+    val text = state.busy ?: status?.text ?: ""
+    // pure info (it disappears after a few seconds) in green, as in ktoy
+    val info = state.busy == null && status?.transient == true
+    Text(
+        buildAnnotatedString {
+            append("${state.title}  ·  n = ${state.points.size}")
+            if (state.collinear.isNotEmpty()) append("  ·  NOT in general position")
+            if (text.isNotEmpty()) {
+                append("  ·  ")
+                if (info) withStyle(SpanStyle(color = INFO_COLOR)) { append(text) } else append(text)
+            }
+        },
+        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f).widthIn(min = STATUS_MIN_WIDTH).align(Alignment.CenterVertically).padding(horizontal = 4.dp).testTag("toolbar-status"),
+    )
 }
 
 @Composable
 private fun FlowRowScope.ToolbarLabel(text: String) =
     Text(text, Modifier.align(Alignment.CenterVertically).padding(horizontal = 4.dp), style = MaterialTheme.typography.labelSmall)
 
-/** n, the permanent general position warning, and the running operation or the last message. */
-@Composable
-fun StatusBar(state: AppState) {
-    val status = state.status
-    val text = state.busy ?: status?.text ?: ""
-    // pure info (it disappears after a few seconds) in green, as in ktoy
-    val info = state.busy == null && status?.transient == true
-    Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            buildAnnotatedString {
-                append("n = ${state.points.size}")
-                if (state.collinear.isNotEmpty()) append("  ·  NOT in general position")
-                if (text.isNotEmpty()) {
-                    append("  ·  ")
-                    if (info) withStyle(SpanStyle(color = INFO_COLOR)) { append(text) } else append(text)
-                }
-            },
-            style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
 private val INFO_COLOR = Color(0xFF1A7F37)
+
+/** Less room than this left of the toolbar status in its row: it wraps to a line of its own. */
+private val STATUS_MIN_WIDTH = 280.dp
 
 /** Title row of a widget: its name and a close button. */
 @Composable

@@ -142,7 +142,7 @@ class SafeguardUiTest {
         closes++
         waitForIdle()
         onNodeWithText("Save changes?").assertExists()
-        onNodeWithText("Your changes to “points” are not saved.").assertExists()
+        onNodeWithText("Your changes to “n13-c1-min-convex-3-4-5-holes” are not saved.").assertExists()
         onNodeWithText("Save JSON").assertExists()
         onNodeWithText("Save text").assertExists()
         onNodeWithText("Cancel").performClick()

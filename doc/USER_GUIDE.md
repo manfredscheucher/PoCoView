@@ -15,8 +15,9 @@
   stays the same.
 - Undo/redo are in the Edit menu.
 - The **Help** menu has short pages (General, Properties, Optimize, Keyboard shortcuts) and About.
-- Info like "Loaded …" or "Saved …" shows in the status line and fades after 3 s; optimizer results
-  stay until the next message. A file or text that cannot be read opens an error dialog.
+- The toolbar shows the file name (and "set i/n"), n, a "NOT in general position" warning and the
+  last message. Info like "Loaded …" or "Saved …" fades after 3 s; optimizer results stay until the
+  next message. A file or text that cannot be read opens an error dialog.
 
 ## Widgets
 
