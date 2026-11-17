@@ -68,7 +68,7 @@ private val GENERAL_TEXT = listOf(
         "the set is not in general position, and the properties and optimizers wait until that is fixed.",
     "Mode" to " (toolbar): Move drags a point or selects it with a click, Add adds a point where you click, " +
         "Delete removes the point you click. Drag empty space to pan, zoom with the wheel or by pinching. " +
-        "Undo and Redo are in the Edit menu.",
+        "Right-click a point to select or delete it. Undo and Redo are in the Edit menu.",
     "Lock order type" to " keeps a dragged point inside its cell of the line arrangement, so the order type " +
         "stays the same.",
     "Line arrangement" to ": the line through every pair of points. Its cells are the regions in which a " +
@@ -79,11 +79,12 @@ private val GENERAL_TEXT = listOf(
         "the one you clicked least recently. The dividers next to the canvas can be dragged.",
     "Data" to " has the coordinates as text, one x y or x y colour per line: edit them and press Apply, or " +
         "Revert. It also shows the order type hash and, up to 30 points, the λ matrix.",
-    "Display" to " sets how points and lines are drawn, the number of widgets and the layout.",
+    "Display" to " sets how points and lines are drawn, the number of widgets and the layout. These " +
+        "settings, the open widgets and the shown properties are remembered for the next start.",
     "Point Set" to " menu: Examples… has generated families and interesting sets from the literature. " +
         "Random… makes a random set. Import… and Export… take and give text to paste or copy, Open file… and " +
-        "Save file… read and write files, Export SVG and Export Ipe save a picture. Before the current set is " +
-        "replaced, PoCoView asks.",
+        "Save file… read and write files, Export SVG and Export Ipe save a picture. If the points have " +
+        "changed since they were loaded or saved, PoCoView asks before replacing them or closing.",
     "Files with several sets" to " show one set at a time; switch with < and > in the toolbar or PageUp " +
         "and PageDown.",
 )

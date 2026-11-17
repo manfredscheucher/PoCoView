@@ -9,7 +9,8 @@
   is on by default (Display widget: "Lines through it: hide") so you can see the cell of the selected
   point; "normal" draws them like the others, "highlight" in their own colour and width.
 - **Mode** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
-  a point). Drag empty space to pan, use the wheel or pinch to zoom.
+  a point). Drag empty space to pan, use the wheel or pinch to zoom. Right-click a point for a small
+  menu: Select, Delete.
 - **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
   stays the same.
 - Undo/redo are in the Edit menu.
@@ -27,6 +28,9 @@ the one that was clicked least recently (opening a widget or clicking into it co
 The Display widget sets how things are drawn: point size, line width, colour and opacity of the line
 arrangement, labels, the selected point (size, colour, lines through it), the number of widgets and
 the layout (auto/portrait/landscape). "Reset to defaults" puts all of them back.
+
+These display settings, the open widgets, the divider positions, and the shown/drawn properties with
+their colours are remembered for the next start.
 
 ## Properties
 
@@ -97,11 +101,12 @@ are the λ matrix (λ[i][j] = number of points left of i->j) and the order type 
 - **Open file…** reads `.json`, `.txt`/`.asc`/`.psz` (the same text format; files may hold several
   sets) and the order type database formats `.b08`, `.b16`, `.b32` (unsigned little-endian
   `x1 y1 x2 y2 ...`, n from the file name, e.g. `otypes05.b08`).
-- **Save file…** writes all sets of the file as JSON or text (same layout as Export).
+- **Save file…** writes all sets of the file: Save JSON or Save text (same layout as Export).
 - **Export SVG** / **Export Ipe**: a picture with the line arrangement and the highlighted
   structures; Ipe files open in the Ipe editor.
 
-Import, Random, Examples and Open file ask first, because the current point set is lost. Files with
+Import, Random, Examples and Open file ask first if the points changed since they were loaded or
+saved (otherwise nothing is lost). Closing the desktop app with such changes asks Save… / Discard / Cancel. Files with
 several sets can be browsed with the arrows in the toolbar or PageUp/PageDown; after loading such a
 file a short note says so (can be switched off).
 

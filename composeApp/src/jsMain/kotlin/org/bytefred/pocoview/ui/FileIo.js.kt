@@ -47,10 +47,3 @@ actual fun rememberFileSaver(onSaved: (name: String?) -> Unit): (fileName: Strin
     window.setTimeout({ URL.revokeObjectURL(url) }, 10_000)
     onSaved(fileName)
 }
-
-// browser storage can be unavailable (private mode, blocked site data): then nothing is remembered
-actual fun loadPref(key: String): String? = try { kotlinx.browser.localStorage.getItem("pocoview.$key") } catch (e: Throwable) { null }
-
-actual fun savePref(key: String, value: String) {
-    try { kotlinx.browser.localStorage.setItem("pocoview.$key", value) } catch (e: Throwable) { }
-}

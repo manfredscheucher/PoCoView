@@ -3,7 +3,6 @@ package org.bytefred.pocoview.ui
 import androidx.compose.runtime.Composable
 import org.bytefred.pocoview.core.LOAD_EXTENSIONS
 import java.io.File
-import java.util.prefs.Preferences
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
@@ -41,12 +40,4 @@ actual fun rememberFileSaver(onSaved: (name: String?) -> Unit): (fileName: Strin
     } else {
         onSaved(null)
     }
-}
-
-private val prefs: Preferences? = try { Preferences.userRoot().node("org/bytefred/pocoview") } catch (e: Exception) { null }
-
-actual fun loadPref(key: String): String? = try { prefs?.get(key, null) } catch (e: Exception) { null }
-
-actual fun savePref(key: String, value: String) {
-    try { prefs?.put(key, value); prefs?.flush() } catch (e: Exception) { }
 }

@@ -27,6 +27,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -150,9 +151,10 @@ private val REOPEN_GUARD = 500.milliseconds
 private fun Item(state: AppState, text: String, enabled: Boolean = true, onClick: () -> Unit) =
     DropdownMenuItem(text = { Text(text) }, enabled = enabled, onClick = { state.openMenu = null; onClick() })
 
+/** A menu toggle with a checkmark; like ktoy's, a click keeps the menu open (to toggle several). */
 @Composable
-private fun CheckItem(state: AppState, text: String, checked: Boolean, onToggle: () -> Unit) =
-    DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = { state.openMenu = null; onToggle() })
+private fun CheckItem(text: String, checked: Boolean, onToggle: () -> Unit) =
+    DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = onToggle)
 
 /** The grey heading of a radio group in a menu; its items are indented. */
 @Composable
@@ -167,7 +169,7 @@ private fun MenuHeading(text: String) = Text(
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
-    val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
+    val saver = rememberFileSaver { name -> if (name != null) state.showInfo("Saved $name") }
     // Escape closes an open menu: the popups are not focusable (see MenuButton),
     // so the bar takes the focus while a menu is open
     val barFocus = remember { FocusRequester() }
@@ -195,7 +197,7 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Random…") { openDialog(DialogKind.RANDOM) }
                 Item(state, "Export…") { openDialog(DialogKind.EXPORT) }
                 HorizontalDivider()
-                Item(state, "Open file…") { state.confirmReplace { opener() } }
+                Item(state, "Open file…") { state.confirmReplace("Open") { opener() } }
                 Item(state, "Save file…") { openDialog(DialogKind.SAVE) }
                 HorizontalDivider()
                 Item(state, "Export SVG") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
@@ -206,22 +208,26 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Redo", enabled = state.canRedo) { state.redo() }
                 Item(state, "Delete selected point", enabled = state.selected != null) { state.deleteSelected() }
                 HorizontalDivider()
-                CheckItem(state, "Lock order type", state.fixOrderType) { state.fixOrderType = !state.fixOrderType }
+                // unlike the View check items, this one closes the menu (GUI spec)
+                CheckItem("Lock order type", state.fixOrderType) {
+                    state.openMenu = null
+                    state.fixOrderType = !state.fixOrderType
+                }
             }
             MenuButton(state, "View") {
                 Item(state, "Fit") { state.requestFit() }
                 Item(state, "Zoom in") { view.zoomCenter(1.2) }
                 Item(state, "Zoom out") { view.zoomCenter(1 / 1.2) }
                 HorizontalDivider()
-                CheckItem(state, "Line arrangement", state.showLines) { state.showLines = !state.showLines }
-                CheckItem(state, "Point labels", state.showLabels) { state.showLabels = !state.showLabels }
+                CheckItem("Line arrangement", state.showLines) { state.showLines = !state.showLines }
+                CheckItem("Point labels", state.showLabels) { state.showLabels = !state.showLabels }
                 HorizontalDivider()
-                for ((i, w) in Widget.entries.withIndex()) CheckItem(state, "${w.label} (${i + 1})", w in state.openWidgets) {
+                for ((i, w) in Widget.entries.withIndex()) CheckItem("${w.label} (${i + 1})", w in state.openWidgets) {
                     state.toggleWidget(w)
                 }
                 HorizontalDivider()
                 MenuHeading("Layout")
-                for (m in LayoutMode.entries) CheckItem(state, "  " + m.name.lowercase(), state.layoutMode == m) {
+                for (m in LayoutMode.entries) CheckItem("  " + m.name.lowercase(), state.layoutMode == m) {
                     state.layoutMode = m
                 }
                 HorizontalDivider()
@@ -274,7 +280,9 @@ fun exportIpe(state: AppState): String {
 @Composable
 fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close: () -> Unit) {
     state.busy?.let { OperationDialog(state, it) }
-    state.pendingReplace?.let { action -> ConfirmReplaceDialog(state, action) }
+    state.pendingReplace?.let { ConfirmReplaceDialog(state, it) }
+    // hidden while its Save… is choosing the format
+    if (state.pendingClose != null && kind != DialogKind.SAVE) SaveChangesDialog(state) { open(DialogKind.SAVE) }
     state.loadedSetsNotice?.let { count -> if (loadPref(SETS_NOTICE_PREF) != "off") SetsLoadedDialog(state, count) else state.loadedSetsNotice = null }
     when (kind) {
         DialogKind.NONE -> {}
@@ -302,14 +310,29 @@ private fun ErrorDialog(message: String, onDismiss: () -> Unit) = AlertDialog(
     confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
 )
 
-/** Asked before anything replaces the current point set. */
+/** Asked before an action replaces points that differ from the last load or save (ktoy's wording). */
 @Composable
-private fun ConfirmReplaceDialog(state: AppState, action: () -> Unit) = AlertDialog(
+private fun ConfirmReplaceDialog(state: AppState, pending: PendingReplace) = AlertDialog(
     onDismissRequest = { state.pendingReplace = null },
-    confirmButton = { TextButton(onClick = { state.pendingReplace = null; action() }) { Text("Yes") } },
-    dismissButton = { TextButton(onClick = { state.pendingReplace = null }) { Text("Abort") } },
-    title = { Text("Replace point set?") },
-    text = { Text("The current point set will be lost. This cannot be undone. Continue?", style = MaterialTheme.typography.bodyMedium) },
+    confirmButton = { TextButton(onClick = { state.pendingReplace = null; pending.run() }) { Text(pending.action) } },
+    dismissButton = { TextButton(onClick = { state.pendingReplace = null }) { Text("Cancel") } },
+    title = { Text("${pending.action}?") },
+    text = { Text("${pending.action} discards your changes to ${state.fileName}.", style = MaterialTheme.typography.bodyMedium) },
+)
+
+/** Closing the app with unsaved changes; [save] opens the Save dialog, which quits after saving. */
+@Composable
+private fun SaveChangesDialog(state: AppState, save: () -> Unit) = AlertDialog(
+    onDismissRequest = state::cancelClose,
+    confirmButton = {
+        Row {
+            TextButton(onClick = save) { Text("Save…") }
+            TextButton(onClick = state::discardAndClose) { Text("Discard") }
+            TextButton(onClick = state::cancelClose) { Text("Cancel") }
+        }
+    },
+    title = { Text("Save changes?") },
+    text = { Text("${state.fileName} has unsaved changes.", style = MaterialTheme.typography.bodyMedium) },
 )
 
 @Composable
@@ -317,28 +340,32 @@ private fun FormatSelect(format: ExportFormat, onFormat: (ExportFormat) -> Unit)
     SelectField("Format", format.extension, ExportFormat.entries, { it.extension }, Modifier.width(160.dp), onFormat)
 }
 
-/** Save the current set as a file (json or txt). */
+/** Save all sets as a file: one full-width button per format (ktoy's). Cancel also cancels a waiting close. */
 @Composable
 private fun SaveDialog(state: AppState, close: () -> Unit) {
-    val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
-    var format by remember { mutableStateOf(ExportFormat.JSON) }
+    val saver = rememberFileSaver(state::fileSaved)
+    fun cancel() { state.cancelClose(); close() }
     AlertDialog(
-        onDismissRequest = close,
-        confirmButton = {
-            TextButton(onClick = {
-                saver(state.saveName(format), state.exportText(format).encodeToByteArray())
-                close()
-            }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
+        onDismissRequest = ::cancel,
+        confirmButton = { TextButton(onClick = ::cancel) { Text("Cancel") } },
         title = { Text("Save file") },
         text = {
-            Column(Modifier.widthIn(min = 300.dp)) {
-                FormatSelect(format) { format = it }
-                Text(state.saveName(format), style = MaterialTheme.typography.bodySmall)
+            Column(Modifier.widthIn(min = 300.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (format in ExportFormat.entries) FilledTonalButton(
+                    onClick = {
+                        saver(state.saveName(format), state.beginSave(format))
+                        close()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(saveLabel(format)) }
             }
         },
     )
+}
+
+private fun saveLabel(format: ExportFormat) = when (format) {
+    ExportFormat.JSON -> "Save JSON"
+    ExportFormat.TXT -> "Save text"
 }
 
 /** The current set as text, to copy. */
@@ -351,7 +378,7 @@ private fun ExportDialog(state: AppState, close: () -> Unit) {
         "Export",
         onDismiss = close,
         buttons = {
-            TextButton(onClick = { clipboard.setText(AnnotatedString(text)); state.message = "Copied" }) { Text("Copy") }
+            TextButton(onClick = { clipboard.setText(AnnotatedString(text)); state.showInfo("Copied") }) { Text("Copy") }
             TextButton(onClick = close) { Text("Close") }
         },
     ) {
@@ -374,7 +401,7 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
         buttons = {
             TextButton(onClick = close) { Text("Cancel") }
             TextButton(onClick = {
-                state.parseImport(text)?.let { sets -> state.confirmReplace { state.loadSets("imported", sets); close() } }
+                state.parseImport(text)?.let { sets -> state.confirmReplace("Import") { state.loadSets("imported", sets); close() } }
             }) { Text("Import") }
         },
     ) {
@@ -399,7 +426,7 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 error = state.randomSetError(state.randomN, state.randomGrid)
-                if (error == null) state.confirmReplace { state.randomSet(state.randomN, state.randomGrid); close() }
+                if (error == null) state.confirmReplace("Generate") { state.randomSet(state.randomN, state.randomGrid); close() }
             }) { Text("Generate") }
         },
         dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
@@ -469,11 +496,11 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 val f = choice.family
                 val n = familyN[f.id] ?: DEFAULT_FAMILY_N
                 if (n !in 1..f.maxN) nError = "n must be 1..${f.maxN}"
-                else state.confirmReplace { state.loadPoints("${f.id}_n${f.size(n)}", f.generate(n)); close() }
+                else state.confirmReplace("Load") { state.loadPoints("${f.id}_n${f.size(n)}", f.generate(n)); close() }
             }
             is ExampleChoice.Single -> {
                 val e = choice.example
-                state.confirmReplace { state.loadPoints(e.name, e.points, e.properties); close() }
+                state.confirmReplace("Load") { state.loadPoints(e.name, e.points, e.properties); close() }
             }
         }
     }
@@ -801,7 +828,7 @@ private fun PickerRow(state: AppState, p: PropertyDef) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(shown, onCheckedChange = { state.setShown(p.id, it) })
         // highlight colour, for properties that can be highlighted
-        if (p.hasStructures) ColorChooser(state, state.colorOf(p.id)) { state.propertyColors[p.id] = it }
+        if (p.hasStructures) ColorChooser(state, state.colorOf(p.id)) { state.setPropertyColor(p.id, it) }
         else Spacer(Modifier.width(26.dp))
         Spacer(Modifier.width(8.dp))
         Column {

@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
@@ -104,21 +105,33 @@ fun ToolBar(state: AppState) {
 private fun FlowRowScope.ToolbarLabel(text: String) =
     Text(text, Modifier.align(Alignment.CenterVertically).padding(horizontal = 4.dp), style = MaterialTheme.typography.labelSmall)
 
+/** n, the permanent general position warning, and the running operation or the last message. */
 @Composable
 fun StatusBar(state: AppState) {
-    val text = state.busy ?: state.message ?: ""
+    val status = state.status
+    val text = state.busy ?: status?.text ?: ""
+    // pure info (it disappears after a few seconds) in green, as in ktoy
+    val info = state.busy == null && status?.transient == true
     Row(
         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "n = ${state.points.size}" + (if (state.collinear.isNotEmpty()) "  ·  NOT in general position" else "") +
-                (if (text.isNotEmpty()) "  ·  $text" else ""),
+            buildAnnotatedString {
+                append("n = ${state.points.size}")
+                if (state.collinear.isNotEmpty()) append("  ·  NOT in general position")
+                if (text.isNotEmpty()) {
+                    append("  ·  ")
+                    if (info) withStyle(SpanStyle(color = INFO_COLOR)) { append(text) } else append(text)
+                }
+            },
             style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
     }
 }
+
+private val INFO_COLOR = Color(0xFF1A7F37)
 
 /** Title row of a widget: its name and a close button. */
 @Composable
@@ -149,7 +162,7 @@ fun WidgetContent(state: AppState, w: Widget, onSelectProperties: () -> Unit) {
 @Composable
 private fun DisplayWidget(state: AppState) {
     Text("Point size: ${state.pointRadius.roundToInt()} px", style = MaterialTheme.typography.bodyMedium)
-    Slider(state.pointRadius, { state.pointRadius = it }, valueRange = 2f..20f)
+    Slider(state.pointRadius, { state.pointRadius = it }, valueRange = AppState.POINT_RADIUS_RANGE)
     Text("Line width: ${(state.lineWidth * 10).roundToInt() / 10.0} px", style = MaterialTheme.typography.bodyMedium)
     Slider(state.lineWidth, { state.lineWidth = it }, valueRange = 0.5f..5f)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -157,14 +170,17 @@ private fun DisplayWidget(state: AppState) {
         ColorChooser(state, state.lineColor) { state.lineColor = it }
     }
     Text("Line opacity: ${(state.lineAlpha * 100).roundToInt()} %", style = MaterialTheme.typography.bodyMedium)
-    Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = 0.02f..1f)
+    Slider(state.lineAlpha, { state.lineAlpha = it }, valueRange = AppState.LINE_ALPHA_RANGE)
     SwitchRow("Line arrangement", state.showLines) { state.showLines = it }
     SwitchRow("Point labels", state.showLabels) { state.showLabels = it }
 
     Spacer(Modifier.height(12.dp))
     Text("Selected point", style = MaterialTheme.typography.titleSmall)
     Text("Size: ${state.selectedScalePercent} % of the point size", style = MaterialTheme.typography.bodyMedium)
-    Slider(state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() }, valueRange = 100f..400f)
+    Slider(
+        state.selectedScalePercent.toFloat(), { state.selectedScalePercent = it.roundToInt() },
+        valueRange = AppState.SELECTED_SCALE_RANGE.first.toFloat()..AppState.SELECTED_SCALE_RANGE.last.toFloat(),
+    )
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Colour", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         ColorChooser(state, state.selectedColor) { state.selectedColor = it }
@@ -179,7 +195,7 @@ private fun DisplayWidget(state: AppState) {
             ColorChooser(state, state.incidentLineColor) { state.incidentLineColor = it }
         }
         Text("Their width: ${(state.incidentLineWidth * 10).roundToInt() / 10.0} px", style = MaterialTheme.typography.bodyMedium)
-        Slider(state.incidentLineWidth, { state.incidentLineWidth = it }, valueRange = 0.5f..8f)
+        Slider(state.incidentLineWidth, { state.incidentLineWidth = it }, valueRange = AppState.INCIDENT_WIDTH_RANGE)
     }
 
     Spacer(Modifier.height(12.dp))

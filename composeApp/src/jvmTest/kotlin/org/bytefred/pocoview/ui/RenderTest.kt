@@ -11,6 +11,7 @@ import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.loadExamples
 import org.bytefred.pocoview.resources.Res
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -24,6 +25,10 @@ import kotlin.test.assertTrue
  */
 class RenderTest {
     private fun state() = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+
+    // App stores changed display settings in the shared in-memory pref store: each test starts empty
+    @BeforeTest
+    fun clearPrefs() = clearInMemoryPrefs()
 
     private fun render(state: AppState, dialog: DialogKind = DialogKind.NONE, w: Int = 1200, h: Int = 800) {
         val scene = ImageComposeScene(w, h, Density(1f)) { App(state, dialog) }

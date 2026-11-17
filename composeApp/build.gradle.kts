@@ -61,6 +61,11 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+        jvmTest.dependencies {
+            // Compose UI tests (runComposeUiTest) driving the real app on desktop, as in ktoy
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+            implementation(compose.uiTest)
+        }
     }
 }
 
@@ -223,4 +228,9 @@ val generateLicenses = tasks.register<GenerateLicenses>("generateLicenses") {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
     dependsOn(generateLicenses)
+}
+
+// JVM tests keep their preferences in memory (Prefs.jvm.kt), away from the real ones
+tasks.withType<Test>().configureEach {
+    systemProperty("pocoview.prefs", "memory")
 }

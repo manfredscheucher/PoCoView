@@ -59,10 +59,24 @@ private fun Modifier.touches(state: AppState, w: Widget) = pointerInput(w) {
     }
 }
 
+/**
+ * The whole app. [closeRequests] counts the desktop window's close requests (and Cmd+Q): each
+ * one asks "Save changes?" if the points have unsaved changes, then calls [onClose].
+ */
 @Composable
-fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
+fun App(
+    initialState: AppState? = null,
+    initialDialog: DialogKind? = null,
+    closeRequests: Int = 0,
+    onClose: () -> Unit = {},
+) {
     PoCoViewTheme { ProvideMonoStyle {
         val state = remember { initialState ?: AppState() }
+        // the display settings are stored while the app is shown
+        LaunchedEffect(state) { state.keepDisplayPrefs() }
+        LaunchedEffect(closeRequests) {
+            if (closeRequests > 0) state.requestClose { state.saveDisplayPrefs(); onClose() }
+        }
         val view = remember { ViewTransform() }
         val focus = remember { FocusRequester() }
         // scroll positions survive closing and reopening a widget

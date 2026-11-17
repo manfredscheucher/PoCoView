@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +15,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
@@ -112,6 +115,15 @@ sealed interface PropState {
 
 /** Per-property GUI switches: [count] = shown in the panel (and evaluated), [draw] = visualize it (if highlight is on). */
 data class PropToggle(val count: Boolean, val draw: Boolean)
+
+/**
+ * A status line message. A [transient] one (pure info such as "Saved …") disappears after
+ * [AppState.INFO_DURATION_MS]; the others (optimizer results, warnings) stay until the next message.
+ */
+class StatusMessage(val text: String, val transient: Boolean)
+
+/** A replacing action ([run]) waiting for "[action]?" to be confirmed; [action] names it ("Load"). */
+class PendingReplace(val action: String, val run: () -> Unit)
 
 /**
  * All GUI state and actions. Plain Compose state + a coroutine scope; properties are
@@ -215,7 +227,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      * so the UI can tell the user; the UI clears it (sets it to null) after showing it.
      */
     var loadedSetsNotice by mutableStateOf<Int?>(null)
-    var message by mutableStateOf<String?>(null)
+
+    /** The status line message (see [showInfo] and [showNote]). */
+    var status by mutableStateOf<StatusMessage?>(null)
+        private set
+    val message: String? get() = status?.text
 
     /** A load or parse error, shown in a modal error dialog until the user clears it with OK. */
     var error by mutableStateOf<String?>(null)
@@ -281,7 +297,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         while (openWidgets.size > maxColumns) openWidgets.remove(openWidgets.minBy { lastClicked[it] ?: 0L })
     }
 
-    /** Display widget "Reset to defaults": every setting of the widget. */
+    /** Display widget "Reset to defaults": every setting of the widget, also forgetting the stored ones. */
     fun resetDisplay() {
         showLines = true; showLabels = true; layoutMode = LayoutMode.AUTO
         changeMaxColumns(2)
@@ -289,6 +305,80 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         lineColor = DEFAULT_LINE_COLOR; lineAlpha = DEFAULT_LINE_ALPHA
         selectedColor = DEFAULT_SELECTED_COLOR
         incidentLines = IncidentLines.HIDE; incidentLineColor = DEFAULT_INCIDENT_LINE_COLOR; incidentLineWidth = 2f
+        for (key in RESET_PREFS) removePref(key)
+        // other settings the reset changed (open widgets) are stored as usual
+        saveDisplayPrefs(except = RESET_PREFS)
+    }
+
+    // ---- remembered display settings ---------------------------------------------------
+
+    /** The remembered display settings, encoded as pref key -> value. */
+    fun displayPrefs(): Map<String, String> = mapOf(
+        LAYOUT_PREF to layoutMode.name,
+        MAX_WIDGETS_PREF to maxColumns.toString(),
+        OPEN_WIDGETS_PREF to openWidgets.joinToString(",") { it.name },
+        POINT_SIZE_PREF to pointRadius.toString(),
+        LINE_COLOR_PREF to lineColor.toHex(),
+        LINE_ALPHA_PREF to lineAlpha.toString(),
+        SELECTED_SIZE_PREF to selectedScalePercent.toString(),
+        SELECTED_COLOR_PREF to selectedColor.toHex(),
+        INCIDENT_LINES_PREF to incidentLines.name,
+        INCIDENT_COLOR_PREF to incidentLineColor.toHex(),
+        INCIDENT_WIDTH_PREF to incidentLineWidth.toString(),
+        LINES_PREF to showLines.toString(),
+        LABELS_PREF to showLabels.toString(),
+        WIDE_WEIGHTS_PREF to encodeWeights(wideWeights),
+        STACKED_WEIGHTS_PREF to encodeWeights(stackedWeights),
+    )
+
+    /** What [displayPrefs] was at the last load or save: only changed settings are written. */
+    private var savedDisplay: Map<String, String> = emptyMap()
+
+    /** Stores the display settings that changed since the last save (not those in [except]). */
+    fun saveDisplayPrefs(except: Set<String> = emptySet()) {
+        val now = displayPrefs()
+        for ((key, value) in now) if (key !in except && savedDisplay[key] != value) savePref(key, value)
+        savedDisplay = now
+    }
+
+    /**
+     * Stores the display settings whenever they change, a moment after the last change (a slider
+     * drag is written once). Runs while the app is shown (App starts it).
+     */
+    suspend fun keepDisplayPrefs() {
+        snapshotFlow { displayPrefs() }.collectLatest {
+            delay(PREF_SAVE_DELAY_MS)
+            saveDisplayPrefs()
+        }
+    }
+
+    private fun loadDisplayPrefs() {
+        enumPref<LayoutMode>(LAYOUT_PREF)?.let { layoutMode = it }
+        intPref(MAX_WIDGETS_PREF, 1..Widget.entries.size)?.let { maxColumns = it }
+        loadPref(OPEN_WIDGETS_PREF)?.let { stored ->
+            val open = stored.split(',').mapNotNull { name -> Widget.entries.firstOrNull { it.name == name } }.distinct()
+            openWidgets.clear()
+            openWidgets.addAll(open)
+            for (w in open) touchWidget(w)
+            closeExtraWidgets()
+        }
+        floatPref(POINT_SIZE_PREF, POINT_RADIUS_RANGE)?.let { pointRadius = it }
+        colorPref(LINE_COLOR_PREF)?.let { lineColor = it }
+        floatPref(LINE_ALPHA_PREF, LINE_ALPHA_RANGE)?.let { lineAlpha = it }
+        intPref(SELECTED_SIZE_PREF, SELECTED_SCALE_RANGE)?.let { selectedScalePercent = it }
+        colorPref(SELECTED_COLOR_PREF)?.let { selectedColor = it }
+        enumPref<IncidentLines>(INCIDENT_LINES_PREF)?.let { incidentLines = it }
+        colorPref(INCIDENT_COLOR_PREF)?.let { incidentLineColor = it }
+        floatPref(INCIDENT_WIDTH_PREF, INCIDENT_WIDTH_RANGE)?.let { incidentLineWidth = it }
+        booleanPref(LINES_PREF)?.let { showLines = it }
+        booleanPref(LABELS_PREF)?.let { showLabels = it }
+        loadPref(WIDE_WEIGHTS_PREF)?.let { wideWeights = decodeWeights(it) }
+        loadPref(STACKED_WEIGHTS_PREF)?.let { stackedWeights = decodeWeights(it) }
+        for (p in ALL_PROPERTIES) {
+            loadPref(togglePrefKey(p.id))?.let(::decodeToggle)?.let { toggles[p.id] = it }
+            colorPref(colorPrefKey(p.id))?.let { propertyColors[p.id] = it }
+        }
+        savedDisplay = displayPrefs()
     }
 
     /** Incremented to ask the canvas to fit the view to the points. */
@@ -320,10 +410,39 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     private var opJob: Job? = null
     private var dragUndoPending = false
 
+    /** The point sets at the last load or save; anything else is an unsaved change. */
+    private var savedSets: List<List<Pt>> = emptyList()
+
     init {
+        loadDisplayPrefs()
         setPoints(START_POINTS, recordUndo = false)
         sets = listOf(points)
+        savedSets = sets
         requestFit()
+    }
+
+    /** All sets of the file with the current set's edits. */
+    private fun currentSets(): List<List<Pt>> =
+        if (setIndex in sets.indices) sets.toMutableList().also { it[setIndex] = points } else listOf(points)
+
+    /** The points differ from the last load or save. */
+    val unsavedChanges: Boolean get() = currentSets() != savedSets
+
+    // ---- status line -------------------------------------------------------------------
+
+    /** Pure info ("Saved …", "Loaded …"): disappears after [INFO_DURATION_MS]. */
+    fun showInfo(text: String) {
+        val m = StatusMessage(text, transient = true)
+        status = m
+        scope.launch {
+            delay(INFO_DURATION_MS)
+            if (status === m) status = null
+        }
+    }
+
+    /** A result or warning: stays until the next message. */
+    fun showNote(text: String?) {
+        status = text?.let { StatusMessage(it, transient = false) }
     }
 
     // ---- editing ---------------------------------------------------------------------
@@ -337,7 +456,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     private fun pushUndo() {
-        message = null
+        status = null
         undoStack.addLast(points)
         if (undoStack.size > 500) undoStack.removeFirst()
         redoStack.clear()
@@ -396,7 +515,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val sameOrderType = sameOrderTypeAfterMove(points, i, q)
         if (fixOrderType && !sameOrderType) {
             if (collinear.isEmpty()) return false
-            message = "Lock order type has no effect while points are collinear"
+            showNote("Lock order type has no effect while points are collinear")
         }
         if (dragUndoPending) { pushUndo(); dragUndoPending = false }
         points = points.toMutableList().also { it[i] = q.copy(color = points[i].color) }
@@ -407,7 +526,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun addPoint(q: Pt) {
         if (!q.inRange()) return
         if (!canAdd(points, q)) {
-            message = "Point (${q.x}, ${q.y}) would be collinear with two others or a duplicate"
+            showNote("Point (${q.x}, ${q.y}) would be collinear with two others or a duplicate")
             return
         }
         cancelOperation()
@@ -430,11 +549,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
     /** Replaces the point set (and the file context) by a random set in general position. */
     fun randomSet(n: Int, size: Long) {
-        randomSetError(n, size)?.let { message = "Random set: $it"; return }
+        randomSetError(n, size)?.let { showNote("Random set: $it"); return }
         try {
             load("random", listOf(randomPointSet(n, size)))
         } catch (e: IllegalStateException) {
-            message = e.message
+            showNote(e.message)
         }
     }
 
@@ -477,10 +596,31 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         }
 
     /** An action that replaces the point set, waiting for the user's confirmation (dialog). */
-    var pendingReplace by mutableStateOf<(() -> Unit)?>(null)
+    var pendingReplace by mutableStateOf<PendingReplace?>(null)
 
-    fun confirmReplace(action: () -> Unit) {
-        pendingReplace = action
+    /** Runs [run], which replaces the points; with unsaved changes only after "[action]?" is confirmed. */
+    fun confirmReplace(action: String, run: () -> Unit) {
+        if (unsavedChanges) pendingReplace = PendingReplace(action, run) else run()
+    }
+
+    /** Closing the app with unsaved changes: the quit action, waiting for "Save changes?". */
+    var pendingClose by mutableStateOf<(() -> Unit)?>(null)
+        private set
+
+    /** Runs [quit] right away, or with unsaved changes after "Save changes?" (Save… / Discard). */
+    fun requestClose(quit: () -> Unit) {
+        if (unsavedChanges) pendingClose = quit else quit()
+    }
+
+    /** "Discard": quits without saving. */
+    fun discardAndClose() {
+        val quit = pendingClose ?: return
+        pendingClose = null
+        quit()
+    }
+
+    fun cancelClose() {
+        pendingClose = null
     }
 
     /** Loads an example or a generated family member as the only set, switching on [showProperties]. */
@@ -502,8 +642,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         selected = null
         setPoints(loaded[0], recordUndo = false)
         clearHistory()
+        savedSets = loaded
         requestFit()
-        message = "Loaded $name: ${loaded.size} set(s), n=${loaded[0].size}"
+        showInfo("Loaded $name: ${loaded.size} set(s), n=${loaded[0].size}")
         loadedSetsNotice = loaded.size.takeIf { it > 1 }
     }
 
@@ -533,12 +674,45 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         return exportPointSets(sets, format)
     }
 
-    /** Transitional for the old Save/Export dialogs: [countLine] is ignored (count lines are always written). */
+    /** The sets being written by the file save in progress ([beginSave] .. [fileSaved]). */
+    private var savingSets: List<List<Pt>>? = null
+
+    /** The file content to save as [format]; [fileSaved] reports how the save ended. */
+    fun beginSave(format: ExportFormat): ByteArray {
+        val text = exportText(format)
+        savingSets = sets
+        return text.encodeToByteArray()
+    }
+
+    /**
+     * A file save finished as [name], or was cancelled (null). The saved sets are the new clean
+     * state; a waiting close goes on once nothing is unsaved, a cancelled save cancels it.
+     */
+    fun fileSaved(name: String?) {
+        val saved = savingSets
+        savingSets = null
+        if (name == null) {
+            cancelClose()
+            return
+        }
+        if (saved != null) savedSets = saved
+        showInfo("Saved $name")
+        if (!unsavedChanges) discardAndClose()
+    }
+
     // ---- properties ------------------------------------------------------------------
 
+    /** A user's change of a property's switches; remembered across starts. */
     fun setToggle(id: String, t: PropToggle) {
         toggles[id] = t
+        savePref(togglePrefKey(id), encodeToggle(t))
         recompute()
+    }
+
+    /** A user's choice of a highlight colour; remembered across starts. */
+    fun setPropertyColor(id: String, c: Color) {
+        propertyColors[id] = c
+        savePref(colorPrefKey(id), c.toHex())
     }
 
     /** Show (and compute) a property in the Properties widget or not. */
@@ -621,12 +795,12 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun abortOperation() {
         val label = busy
         cancelOperation()
-        if (label != null) message = "${label.removeSuffix("…")}: aborted"
+        if (label != null) showNote("${label.removeSuffix("…")}: aborted")
     }
 
     private fun requireGeneralPosition(): Boolean {
         if (collinear.isEmpty()) return true
-        message = "The point set is not in general position (red points); fix that first"
+        showNote("The point set is not in general position (red points); fix that first")
         return false
     }
 
@@ -657,7 +831,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                message = "$label failed: ${e.message ?: e}"
+                showNote("$label failed: ${e.message ?: e}")
             } finally {
                 if (opJob == coroutineContext[Job]) { busy = null; progress = null }
             }
@@ -701,7 +875,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 if (r != cur) { cur = r; update(r); requestFit() }
                 yield()
             } while (loop)
-            message = if (cur == start) "$label: no change" else "$label: bits $bitsBefore -> ${bitsOf(cur)}"
+            showNote(if (cur == start) "$label: no change" else "$label: bits $bitsBefore -> ${bitsOf(cur)}")
         }
 
     /**
@@ -712,8 +886,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     fun minimizeWrtProperty(repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
-        if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        if (points.size < 3) { message = "Need at least 3 points"; return }
+        if (points.size > prop.maxN) { showNote("${prop.label}: n > ${prop.maxN}"); return }
+        if (points.size < 3) { showNote("Need at least 3 points"); return }
         val cfg = wrtSettings
         loop = repeat
         val label = "Minimize w.r.t. ${prop.label}"
@@ -749,12 +923,14 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 }
                 yield()
             } while (loop)
-            message = when {
-                cur != start -> "$label: bits $bitsBefore -> ${bitsOf(cur)}, ${prop.label} $countBefore -> $curCount"
-                undone > 0 -> "$label: result was worse, undone"
-                rejected > 0 -> "$label: result had collinear points or was too large, undone"
-                else -> "$label: no change"
-            }
+            showNote(
+                when {
+                    cur != start -> "$label: bits $bitsBefore -> ${bitsOf(cur)}, ${prop.label} $countBefore -> $curCount"
+                    undone > 0 -> "$label: result was worse, undone"
+                    rejected > 0 -> "$label: result had collinear points or was too large, undone"
+                    else -> "$label: no change"
+                },
+            )
         }
     }
 
@@ -766,8 +942,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun searchProperty(repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == optimizeProperty } ?: return
         val flow = PROPERTY_SEARCH_FLOWS.firstOrNull { it.id == searchFlowId } ?: return
-        if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        if (points.size < 3) { message = "Need at least 3 points"; return }
+        if (points.size > prop.maxN) { showNote("${prop.label}: n > ${prop.maxN}"); return }
+        if (points.size < 3) { showNote("Need at least 3 points"); return }
         val values = flow.params.associate { it.name to searchValue(flow, it) }
         loop = repeat
         runOperation("${flow.label}, ${prop.label}…", SEARCH_TITLE) { start, update ->
@@ -795,7 +971,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 }
                 channel.close()
             }
-            message = if (current < first) "${prop.label}: $first -> $current" else "${prop.label}: no better configuration found ($first)"
+            showNote(if (current < first) "${prop.label}: $first -> $current" else "${prop.label}: no better configuration found ($first)")
         }
     }
 
@@ -807,8 +983,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     fun cellHop(propId: String, params: CellHopParams, repeat: Boolean = false) {
         val prop = ALL_PROPERTIES.firstOrNull { it.id == propId } ?: return
         loop = repeat
-        if (points.size > prop.maxN) { message = "${prop.label}: n > ${prop.maxN}"; return }
-        if (points.size < 3) { message = "Need at least 3 points"; return }
+        if (points.size > prop.maxN) { showNote("${prop.label}: n > ${prop.maxN}"); return }
+        if (points.size < 3) { showNote("Need at least 3 points"); return }
         runOperation("qtvis minimizer (${prop.label})…", SEARCH_TITLE) { start, update ->
             val before = evaluate(prop, start, null, false).count
             var cur = start
@@ -835,8 +1011,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
                 result?.let { cur = it }
             } while (loop)
             val after = evaluate(prop, cur, null, false).count
-            message = if (after >= before) "${prop.label}: no configuration below $before found"
-            else "${prop.label}: $before -> $after"
+            showNote(if (after >= before) "${prop.label}: no configuration below $before found" else "${prop.label}: $before -> $after")
         }
     }
 
@@ -850,6 +1025,22 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         val DEFAULT_COUNTED = setOf("hull", "onion", "crossings", "hole3", "hole4", "hole5", "hole6")
         val DEFAULT_DRAWN = setOf("hole5")
         private const val CACHE_SIZE = 64
+
+        /** How long a [StatusMessage.transient] message stays. */
+        const val INFO_DURATION_MS = 3000L
+        private const val PREF_SAVE_DELAY_MS = 300L
+
+        /** The stored settings "Reset to defaults" (Display widget) forgets. */
+        private val RESET_PREFS = setOf(
+            LAYOUT_PREF, MAX_WIDGETS_PREF, POINT_SIZE_PREF, LINE_COLOR_PREF, LINE_ALPHA_PREF, SELECTED_SIZE_PREF,
+            SELECTED_COLOR_PREF, INCIDENT_LINES_PREF, INCIDENT_COLOR_PREF, INCIDENT_WIDTH_PREF, LINES_PREF, LABELS_PREF,
+        )
+
+        /** Slider ranges of the Display widget (stored values are clamped to them). */
+        val POINT_RADIUS_RANGE = 2f..20f
+        val LINE_ALPHA_RANGE = 0.02f..1f
+        val SELECTED_SCALE_RANGE = 100..400
+        val INCIDENT_WIDTH_RANGE = 0.5f..8f
         const val SEARCH_TITLE = "Searching for a better configuration"
         val DEFAULT_LINE_COLOR = Color(0xFF1C1B1F)
         const val DEFAULT_LINE_ALPHA = 0.18f

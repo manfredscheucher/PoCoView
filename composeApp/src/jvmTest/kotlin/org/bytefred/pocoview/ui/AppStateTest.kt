@@ -13,6 +13,7 @@ import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.writeJson
 import org.bytefred.pocoview.core.writeText
 import org.bytefred.pocoview.core.writeTextSets
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +26,10 @@ class AppStateTest {
     private val pentagon = listOf(Pt(0, 0), Pt(10, 0), Pt(13, 9), Pt(5, 15), Pt(-3, 9))
 
     private fun state() = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+
+    // the tests share one in-memory pref store: each starts empty
+    @BeforeTest
+    fun clearPrefs() = clearInMemoryPrefs()
 
     private fun AppState.load(p: List<Pt>) = open("t.txt", writeText(p).encodeToByteArray())
 
@@ -400,12 +405,14 @@ class AppStateTest {
     }
 
     @Test
-    fun replaceWaitsForConfirmation() {
+    fun replaceWaitsForConfirmationAfterAnEdit() {
         val s = state()
+        s.deletePoint(0)
         val before = s.points
-        s.confirmReplace { s.loadPoints("x", listOf(Pt(0, 0), Pt(1, 0), Pt(0, 1))) }
+        s.confirmReplace("Load") { s.loadPoints("x", listOf(Pt(0, 0), Pt(1, 0), Pt(0, 1))) }
         assertEquals(before, s.points)
-        s.pendingReplace!!.invoke()
+        assertEquals("Load", s.pendingReplace!!.action)
+        s.pendingReplace!!.run()
         assertEquals(3, s.points.size)
     }
 

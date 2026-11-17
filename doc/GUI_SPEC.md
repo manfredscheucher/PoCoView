@@ -57,12 +57,41 @@ Accepted packages (all four):
   load/save. Wording like ktoy: one sentence, buttons [Replace]/[Cancel].
 - Closing the window with unsaved changes asks Save… / Discard / Cancel.
 - Save dialog: one button per format ("Save JSON", "Save text").
+- Implemented: prefs as in ktoy (`Prefs.kt`, JVM tests `-Dpocoview.prefs=memory`, plus `removePref`).
+  Remembered: layout, max. widgets, open widgets, point size, line colour and opacity, selected point
+  (size, colour, lines through it, their colour and width), line arrangement and point labels,
+  divider shares (side by side and stacked), and per property shown/drawn and highlight colour. Not
+  remembered (not in the list): line width, Highlight, Incident only, Lock order type, mode.
+  Display settings are written 0.3 s after the last change (one write per slider drag) and on quit.
+  A property's switches are stored only when the user changes them, so a property an example switches
+  on is not remembered (Triangulations stays off unless the user switched it on). Corrupt or
+  out-of-range stored values give the default or are clamped to the slider range. "Reset to defaults"
+  forgets the stored values of exactly the settings it resets.
+- Implemented: the clean state is all sets of the file at the last load (also Random, Import,
+  Examples) or successful Save file; undoing back to it is clean again. SVG/Ipe export and Copy do
+  not count as saving. Confirm wording: "Load?" / "Import?" / "Generate?" / "Open?", text
+  "<Action> discards your changes to <file name>.", buttons [<Action>] [Cancel].
+- Implemented: "Save changes?" (text "<file name> has unsaved changes.") with Save… / Discard /
+  Cancel. Save… opens the Save dialog; a successful save quits, a cancelled one (or Cancel in the
+  Save dialog) cancels the quit. Window close and the macOS Quit/Cmd+Q go through it (ktoy's
+  `closeRequests` + quit handler). Web: ktoy has no beforeunload prompt, so none here.
+- Implemented: the Save dialog has no file name line (ktoy has none; the name is suggested by the
+  file chooser or used for the download).
 
 Decisions on open points:
 - Status messages: pure info ("Saved …", "Loaded …") disappears after 3 s; optimizer results stay
   until the next message. The general-position warning is permanent.
 - Right-click on the canvas: a context menu at a point (Select, Delete); right-click no longer
   selects/adds like a left click. No tooltips.
+- Menu check items (Manfred, like ktoy): in the View menu a click on a check item (Line arrangement,
+  Point labels, the widgets, Layout) keeps the menu open; Lock order type (Edit) closes it.
+- Implemented: messages are classified where they are set (`showInfo` / `showNote`). Info, in green
+  as in ktoy: Loaded, Saved (also SVG/Ipe), Copied. Everything else stays until the next message
+  (optimizer results, aborted, failures, the "not in general position, fix that first" refusal, the
+  collinear-point warning). The permanent general-position warning is the "NOT in general position"
+  part of the status line, which follows the points. An edit still clears the message.
+- Implemented: Delete in the context menu is one undo step like any delete. Right-click on empty
+  space does nothing (no pan, no add).
 
 Not taken over: simulator-specific parts (Step/Run bar, PC highlights, per-layer menus), Android-only
 parts (PoCoView has jvm + js), ktoy's portrait window size, File → Empty.
