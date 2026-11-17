@@ -29,7 +29,6 @@ import org.bytefred.pocoview.core.CellHopParams
 import org.bytefred.pocoview.core.FormatException
 import org.bytefred.pocoview.core.PROPERTY_SEARCH_FLOWS
 import org.bytefred.pocoview.core.ExportFormat
-import org.bytefred.pocoview.core.PointFormat
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.PropertySearchFlow
@@ -40,7 +39,6 @@ import org.bytefred.pocoview.core.beautify2Coords
 import org.bytefred.pocoview.core.bitsOf
 import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
-import org.bytefred.pocoview.core.extent
 import org.bytefred.pocoview.core.exportPointSets
 import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.inRange
@@ -54,7 +52,6 @@ import org.bytefred.pocoview.core.readText
 import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -171,6 +168,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** The points as the Data widget's coordinate text, one `x y` or `x y color` per line. */
     fun coordinatesText(): String = points.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
 
+    /** A Data widget edit; text equal to the points is no draft. */
+    fun editCoordinates(text: String) {
+        coordinatesDraft = text.takeIf { it != coordinatesText() }
+    }
+
     /** The Data widget holds coordinates that differ from the points and are not applied. */
     val unappliedDraft: Boolean get() = coordinatesDraft.let { it != null && it != coordinatesText() }
 
@@ -193,11 +195,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     /**
-     * A canvas press only closes the menu: one is open, or it was just closed by this same
-     * press (the menu's outside-click dismissal may come before the canvas sees the press).
+     * Whether a canvas press only closes the menu: one is open, or it was just closed by this
+     * same press (the menu's outside-click dismissal comes before the canvas sees the press).
+     * The mark is used up, so only the closing press is swallowed.
      */
-    val menuSwallowsPress: Boolean
-        get() = openMenu != null || menuClosedAt?.let { it.elapsedNow() < MENU_CLICK_GUARD } == true
+    fun consumeMenuPress(): Boolean {
+        val justClosed = menuClosedAt?.let { it.elapsedNow() < MENU_CLICK_GUARD } == true
+        menuClosedAt = null
+        return openMenu != null || justClosed
+    }
 
     /** The Help page the Help dialog shows. */
     var helpPage by mutableStateOf(HelpPage.GENERAL)
@@ -676,9 +682,16 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         loadedSetsNotice = loaded.size.takeIf { it > 1 }
     }
 
-    /** Shows another set of the file. Undo history is per set, so it is cleared. */
+    /**
+     * Shows another set of the file. Undo history is per set, so it is cleared. An unapplied Data
+     * widget edit would be lost: "Save changes?" asks first (the set's point edits are kept).
+     */
     fun showSet(index: Int) {
         if (index !in sets.indices || index == setIndex) return
+        if (unappliedDraft) pendingLeave = { switchToSet(index) } else switchToSet(index)
+    }
+
+    private fun switchToSet(index: Int) {
         cancelOperation()
         storeCurrentSet()
         coordinatesDraft = null
@@ -1065,9 +1078,6 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             SELECTED_SIZE_PREF, SELECTED_COLOR_PREF, INCIDENT_LINES_PREF, INCIDENT_COLOR_PREF, INCIDENT_WIDTH_PREF,
             LINES_PREF, LABELS_PREF, WIDE_WEIGHTS_PREF, STACKED_WEIGHTS_PREF,
         )
-
-        // a canvas press this soon after an outside click closed a menu is that same click
-        private val MENU_CLICK_GUARD = 500.milliseconds
 
         /** Slider ranges of the Display widget (stored values are clamped to them). */
         val POINT_RADIUS_RANGE = 2f..20f

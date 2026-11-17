@@ -50,9 +50,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -105,7 +102,7 @@ private fun MenuButton(state: AppState, label: String, items: @Composable () -> 
                 .testTag("menu-$label")
                 .clip(RoundedCornerShape(4.dp))
                 .clickable {
-                    val justClosed = dismissedAt?.let { it.elapsedNow() < REOPEN_GUARD } == true
+                    val justClosed = dismissedAt?.let { it.elapsedNow() < MENU_CLICK_GUARD } == true
                     state.openMenu = menuAfterTitleClick(state.openMenu, label, justClosed)
                 }
                 .padding(horizontal = 8.dp, vertical = 10.dp),
@@ -135,9 +132,9 @@ private fun MenuButton(state: AppState, label: String, items: @Composable () -> 
 fun menuAfterTitleClick(open: String?, label: String, justClosed: Boolean): String? =
     if (open == label || justClosed) null else label
 
-// a title click this soon after its menu's outside-click dismissal belongs to
+// a title or canvas click this soon after a menu's outside-click dismissal belongs to
 // the same click (press dismissed, release clicked)
-private val REOPEN_GUARD = 500.milliseconds
+internal val MENU_CLICK_GUARD = 500.milliseconds
 
 /** A menu entry: closes the menu, then runs [onClick]. */
 @Composable
@@ -163,8 +160,8 @@ fun MenuHeading(text: String) = Text(
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener(onError = { state.error = it }) { name, bytes -> state.open(name, bytes) }
     val saver = rememberFileSaver(onError = { state.error = it }) { name -> if (name != null) state.showInfo("Saved $name") }
-    // Escape closes an open menu: the popups are not focusable (see MenuButton),
-    // so the bar takes the focus while a menu is open
+    // the popups are not focusable (see MenuButton), so the bar takes the focus while a menu
+    // is open; Escape bubbles up from here to the app's key handler, which closes the menu
     val barFocus = remember { FocusRequester() }
     LaunchedEffect(state.openMenu) { if (state.openMenu != null) barFocus.requestFocus() }
     Row(
@@ -177,9 +174,6 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
             Modifier.horizontalScroll(rememberScrollState())
                 .testTag("menu-bar")
                 .focusRequester(barFocus)
-                .onKeyEvent {
-                    if (it.key == Key.Escape && state.openMenu != null) { state.openMenu = null; true } else false
-                }
                 .focusable(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -281,8 +275,11 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
         DialogKind.PROPERTIES -> PropertyPicker(state, close)
         DialogKind.IMPORT -> ImportDialog(state, close)
         DialogKind.EXPORT -> ExportDialog(state, close)
-        DialogKind.SAVE -> SaveChoiceDialog("Save file", null, onPick = { save(it); close() }, onDismiss = close) {
-            TextButton(onClick = close) { Text("Cancel") }
+        // "Save changes?" replaces it (no two format dialogs on top of each other)
+        DialogKind.SAVE -> if (state.pendingLeave == null) {
+            SaveChoiceDialog("Save file", null, ExportFormat.entries, onPick = { save(it); close() }, onDismiss = close) {
+                TextButton(onClick = close) { Text("Cancel") }
+            }
         }
         DialogKind.RANDOM -> RandomDialog(state, close)
         DialogKind.EXAMPLES -> ExamplesDialog(state, close)
@@ -290,9 +287,17 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
         DialogKind.ABOUT -> AboutDialog(close)
         DialogKind.HELP -> HelpDialog(state.helpPage, close)
     }
-    // Load / Examples / Import / Random / Open file / closing with unsaved changes (ktoy's);
-    // after the other dialogs, so it shows on top of the one that asked
-    if (state.pendingLeave != null) SaveChoiceDialog("Save changes?", unsavedText(state), onPick = ::save, onDismiss = state::cancelLeave) {
+    LaunchedEffect(state.pendingLeave != null) { if (state.pendingLeave != null && kind == DialogKind.SAVE) close() }
+    // Load / Examples / Import / Random / Open file / another set / closing with unsaved changes
+    // (ktoy's); after the other dialogs, so it shows on top of the one that asked. The format
+    // buttons save the points; a Data widget draft is never saved implicitly, only discarded.
+    if (state.pendingLeave != null) SaveChoiceDialog(
+        "Save changes?",
+        unsavedText(state),
+        if (state.pointsUnsaved) ExportFormat.entries else emptyList(),
+        onPick = ::save,
+        onDismiss = state::cancelLeave,
+    ) {
         TextButton(onClick = state::discardAndLeave) { Text("Discard") }
         TextButton(onClick = state::cancelLeave) { Text("Cancel") }
     }
@@ -309,11 +314,11 @@ private fun ErrorDialog(message: String, onDismiss: () -> Unit) = AlertDialog(
     confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
 )
 
-/** What "Save changes?" says is unsaved. */
-private fun unsavedText(state: AppState): String = buildList {
+/** What "Save changes?" says is unsaved, or null if nothing (the dialog shows no empty text). */
+private fun unsavedText(state: AppState): String? = buildList {
     if (state.pointsUnsaved) add("Your changes to “${state.fileName}” are not saved.")
     if (state.unappliedDraft) add("The coordinates edited in the Data widget are not applied.")
-}.joinToString(" ")
+}.joinToString(" ").takeIf { it.isNotEmpty() }
 
 @Composable
 private fun FormatSelect(format: ExportFormat, onFormat: (ExportFormat) -> Unit) {
@@ -321,13 +326,14 @@ private fun FormatSelect(format: ExportFormat, onFormat: (ExportFormat) -> Unit)
 }
 
 /**
- * Which format to save all sets as (ktoy's): [message], one full-width button per format, and
- * [buttons] below them (Cancel, or Discard / Cancel in "Save changes?").
+ * Which format to save all sets as (ktoy's): [message], one full-width button per format in
+ * [formats], and [buttons] below them (Cancel, or Discard / Cancel in "Save changes?").
  */
 @Composable
 private fun SaveChoiceDialog(
     title: String,
     message: String?,
+    formats: List<ExportFormat>,
     onPick: (ExportFormat) -> Unit,
     onDismiss: () -> Unit,
     buttons: @Composable () -> Unit,
@@ -338,7 +344,7 @@ private fun SaveChoiceDialog(
     text = {
         Column(Modifier.widthIn(min = 300.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             message?.let { Text(it, Modifier.padding(bottom = 4.dp), style = MaterialTheme.typography.bodyMedium) }
-            for (format in ExportFormat.entries) FilledTonalButton(onClick = { onPick(format) }, Modifier.fillMaxWidth()) {
+            for (format in formats) FilledTonalButton(onClick = { onPick(format) }, Modifier.fillMaxWidth()) {
                 Text(saveLabel(format))
             }
         }

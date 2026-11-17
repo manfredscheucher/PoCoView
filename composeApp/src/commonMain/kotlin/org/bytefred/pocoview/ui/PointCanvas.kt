@@ -186,7 +186,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                                     c.consume()
                                 }
                                 PointerEventType.Press -> {
-                                    if (st.menuSwallowsPress) {
+                                    if (st.consumeMenuPress()) {
                                         // the press only closes the open menu (its popup is not focusable)
                                         st.openMenu = null
                                         down = null; dragPoint = null

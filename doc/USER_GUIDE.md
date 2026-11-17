@@ -23,8 +23,7 @@
 The panels are widgets: Properties, Optimize, Data and Display. The buttons in the toolbar
 (also View menu, keys 1 to 4) show or hide them. In landscape each open widget is a column right of
 the canvas, in the order they were opened; in portrait they are stacked below the canvas, each with
-its own part of the height. The dividers between the canvas and the widgets, and between the widgets,
-can be dragged.
+its own part of the height. All dividers can be dragged.
 
 At most k widgets are open (Display widget, "Max. widgets", default 2). Opening one more closes
 the one that was clicked least recently (opening a widget or clicking into it counts).
@@ -61,7 +60,7 @@ Two switches control the view:
 
 - **Highlight**: draw the structures (filled polygons, crossing diagonals) of the properties whose
   switch on the right is on. With Highlight off nothing is drawn; the per-property switches only
-  take effect while Highlight is on.
+  take effect while Highlight is on. Off by default.
 - **Incident only**: count and draw only the structures that contain the selected point.
 
 At most 3000 structures per property are drawn; the panel says so if there are more. The highlight
@@ -113,9 +112,10 @@ order type hash.
   structures; Ipe files open in the Ipe editor.
 
 If the points changed since they were loaded or saved, Examples, Import, Random and Open file first
-ask "Save changes?": Save JSON or Save text saves and then goes on, Discard goes on without saving,
-Cancel stops. An unapplied edit in the Data widget counts as a change. On the desktop, closing the
-app asks the same.
+ask "Save changes?": Save JSON or Save text saves the points and goes on, Discard goes on without
+saving, Cancel stops. On the desktop, closing the app asks the same. An unapplied edit in the Data
+widget is never saved, only discarded: it alone gets just Discard and Cancel (also before switching
+to another set).
 
 Files with several sets can be browsed with the arrows in the toolbar or PageUp/PageDown; after
 loading such a file a short note says so (can be switched off).

@@ -105,6 +105,9 @@ Review fixes (decided with reviewer, following ktoy):
 - 17: "Reset to defaults" also resets the divider positions (and forgets them); property switches and
   colours stay.
 - 18: "set i/n" stays in the menu bar and the toolbar.
+- Second review: a Data widget draft is never saved implicitly; "Save changes?" shows the format
+  buttons only when the points are unsaved (draft alone: Discard / Cancel). Switching sets with a
+  draft (PageUp/PageDown, < >) asks the same instead of dropping it.
 
 Other review fixes: a file that cannot be read or written shows the error dialog instead of crashing
 (a failed save counts as not saved and does not quit); a canvas click that closes a menu does nothing

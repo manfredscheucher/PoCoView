@@ -153,7 +153,7 @@ fun App(
     } }
 }
 
-/** Escape closes the open menu (the menu bar handles it too, while it has the focus). */
+/** Escape closes the open menu (the menu bar takes the focus while one is open). */
 private fun closeMenuOnEscape(e: KeyEvent, state: AppState): Boolean {
     if (e.type != KeyEventType.KeyDown || e.key != Key.Escape || state.openMenu == null) return false
     state.openMenu = null

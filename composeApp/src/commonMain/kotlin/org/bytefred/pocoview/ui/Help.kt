@@ -84,8 +84,7 @@ private val GENERAL_TEXT = listOf(
         "by default, so you see its cell (Display widget, Lines through it).",
     "The widgets are Properties, Optimize, Data and Display. The toolbar, the View menu and the keys 1 to " +
         "4 show and hide them. By default at most two are open (Display widget, Max. widgets); opening " +
-        "another one closes the one you clicked least recently. The dividers between the canvas and the " +
-        "widgets and between the widgets can be dragged.",
+        "another one closes the one you clicked least recently. All dividers can be dragged.",
     "The Data widget has the coordinates as text, one x y or x y colour per line: edit them and press " +
         "Apply, or Revert. It also shows the order type hash and, up to 30 points, the λ matrix.",
     "The Display widget sets how points and lines are drawn, the number of widgets and the layout. These " +
@@ -95,7 +94,8 @@ private val GENERAL_TEXT = listOf(
         "Import… reads pasted text, Random… makes a random set and Export… gives the text to copy. Open " +
         "file… and Save file… read and write files, Export SVG and Export Ipe save a picture.",
     "If the points have changed since they were loaded or saved, PoCoView asks whether to save them before " +
-        "it replaces them. On the desktop, closing the app asks too.",
+        "it replaces them. On the desktop, closing the app asks too. An unapplied edit in the Data widget " +
+        "is never saved, only discarded.",
     "Files with several sets show one set at a time; switch with < and > in the toolbar or PageUp and " +
         "PageDown.",
 )
@@ -105,7 +105,7 @@ private val PROPERTIES_TEXT = listOf(
         "the order type (the monochromatic ones also on the colours), and all need general position. " +
         "Triangulations is off by default (it is slow).",
     "Highlight draws the structures of every property whose switch is on, for example the 5-holes as " +
-        "filled polygons. It is off at start. At most 3000 structures per property are drawn, " +
+        "filled polygons. It is off by default. At most 3000 structures per property are drawn, " +
         "and the colour of each property is set in Select properties….",
     "Incident only counts and draws only the structures that contain the selected point.",
     "Convex hull: the number of points on the convex hull.",

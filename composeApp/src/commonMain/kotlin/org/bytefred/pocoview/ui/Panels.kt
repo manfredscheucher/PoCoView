@@ -22,9 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +63,6 @@ import org.bytefred.pocoview.core.PROPERTY_SEARCH_FLOWS
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.bitsOf
-import org.bytefred.pocoview.core.extent
 import org.bytefred.pocoview.core.smallLambda
 import kotlin.math.roundToInt
 
@@ -477,7 +474,7 @@ private fun DataTab(state: AppState) {
     val mark = MaterialTheme.colorScheme.tertiaryContainer
     val sel = state.selected
     OutlinedTextField(
-        draft ?: current, onValueChange = { state.coordinatesDraft = it },
+        draft ?: current, onValueChange = state::editCoordinates,
         textStyle = MonoStyle,
         // the line of the selected point is highlighted
         visualTransformation = remember(sel, mark) { LineHighlight(sel, mark) },

@@ -259,6 +259,30 @@ class RememberAndSafeguardTest {
 
         s.coordinatesDraft = null
         assertFalse(s.unsavedChanges)
+        // typing the points' own text is no draft
+        s.editCoordinates(s.coordinatesText())
+        assertNull(s.coordinatesDraft)
+    }
+
+    @Test
+    fun switchingSetsWithADraftAsksFirst() {
+        val s = state()
+        s.loadSets("two", listOf(triangle, triangle.map { Pt(it.x + 1, it.y) }))
+        s.editCoordinates("1 2\n3 4\n5 7")
+        s.showSet(1)
+        assertEquals(0, s.setIndex)
+        assertNotNull(s.pendingLeave)
+        s.cancelLeave()
+        assertEquals("1 2\n3 4\n5 7", s.coordinatesDraft)
+        s.showSet(1)
+        s.discardAndLeave()
+        assertEquals(1, s.setIndex)
+        assertNull(s.coordinatesDraft)
+        // without a draft it switches right away, keeping the point edits
+        s.deletePoint(0)
+        s.showSet(0)
+        assertEquals(0, s.setIndex)
+        assertNull(s.pendingLeave)
     }
 
     @Test

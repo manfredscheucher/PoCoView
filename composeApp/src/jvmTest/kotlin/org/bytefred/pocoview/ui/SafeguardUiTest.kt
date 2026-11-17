@@ -174,6 +174,22 @@ class SafeguardUiTest {
     }
 
     @Test
+    fun aDraftAloneOffersOnlyDiscardAndCancel() = runComposeUiTest {
+        val s = state()
+        s.editCoordinates("1 2\n3 4\n5 7")
+        setContent { App(s, DialogKind.RANDOM) }
+        onNodeWithText("Generate").performClick()
+        waitForIdle()
+        onNodeWithText("Save changes?").assertExists()
+        onNodeWithText("The coordinates edited in the Data widget are not applied.").assertExists()
+        onNodeWithText("Save JSON").assertDoesNotExist()
+        onNodeWithText("Discard").performClick()
+        waitForIdle()
+        assertEquals("random", s.fileName)
+        assertNull(s.coordinatesDraft)
+    }
+
+    @Test
     fun closeRequestWhileTheSaveDialogIsOpenShowsSaveChanges() = runComposeUiTest {
         val s = state()
         var closes by mutableIntStateOf(0)
@@ -183,7 +199,9 @@ class SafeguardUiTest {
         closes++
         waitForIdle()
         onNodeWithText("Save changes?").assertExists()
-        onAllNodesWithText("Save JSON").assertCountEquals(2)
+        // the Save dialog made way for it
+        onNodeWithText("Save file").assertDoesNotExist()
+        onAllNodesWithText("Save JSON").assertCountEquals(1)
         onNodeWithText("Discard").performClick()
         waitForIdle()
         assertEquals(1, closed)
@@ -235,8 +253,7 @@ class SafeguardUiTest {
         waitForIdle()
         assertNull(s.openMenu)
         assertEquals(n, s.points.size)
-        // the next click (not the one that closed the menu) adds
-        Thread.sleep(600)
+        // only the closing click is swallowed: the next one adds right away
         onNodeWithTag("canvas").performMouseInput { click(empty) }
         waitForIdle()
         assertEquals(n + 1, s.points.size, s.status?.text)
