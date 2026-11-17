@@ -3,6 +3,7 @@ package org.bytefred.pocoview.core
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ExamplesTest {
@@ -28,6 +29,14 @@ class ExamplesTest {
         for (e in catalog.categories.flatMap { it.examples }) for (l in e.links) {
             assertTrue(l.url != "https://www.eurogiga-compose.eu/posezo.php" && "markov/sixgon" !in l.url, "${e.name}: ${l.url}")
         }
+    }
+
+    @Test
+    fun propertiesKeyIsParsedAndChecked() {
+        val base = """{"name": "n3-c1-t", "description": "d", "group": "g", "points": [[0, 0], [1, 0], [0, 1]]"""
+        assertEquals(emptyList(), parseExample("$base}", "t.json").properties)
+        assertEquals(listOf("triangulations"), parseExample("$base, \"properties\": [\"triangulations\"]}", "t.json").properties)
+        assertFailsWith<FormatException> { parseExample("$base, \"properties\": [\"nope\"]}", "t.json") }
     }
 
     @Test

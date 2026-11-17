@@ -350,7 +350,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             }
             is ExampleChoice.Single -> {
                 val e = choice.example
-                state.confirmReplace { state.loadPoints(e.name, e.points); close() }
+                state.confirmReplace { state.loadPoints(e.name, e.points, e.properties); close() }
             }
         }
     }

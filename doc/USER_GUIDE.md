@@ -42,7 +42,7 @@ depend only on the order type, so they are recomputed only when the order type c
 | k-holes | empty convex k-gons (no point inside), k = 3..7 |
 | Convex k-gons | k points in convex position, k = 4..7 |
 | Crossing family | largest set of segments that pairwise cross (drawn red and bold; up to n = 50). Aichholzer, Kynčl, Scheucher, Vogtenhuber, Valtr, Comput. Geom. 107 (2022) |
-| Triangulations | number of triangulations (exponential, only up to n = 16) |
+| Triangulations | number of triangulations (exponential, only up to n = 16; off by default) |
 | Monochromatic convex k-holes | bicolored sets: empty convex k-gons (no point of any colour inside) with vertices of one colour, k = 3..5 (old pyotlib) |
 | Monochromatic general k-holes | the same for simple, not necessarily convex empty polygons, k = 4, 5 |
 | Monochromatic k-islands | k points of one colour that are all points of S in their convex hull, k = 4..6; drawn through the hull vertices |

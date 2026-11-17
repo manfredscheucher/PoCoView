@@ -451,8 +451,11 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         pendingReplace = action
     }
 
-    /** Loads an example or a generated family member as the only set. */
-    fun loadPoints(name: String, p: List<Pt>) = load(name, listOf(p))
+    /** Loads an example or a generated family member as the only set, switching on [showProperties]. */
+    fun loadPoints(name: String, p: List<Pt>, showProperties: Collection<String> = emptyList()) {
+        for (id in showProperties) toggles[id]?.let { toggles[id] = it.copy(count = true) }
+        load(name, listOf(p))
+    }
 
     /** Loads several sets (e.g. from `importPointSets`) like a multi-set file; the first one is shown. */
     fun loadSets(name: String, loaded: List<List<Pt>>) = load(name, loaded)
@@ -812,7 +815,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     }
 
     companion object {
-        val DEFAULT_COUNTED = setOf("hull", "onion", "crossings", "hole3", "hole4", "hole5", "hole6", "triangulations")
+        val DEFAULT_COUNTED = setOf("hull", "onion", "crossings", "hole3", "hole4", "hole5", "hole6")
         val DEFAULT_DRAWN = setOf("hole5")
         private const val CACHE_SIZE = 64
         const val SEARCH_TITLE = "Searching for a better configuration"

@@ -48,6 +48,7 @@ File = the app's JSON point format plus metadata:
   "source": "where the coordinates were taken from",
   "claim": "optional: what the source states",
   "note": "optional remark",
+  "properties": ["triangulations"],
   "points": [[x, y], [x, y, "color"]]
 }
 ```
@@ -56,6 +57,11 @@ Names: `n<N>-c<colors>-<description>`, lowercase words joined by `-`, numbers wi
 zeros; two sets with the same description get their source as a suffix
 (`n16-c1-no-convex-6-gon-kalbfleisch-stanton`). The loader checks the name and `n`. To add a set,
 add its file and list it in `index.json`.
+
+`properties` (optional) lists property ids that are switched on when the example is loaded, for
+properties that are off by default but essential for that set (e.g. `triangulations`, which is
+exponential and therefore off by default). Unknown ids are rejected by the loader. Loading an example
+only switches properties on, never off.
 
 ## Deploy to GitHub Pages
 

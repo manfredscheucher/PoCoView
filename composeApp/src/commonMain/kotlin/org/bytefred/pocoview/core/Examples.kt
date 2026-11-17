@@ -14,6 +14,8 @@ data class Example(
     val points: List<Pt>,
     /** Optional remark, e.g. "same order type as …". */
     val note: String? = null,
+    /** Ids of properties switched on when the example is loaded (e.g. "triangulations", off by default). */
+    val properties: List<String> = emptyList(),
 )
 
 /** A category of examples as listed in files/examples/index.json. */
@@ -61,10 +63,14 @@ fun parseExample(text: String, file: String): Example {
         },
         points = o.list("points", file).map { point(it, file) },
         note = o.optString("note", file),
+        properties = (o["properties"] as? List<*> ?: emptyList<Any?>()).map { id ->
+            id as? String ?: throw FormatException("$file: \"properties\" must be an array of property ids")
+        },
     ).also {
         // the metadata must match the points (names follow n<N>-c<colors>-<description>)
         val n = o["n"] as? Long
         if (n != null && n != it.points.size.toLong()) throw FormatException("$file: \"n\" is $n, but there are ${it.points.size} points")
+        for (id in it.properties) if (ALL_PROPERTIES.none { p -> p.id == id }) throw FormatException("$file: unknown property '$id'")
         if (!Regex("n${it.points.size}-c[0-9]+-[a-z0-9-]+").matches(it.name)) throw FormatException("$file: name '${it.name}' does not follow n<N>-c<colors>-<description>")
     }
 }

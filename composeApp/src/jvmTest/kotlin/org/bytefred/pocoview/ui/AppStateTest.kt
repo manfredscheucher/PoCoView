@@ -409,6 +409,16 @@ class AppStateTest {
     }
 
     @Test
+    fun triangulationsOffByDefaultExampleSwitchesThemOn() = runBlocking<Unit> {
+        val s = state()
+        assertFalse(s.toggles.getValue("triangulations").count)
+        s.loadPoints("ex", pentagon, showProperties = listOf("triangulations"))
+        s.awaitIdle()
+        assertTrue(s.toggles.getValue("triangulations").count)
+        assertEquals(5L, s.done("triangulations").count)
+    }
+
+    @Test
     fun wrtPropertyRespectsMaxN() {
         val s = state()
         s.loadPoints("h", org.bytefred.pocoview.core.HortonFamily.generate(64))
