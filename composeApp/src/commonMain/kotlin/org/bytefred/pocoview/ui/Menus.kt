@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.mutableStateListOf
 import org.bytefred.pocoview.GeneratedBuildInfo
+import org.bytefred.pocoview.GeneratedLicenses
 import org.bytefred.pocoview.core.ExampleCatalog
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -57,7 +58,6 @@ import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.PointSetFamily
 import org.bytefred.pocoview.core.Structure
-import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.loadExamples
 import org.bytefred.pocoview.core.ALL_PROPERTIES
 import org.bytefred.pocoview.core.CrossingProperty
@@ -84,8 +84,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-/** Which dialog is open (the menu bar and the properties widget open them). */
-enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME }
+/** Which dialog is open (the menu bar and the properties widget open them); [help]: the Help page it shows. */
+enum class DialogKind(val help: HelpPage? = null) {
+    NONE, PROPERTIES, ABOUT, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME,
+    HELP_GENERAL(HelpPage.GENERAL), HELP_PROPERTIES(HelpPage.PROPERTIES), HELP_OPTIMIZE(HelpPage.OPTIMIZE),
+    HELP_SHORTCUTS(HelpPage.SHORTCUTS),
+}
 
 /**
  * A menu title that opens a [DropdownMenu] (ktoy's). Plain clickable text rather than a
@@ -224,8 +228,8 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Select properties…") { openDialog(DialogKind.PROPERTIES) }
             }
             MenuButton(state, "Help") {
+                for (kind in DialogKind.entries) kind.help?.let { page -> Item(state, page.title) { openDialog(kind) } }
                 Item(state, "About PoCoView") { openDialog(DialogKind.ABOUT) }
-                Item(state, "Keyboard shortcuts") { openDialog(DialogKind.SHORTCUTS) }
             }
         }
         // one line + ellipsis, shrinking (weight), so a long name cannot push the menus off-screen
@@ -282,9 +286,21 @@ fun Dialogs(state: AppState, kind: DialogKind, open: (DialogKind) -> Unit, close
         DialogKind.EXAMPLES -> ExamplesDialog(state, close)
         DialogKind.WELCOME -> WelcomeDialog(close = close, showExamples = { open(DialogKind.EXAMPLES) })
         DialogKind.ABOUT -> AboutDialog(close)
-        DialogKind.SHORTCUTS -> TextDialog("Keyboard shortcuts", SHORTCUTS, close)
+        DialogKind.HELP_GENERAL, DialogKind.HELP_PROPERTIES, DialogKind.HELP_OPTIMIZE, DialogKind.HELP_SHORTCUTS ->
+            HelpDialog(checkNotNull(kind.help), close)
     }
+    // last, so it shows on top of the dialog the error came from
+    state.error?.let { ErrorDialog(it) { state.error = null } }
 }
+
+/** A load or parse error the user must see (the status line is for info): one OK button. */
+@Composable
+private fun ErrorDialog(message: String, onDismiss: () -> Unit) = AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text("Error") },
+    text = { Text(message, style = MaterialTheme.typography.bodyMedium) },
+    confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+)
 
 /** Asked before anything replaces the current point set. */
 @Composable
@@ -352,29 +368,22 @@ private fun ExportDialog(state: AppState, close: () -> Unit) {
 @Composable
 private fun ImportDialog(state: AppState, close: () -> Unit) {
     var text by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
     BigDialog(
         "Import",
         onDismiss = close,
         buttons = {
             TextButton(onClick = close) { Text("Cancel") }
             TextButton(onClick = {
-                try {
-                    val sets = importPointSets(text)
-                    state.confirmReplace { state.loadSets("imported", sets); close() }
-                } catch (e: Exception) {
-                    error = e.message ?: "Cannot read the content"
-                }
+                state.parseImport(text)?.let { sets -> state.confirmReplace { state.loadSets("imported", sets); close() } }
             }) { Text("Import") }
         },
     ) {
         Text(IMPORT_FORMATS, style = MonoStyle)
         OutlinedTextField(
-            text, onValueChange = { text = it; error = null },
+            text, onValueChange = { text = it },
             textStyle = MonoStyle,
             modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).textFocus(state),
         )
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
     }
 }
 
@@ -437,7 +446,13 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     val ex = state.examples
     LaunchedEffect(Unit) {
         if (ex.catalog == null) {
-            try { ex.catalog = loadExamples(); ex.error = null } catch (e: Exception) { ex.error = e.message ?: "Cannot load the examples" }
+            try {
+                ex.catalog = loadExamples()
+                ex.error = null
+            } catch (e: Exception) {
+                ex.error = e.message ?: "unknown error"
+                state.error = "Cannot load the examples: ${ex.error}"
+            }
         }
     }
     val open = ex.expanded
@@ -662,7 +677,7 @@ private fun OperationDialog(state: AppState, title: String) = AlertDialog(
     },
 )
 
-/** About: description, feedback box, the projects with their licenses, build identity. */
+/** About: description, feedback box, the projects with their licenses, build identity, license texts. */
 @Composable
 private fun AboutDialog(close: () -> Unit) = AlertDialog(
     onDismissRequest = close,
@@ -681,27 +696,32 @@ private fun AboutDialog(close: () -> Unit) = AlertDialog(
             )
             Spacer(Modifier.height(8.dp))
             Text(buildLine(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            var showLicenses by remember { mutableStateOf(false) }
+            TextButton(onClick = { showLicenses = !showLicenses }) {
+                Text(if (showLicenses) "Hide license texts" else "License texts")
+            }
+            if (showLicenses) {
+                for (notice in GeneratedLicenses.NOTICES) {
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                    Text(notice.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(notice.text, style = MonoStyle.copy(fontSize = MaterialTheme.typography.labelSmall.fontSize))
+                }
+            }
         }
     },
 )
 
-/** One About line "[name] (MIT): note"; only the name is a link. */
+/** One About line "[name] (license): note" (no bracket without a license); only the name is a link. */
 @Composable
-private fun ProjectLine(name: String, url: String, note: String) {
+private fun ProjectLine(name: String, url: String, note: String, license: String? = "MIT") {
     Row {
         LinkText(name, url, MaterialTheme.typography.bodyMedium)
-        Text(" (MIT): $note", Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            (license?.let { " ($it)" } ?: "") + ": $note",
+            Modifier.padding(vertical = 2.dp),
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
-}
-
-/** A help page: scrolling text in a [BigDialog]. */
-@Composable
-private fun TextDialog(title: String, text: String, close: () -> Unit) = BigDialog(
-    title,
-    onDismiss = close,
-    buttons = { TextButton(onClick = close) { Text("Close") } },
-) {
-    ScrollColumn(Modifier.fillMaxSize()) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 }
 
 /** A colour swatch; click opens a palette with a hex field (#RRGGBB). */
@@ -807,19 +827,3 @@ private fun buildLine(): String = buildList {
     if (GeneratedBuildInfo.COMMIT_DATE != "unknown") add("committed ${GeneratedBuildInfo.COMMIT_DATE}")
     add("built ${GeneratedBuildInfo.BUILD_DATE}")
 }.joinToString(" · ")
-
-private const val SHORTCUTS = """Esc: deselect
-Del / Backspace: delete the selected point
-Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y): undo / redo
-+ / -: zoom;  Home or 0: fit
-V / A / D: tools move / add / delete
-F: lock order type
-M: minimize;  B: beautify (Optimize widget)
-L: line arrangement
-H: highlight on/off
-I: incident only on/off
-Enter: qtvis minimizer (property and parameters of the Optimize widget)
-1 .. 4: show / hide the widgets Properties, Optimize, Data, Display
-PageUp / PageDown (, / .): previous / next set of the file
-
-Mouse: drag a point to move it, drag empty space to pan, wheel or pinch to zoom."""

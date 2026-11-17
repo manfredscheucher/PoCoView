@@ -244,15 +244,35 @@ class AppStateTest {
     }
 
     @Test
-    fun badFilesGiveMessagesNotCrashes() {
+    fun badFilesGiveErrorsNotCrashes() {
         val s = state()
         val before = s.points
-        s.open("bad.asc", "-3\n1 2\n".encodeToByteArray())
-        s.open("x0.b08", ByteArray(4))
-        s.open("bad.json", "[[1.5, 2]]".encodeToByteArray())
+        for ((name, bytes) in listOf(
+            "bad.asc" to "-3\n1 2\n".encodeToByteArray(),
+            "x0.b08" to ByteArray(4),
+            "bad.json" to "[[1.5, 2]]".encodeToByteArray(),
+        )) {
+            s.error = null
+            s.open(name, bytes)
+            assertTrue(s.error!!.startsWith("Cannot open $name: "), s.error)
+        }
+        s.error = null
         s.applyCoordinatesText("-3\n")
+        assertTrue(s.error!!.startsWith("Cannot apply the coordinates: "), s.error)
         assertEquals(before, s.points)
-        assertTrue(s.message != null)
+    }
+
+    @Test
+    fun badImportSetsTheErrorAndLoadsNothing() {
+        val s = state()
+        val before = s.points
+        assertNull(s.parseImport("1 2\nx y\n"))
+        assertTrue(s.error!!.startsWith("Cannot import the text: "), s.error)
+        assertNull(s.pendingReplace)
+        assertEquals(before, s.points)
+        s.error = null
+        assertEquals(listOf(square), s.parseImport(writeText(square)))
+        assertNull(s.error)
     }
 
     @Test

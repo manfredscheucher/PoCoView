@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -325,10 +326,11 @@ private fun OptBox(title: String, onReset: (() -> Unit)?, content: @Composable (
     }
 }
 
+/** The run button of an optimizer box (filled, the main action) and Repeat (outlined), like ktoy's Step/Run bar. */
 @Composable
 private fun RunButtons(run: String, idle: Boolean, onRun: () -> Unit, onRepeat: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-        OutlinedButton(onClick = onRun, enabled = idle) { Text(run) }
+        Button(onClick = onRun, enabled = idle) { Text(run) }
         OutlinedButton(onClick = onRepeat, enabled = idle) { Text("Repeat") }
     }
 }

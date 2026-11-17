@@ -40,6 +40,15 @@ Accepted packages (all four):
 - Load/parse errors in a modal error dialog; the status line stays for info.
 - Main Optimize actions are filled buttons, secondary ones outlined.
 - About: license texts generated at build time (incl. DejaVu font).
+- Implemented: Help menu = the four pages, then About PoCoView (ktoy order); the old shortcuts
+  dialog is the Keyboard shortcuts page. Each paragraph starts with bold lead-in words (on the
+  shortcuts page the key). The error dialog is titled "Error" and shows one message
+  ("Cannot open X: …", "Cannot import the text: …", "Cannot apply the coordinates: …" for the Data
+  widget's Apply, "Cannot load the examples: …"); the examples tree still shows the reason inline.
+  Optimizer failures, the random set failure and other notes stay in the status line. Only the run
+  buttons are filled; Repeat is outlined, the small Reset stays a text button. License texts:
+  PoCoView's LICENSE and the DejaVu font license. As in ktoy, the Kotlin/Compose libraries are not
+  listed; pyotlib2 (whose code is ported) has the same author and license, so no extra text.
 
 **D. Remember / safeguard**
 - Display settings (layout, max widgets, open widgets, point size, line colour/alpha, selected-point

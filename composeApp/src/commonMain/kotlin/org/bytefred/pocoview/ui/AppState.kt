@@ -39,6 +39,7 @@ import org.bytefred.pocoview.core.canAdd
 import org.bytefred.pocoview.core.collinearPoints
 import org.bytefred.pocoview.core.extent
 import org.bytefred.pocoview.core.exportPointSets
+import org.bytefred.pocoview.core.importPointSets
 import org.bytefred.pocoview.core.inRange
 import org.bytefred.pocoview.core.minimizeCoords
 import org.bytefred.pocoview.core.minimizeIntegerCoordinates
@@ -215,6 +216,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     var loadedSetsNotice by mutableStateOf<Int?>(null)
     var message by mutableStateOf<String?>(null)
+
+    /** A load or parse error, shown in a modal error dialog until the user clears it with OK. */
+    var error by mutableStateOf<String?>(null)
     var busy by mutableStateOf<String?>(null)
         private set
 
@@ -445,7 +449,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
             coordinatesDraft = null
             requestFit()
         } catch (e: Exception) {
-            message = e.message ?: "Could not parse the coordinates"
+            error = "Cannot apply the coordinates: ${e.message ?: "unknown format"}"
         }
     }
 
@@ -459,9 +463,18 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         try {
             load(name, readPointSets(name, bytes))
         } catch (e: Exception) {
-            message = "Cannot open $name: ${e.message}"
+            error = "Cannot open $name: ${e.message}"
         }
     }
+
+    /** The point sets in pasted [text] (Import), or null after setting [error]. */
+    fun parseImport(text: String): List<List<Pt>>? =
+        try {
+            importPointSets(text)
+        } catch (e: Exception) {
+            error = "Cannot import the text: ${e.message ?: "unknown format"}"
+            null
+        }
 
     /** An action that replaces the point set, waiting for the user's confirmation (dialog). */
     var pendingReplace by mutableStateOf<(() -> Unit)?>(null)

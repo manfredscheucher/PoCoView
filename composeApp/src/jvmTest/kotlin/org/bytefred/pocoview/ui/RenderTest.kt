@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
+import org.bytefred.pocoview.GeneratedLicenses
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.loadExamples
@@ -109,6 +110,29 @@ class RenderTest {
         assertEquals(family, ex.selected)
         assertEquals(7, ex.familyN[family.family.id])
         assertTrue("Singletons" in ex.expanded)
+    }
+
+    @Test
+    fun everyHelpPageHasAMenuEntryAndText() {
+        assertEquals(HelpPage.entries.toList(), DialogKind.entries.mapNotNull { it.help })
+        for (page in HelpPage.entries) assertTrue(helpText(page).all { (bold, text) -> bold.isNotBlank() && text.isNotBlank() }, page.title)
+    }
+
+    @Test
+    fun errorDialogRendersOverADialog() {
+        val s = state()
+        s.parseImport("not a point set")
+        assertNotNull(s.error)
+        render(s, DialogKind.IMPORT)
+        render(s, w = 420, h = 860)
+    }
+
+    @Test
+    fun licenseTextsAreGenerated() {
+        val notices = GeneratedLicenses.NOTICES
+        assertEquals(listOf("PoCoView (MIT)", "Font: DejaVu Sans Mono (Bitstream Vera license)"), notices.map { it.title })
+        assertTrue(notices[0].text.startsWith("MIT License"))
+        assertTrue("Bitstream Vera" in notices[1].text)
     }
 
     @Test
