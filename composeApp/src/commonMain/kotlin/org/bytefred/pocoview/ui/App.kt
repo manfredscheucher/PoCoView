@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -62,7 +61,7 @@ private fun Modifier.touches(state: AppState, w: Widget) = pointerInput(w) {
 
 @Composable
 fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
-    MaterialTheme {
+    PoCoViewTheme { ProvideMonoStyle {
         val state = remember { initialState ?: AppState() }
         val view = remember { ViewTransform() }
         val focus = remember { FocusRequester() }
@@ -149,7 +148,7 @@ fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
                 StatusBar(state)
             }
         }
-    }
+    } }
 }
 
 private fun handleKey(e: KeyEvent, state: AppState, view: ViewTransform): Boolean {

@@ -9,7 +9,9 @@ import kotlinx.coroutines.runBlocking
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.loadExamples
+import org.bytefred.pocoview.resources.Res
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
  * Renders the whole app offscreen (landscape and portrait) with every example, every family and
@@ -68,5 +70,11 @@ class RenderTest {
         for (w in Widget.entries) if (w !in s.openWidgets) s.toggleWidget(w)
         render(s, w = 1800, h = 900)
         render(s, w = 420, h = 860)
+    }
+
+    @Test
+    fun monoFontIsBundled() {
+        // MonoStyle uses it; without it the web build falls back to a proportional font
+        assertTrue(runBlocking { Res.readBytes("font/dejavu_sans_mono.ttf") }.isNotEmpty())
     }
 }

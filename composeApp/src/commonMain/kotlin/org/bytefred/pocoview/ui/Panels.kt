@@ -44,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
@@ -448,7 +447,7 @@ private fun DataTab(state: AppState) {
         if (state.collinear.isEmpty()) "General position: yes" else "General position: NO (points ${state.collinear.sorted().joinToString()})",
         style = MaterialTheme.typography.bodyMedium,
     )
-    Text("Hash: ${state.orderTypeHash}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+    Text("Hash: ${state.orderTypeHash}", style = MonoStyle)
     Spacer(Modifier.height(8.dp))
     Text("Coordinates", style = MaterialTheme.typography.titleSmall)
     val current = p.joinToString("\n") { "${it.x} ${it.y}" + (it.color?.let { c -> " $c" } ?: "") }
@@ -458,7 +457,7 @@ private fun DataTab(state: AppState) {
     val sel = state.selected
     OutlinedTextField(
         draft ?: current, onValueChange = { state.coordinatesDraft = it },
-        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        textStyle = MonoStyle,
         // the line of the selected point is highlighted
         visualTransformation = remember(sel, mark) { LineHighlight(sel, mark) },
         modifier = Modifier.fillMaxWidth().height(200.dp).textFocus(state),
@@ -478,7 +477,7 @@ private fun DataTab(state: AppState) {
                     .joinToString("\n"),
                 sel, mark,
             ),
-            fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+            style = MonoStyle.copy(fontSize = 11.sp),
             modifier = Modifier.horizontalScroll(rememberScrollState()),
         )
     }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,15 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextDecoration
 import org.bytefred.pocoview.GeneratedBuildInfo
 import org.bytefred.pocoview.core.ExampleCatalog
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +51,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.Role
 import org.bytefred.pocoview.core.Example
 import org.bytefred.pocoview.core.ExportFormat
@@ -97,7 +93,10 @@ private fun CheckItem(text: String, checked: Boolean, close: () -> Unit, onToggl
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
     val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().background(MENU_BAR_COLOR).padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text("PoCoView", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
         Menu("Point Set") { close ->
             Item("Import…", close) { openDialog(DialogKind.IMPORT) }
@@ -234,24 +233,21 @@ private fun ExportDialog(state: AppState, close: () -> Unit) {
     var format by remember { mutableStateOf(ExportFormat.JSON) }
     val clipboard = LocalClipboardManager.current
     val text = state.exportText(format)
-    AlertDialog(
-        onDismissRequest = close,
-        confirmButton = { TextButton(onClick = close) { Text("Close") } },
-        dismissButton = {
+    BigDialog(
+        "Export",
+        onDismiss = close,
+        buttons = {
             TextButton(onClick = { clipboard.setText(AnnotatedString(text)); state.message = "Copied" }) { Text("Copy") }
+            TextButton(onClick = close) { Text("Close") }
         },
-        title = { Text("Export") },
-        text = {
-            Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
-                FormatSelect(format) { format = it }
-                OutlinedTextField(
-                    text, onValueChange = {}, readOnly = true,
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.fillMaxWidth().height(260.dp).padding(top = 8.dp).textFocus(state),
-                )
-            }
-        },
-    )
+    ) {
+        FormatSelect(format) { format = it }
+        OutlinedTextField(
+            text, onValueChange = {}, readOnly = true,
+            textStyle = MonoStyle,
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).textFocus(state),
+        )
+    }
 }
 
 /** Paste a point set; the format is detected. */
@@ -259,9 +255,11 @@ private fun ExportDialog(state: AppState, close: () -> Unit) {
 private fun ImportDialog(state: AppState, close: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    AlertDialog(
-        onDismissRequest = close,
-        confirmButton = {
+    BigDialog(
+        "Import",
+        onDismiss = close,
+        buttons = {
+            TextButton(onClick = close) { Text("Cancel") }
             TextButton(onClick = {
                 try {
                     val sets = importPointSets(text)
@@ -271,20 +269,15 @@ private fun ImportDialog(state: AppState, close: () -> Unit) {
                 }
             }) { Text("Import") }
         },
-        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
-        title = { Text("Import") },
-        text = {
-            Column(Modifier.widthIn(min = 320.dp, max = 560.dp)) {
-                Text(IMPORT_FORMATS, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
-                OutlinedTextField(
-                    text, onValueChange = { text = it; error = null },
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = 8.dp).textFocus(state),
-                )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            }
-        },
-    )
+    ) {
+        Text(IMPORT_FORMATS, style = MonoStyle)
+        OutlinedTextField(
+            text, onValueChange = { text = it; error = null },
+            textStyle = MonoStyle,
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp).textFocus(state),
+        )
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    }
 }
 
 private const val IMPORT_FORMATS = """{"points": [[x, y], [x, y, "color"], ...]}  (one set per line)
@@ -354,96 +347,99 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             }
         }
     }
-    val uri = LocalUriHandler.current
-    AlertDialog(
-        onDismissRequest = close,
-        confirmButton = { TextButton(onClick = ::load, enabled = selected != null) { Text("Load") } },
-        dismissButton = { TextButton(onClick = close) { Text("Cancel") } },
-        title = { Text("Examples") },
-        text = {
-            ScrollColumn(Modifier.widthIn(min = 320.dp, max = 640.dp).heightIn(max = 560.dp)) {
-                FeedbackBox("Know a set that belongs here, or have general feedback?")
-                Spacer(Modifier.height(8.dp))
-                SectionHeader("Families", "Families" in open, level = 0) { toggle("Families") }
-                if ("Families" in open) for (f in FAMILIES) {
-                    val choice = ExampleChoice.Family(f)
-                    RadioRow(f.name, selected == choice, indent = 16) { selected = choice; nError = null }
-                    if (selected == choice) FamilyDetails(state, f, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
-                        familyN[f.id] = it
-                        nError = null
-                    }
-                }
-                SectionHeader("Singletons", "Singletons" in open, level = 0) { toggle("Singletons") }
-                if ("Singletons" in open) {
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    if (catalog == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
-                    for (g in catalog?.categories.orEmpty()) {
-                        val key = "S/" + g.title
-                        SectionHeader("${g.title} (${g.examples.size})", key in open, level = 1) { toggle(key) }
-                        if (key in open) for (e in g.examples) {
-                            val choice = ExampleChoice.Single(e)
-                            RadioRow(e.name, selected == choice, indent = 32) { selected = choice }
-                            if (selected == choice) ExampleDetails(e)
-                        }
-                    }
-                }
-                SectionHeader("Links", "Links" in open, level = 0) { toggle("Links") }
-                if ("Links" in open) for (l in catalog?.links.orEmpty()) Column(
-                    Modifier.fillMaxWidth().clickable { openUriSafely(uri, l.url) }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
-                ) {
-                    Text(l.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                    l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    Text(l.url, style = MaterialTheme.typography.labelSmall)
+    BigDialog(
+        "Examples",
+        onDismiss = close,
+        buttons = {
+            TextButton(onClick = close) { Text("Cancel") }
+            TextButton(onClick = ::load, enabled = selected != null) { Text("Load") }
+        },
+    ) {
+        ScrollColumn(Modifier.fillMaxSize()) {
+            FeedbackBox("Know a set that belongs here, or have general feedback?")
+            Spacer(Modifier.height(8.dp))
+            TreeHeader("Families", "Families" in open, depth = 0) { toggle("Families") }
+            HorizontalDivider()
+            if ("Families" in open) for (f in FAMILIES) {
+                val choice = ExampleChoice.Family(f)
+                TreeLeaf(f.name, depth = 1, selected == choice) { selected = choice; nError = null }
+                if (selected == choice) FamilyDetails(state, f, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
+                    familyN[f.id] = it
+                    nError = null
                 }
             }
-        },
-    )
+            TreeHeader("Singletons", "Singletons" in open, depth = 0) { toggle("Singletons") }
+            HorizontalDivider()
+            if ("Singletons" in open) {
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                if (catalog == null && error == null) Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                for (g in catalog?.categories.orEmpty()) {
+                    val key = "S/" + g.title
+                    TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { toggle(key) }
+                    if (key in open) for (e in g.examples) {
+                        val choice = ExampleChoice.Single(e)
+                        TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
+                        if (selected == choice) ExampleDetails(e)
+                    }
+                }
+            }
+            TreeHeader("Links", "Links" in open, depth = 0) { toggle("Links") }
+            HorizontalDivider()
+            if ("Links" in open) for (l in catalog?.links.orEmpty()) Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
+                LinkText(l.title, l.url, MaterialTheme.typography.bodyLarge)
+                l.description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                Text(l.url, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
 }
 
 private const val DEFAULT_FAMILY_N = 16
 
-/** A radio button row; a click selects it. */
+/** A clickable, expand/collapse tree node (category or subfolder). */
 @Composable
-private fun RadioRow(label: String, selected: Boolean, indent: Int, onSelect: () -> Unit) {
+private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .padding(start = indent.dp, top = 4.dp, bottom = 4.dp),
+        Modifier.fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(start = (depth * 16).dp)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = null)
-        Text(label, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(if (open) "▾" else "▸", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 
-/** A collapsible header row: title and an arrow, click toggles. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** An example leaf: a radio button; a click selects it. */
 @Composable
-private fun SectionHeader(title: String, expanded: Boolean, level: Int, onClick: () -> Unit) {
+private fun TreeLeaf(name: String, depth: Int, selected: Boolean, onSelect: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = (16 * level).dp, top = 2.dp, bottom = 2.dp),
+        Modifier.fillMaxWidth()
+            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
+            .padding(start = (depth * 16).dp)
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            title, Modifier.weight(1f),
-            style = if (level == 0) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
-        )
-        ExposedDropdownMenuDefaults.TrailingIcon(expanded)
+        RadioButton(selected = selected, onClick = null)
+        Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
 /** The details of the selected bundled set: description, note, reference, links. */
 @Composable
 private fun ExampleDetails(e: Example) {
-    val uri = LocalUriHandler.current
     Column(Modifier.padding(start = 64.dp, bottom = 8.dp)) {
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
         if (e.links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (l in e.links) Text(
-                l.title, style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
-                color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { openUriSafely(uri, l.url) },
-            )
+            for (l in e.links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -451,18 +447,12 @@ private fun ExampleDetails(e: Example) {
 /** Yellow box asking for interesting sets and feedback, with a clickable e-mail address. */
 @Composable
 fun FeedbackBox(question: String) {
-    val uri = LocalUriHandler.current
     Column(
         Modifier.fillMaxWidth().background(Color(0xFFFFF3B0), RoundedCornerShape(8.dp))
             .border(1.dp, Color(0xFFE0C200), RoundedCornerShape(8.dp)).padding(10.dp),
     ) {
         Text(question, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF3A3000))
-        Text(
-            EMAIL,
-            style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
-            color = Color(0xFF1A4FB0),
-            modifier = Modifier.clickable { openUriSafely(uri, feedbackMailto()) }.padding(top = 2.dp),
-        )
+        LinkText(EMAIL, feedbackMailto(), MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -583,33 +573,21 @@ private fun AboutDialog(close: () -> Unit) = AlertDialog(
 /** One About line "[name] (MIT): note"; only the name is a link. */
 @Composable
 private fun ProjectLine(name: String, url: String, note: String) {
-    val uri = LocalUriHandler.current
     Row {
-        Text(
-            name,
-            style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline),
-            color = Color(0xFF1A4FB0),
-            modifier = Modifier.clickable { openUriSafely(uri, url) }.padding(vertical = 2.dp),
-        )
+        LinkText(name, url, MaterialTheme.typography.bodyMedium)
         Text(" (MIT): $note", Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
-/**
- * Opens a link without ever crashing the app: the JVM throws when the desktop can't browse (and
- * Android would when no browser or mail app is installed). Then nothing happens.
- */
-private fun openUriSafely(uri: UriHandler, url: String) {
-    try { uri.openUri(url) } catch (e: Exception) { }
-}
-
+/** A help page: scrolling text in a [BigDialog]. */
 @Composable
-private fun TextDialog(title: String, text: String, close: () -> Unit) = AlertDialog(
-    onDismissRequest = close,
-    confirmButton = { TextButton(onClick = close) { Text("Close") } },
-    title = { Text(title) },
-    text = { ScrollColumn(Modifier.heightIn(max = 520.dp)) { Text(text, style = MaterialTheme.typography.bodyMedium) } },
-)
+private fun TextDialog(title: String, text: String, close: () -> Unit) = BigDialog(
+    title,
+    onDismiss = close,
+    buttons = { TextButton(onClick = close) { Text("Close") } },
+) {
+    ScrollColumn(Modifier.fillMaxSize()) { Text(text, style = MaterialTheme.typography.bodyMedium) }
+}
 
 /** A colour swatch; click opens a palette with a hex field (#RRGGBB). */
 @Composable
@@ -661,26 +639,25 @@ private fun PropertyPicker(state: AppState, close: () -> Unit) {
         "Convex k-gons" to ALL_PROPERTIES.filter { it is PolygonProperty && !it.emptyOnly },
         "Monochromatic (bicolored sets)" to ALL_PROPERTIES.filter(mono),
     )
-    AlertDialog(
-        onDismissRequest = close,
-        confirmButton = { TextButton(onClick = close) { Text("Done") } },
-        title = { Text("Select properties") },
-        text = {
-            ScrollColumn(Modifier.heightIn(max = 560.dp)) { FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                for ((title, props) in groups) Column(Modifier.widthIn(min = 180.dp)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall)
-                    for (p in props) PickerRow(state, p)
-                    Row {
-                        TextButton(onClick = { props.forEach { state.setShown(it.id, true) } }) { Text("all") }
-                        TextButton(onClick = { props.forEach { state.setShown(it.id, false) } }) { Text("none") }
-                    }
+    BigDialog(
+        "Select properties",
+        onDismiss = close,
+        buttons = { TextButton(onClick = close) { Text("Done") } },
+    ) {
+        ScrollColumn(Modifier.fillMaxSize()) { FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            for ((title, props) in groups) Column(Modifier.widthIn(min = 180.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                for (p in props) PickerRow(state, p)
+                Row {
+                    TextButton(onClick = { props.forEach { state.setShown(it.id, true) } }) { Text("all") }
+                    TextButton(onClick = { props.forEach { state.setShown(it.id, false) } }) { Text("none") }
                 }
-            } }
-        },
-    )
+            }
+        } }
+    }
 }
 
 @Composable
