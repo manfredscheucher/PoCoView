@@ -67,78 +67,176 @@ import org.bytefred.pocoview.core.PolygonProperty
 import org.bytefred.pocoview.core.PropertyDef
 import org.bytefred.pocoview.core.TriangulationProperty
 import kotlin.math.roundToInt
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.PopupProperties
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /** Which dialog is open (the menu bar and the properties widget open them). */
 enum class DialogKind { NONE, PROPERTIES, ABOUT, SHORTCUTS, IMPORT, EXPORT, SAVE, RANDOM, EXAMPLES, WELCOME }
 
+/**
+ * A menu title that opens a [DropdownMenu] (ktoy's). Plain clickable text rather than a
+ * TextButton, so the bar stays narrow. The popup is not focusable, so a click outside it
+ * still reaches what is underneath: clicking another menu title closes this menu and opens
+ * that one in one click. A click on the open menu's own title closes it: the popup's
+ * outside-click dismissal fires first (on press), so the title click right after it must not
+ * reopen the menu. The open menu is [AppState.openMenu], one for all menus.
+ */
 @Composable
-private fun Menu(title: String, content: @Composable (close: () -> Unit) -> Unit) {
-    var open by remember { mutableStateOf(false) }
+private fun MenuButton(state: AppState, label: String, items: @Composable () -> Unit) {
+    var dismissedAt by remember { mutableStateOf<TimeMark?>(null) }
     Box {
-        TextButton(onClick = { open = true }) { Text(title) }
-        DropdownMenu(open, onDismissRequest = { open = false }) { content { open = false } }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .testTag("menu-$label")
+                .clip(RoundedCornerShape(4.dp))
+                .clickable {
+                    val justClosed = dismissedAt?.let { it.elapsedNow() < REOPEN_GUARD } == true
+                    state.openMenu = menuAfterTitleClick(state.openMenu, label, justClosed)
+                }
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+        )
+        DropdownMenu(
+            expanded = state.openMenu == label,
+            // only close if this menu is still the open one: the outside click
+            // may have just opened another menu
+            onDismissRequest = {
+                if (state.openMenu == label) {
+                    dismissedAt = TimeSource.Monotonic.markNow()
+                    state.openMenu = null
+                }
+            },
+            properties = PopupProperties(focusable = false),
+        ) {
+            items()
+        }
     }
 }
 
+/**
+ * The open menu after a click on the title [label] while [open] is open: a click on the open
+ * menu's title closes it, as does one [justClosed] (the same click already closed it by its
+ * outside-click dismissal); any other click opens [label], switching from another open menu.
+ */
+fun menuAfterTitleClick(open: String?, label: String, justClosed: Boolean): String? =
+    if (open == label || justClosed) null else label
+
+// a title click this soon after its menu's outside-click dismissal belongs to
+// the same click (press dismissed, release clicked)
+private val REOPEN_GUARD = 500.milliseconds
+
+/** A menu entry: closes the menu, then runs [onClick]. */
 @Composable
-private fun Item(text: String, close: () -> Unit, enabled: Boolean = true, onClick: () -> Unit) =
-    DropdownMenuItem(text = { Text(text) }, enabled = enabled, onClick = { close(); onClick() })
+private fun Item(state: AppState, text: String, enabled: Boolean = true, onClick: () -> Unit) =
+    DropdownMenuItem(text = { Text(text) }, enabled = enabled, onClick = { state.openMenu = null; onClick() })
 
 @Composable
-private fun CheckItem(text: String, checked: Boolean, close: () -> Unit, onToggle: () -> Unit) =
-    DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = { close(); onToggle() })
+private fun CheckItem(state: AppState, text: String, checked: Boolean, onToggle: () -> Unit) =
+    DropdownMenuItem(text = { Text((if (checked) "✓ " else "   ") + text) }, onClick = { state.openMenu = null; onToggle() })
 
-/** Point Set / Edit / View / Info. */
+/** The grey heading of a radio group in a menu; its items are indented. */
+@Composable
+private fun MenuHeading(text: String) = Text(
+    text,
+    style = MaterialTheme.typography.labelMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+)
+
+/** Point Set / Edit / View / Help on the left, the file name (and "set i/n") on the right. */
 @Composable
 fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
     val opener = rememberFileOpener { name, bytes -> state.open(name, bytes) }
     val saver = rememberFileSaver { name -> if (name != null) state.message = "Saved $name" }
+    // Escape closes an open menu: the popups are not focusable (see MenuButton),
+    // so the bar takes the focus while a menu is open
+    val barFocus = remember { FocusRequester() }
+    LaunchedEffect(state.openMenu) { if (state.openMenu != null) barFocus.requestFocus() }
     Row(
-        Modifier.fillMaxWidth().background(MENU_BAR_COLOR).padding(horizontal = 4.dp),
+        Modifier.fillMaxWidth().background(MENU_BAR_COLOR).padding(start = 4.dp, end = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("PoCoView", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 8.dp))
-        Menu("Point Set") { close ->
-            Item("Import…", close) { openDialog(DialogKind.IMPORT) }
-            Item("Random…", close) { openDialog(DialogKind.RANDOM) }
-            Item("Export…", close) { openDialog(DialogKind.EXPORT) }
-            Item("Examples…", close) { openDialog(DialogKind.EXAMPLES) }
-            HorizontalDivider()
-            Item("Open file…", close) { state.confirmReplace { opener() } }
-            Item("Save file…", close) { openDialog(DialogKind.SAVE) }
-            HorizontalDivider()
-            Item("Export SVG", close) { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
-            Item("Export Ipe", close) { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
-        }
-        Menu("Edit") { close ->
-            Item("Undo", close, enabled = state.canUndo) { state.undo() }
-            Item("Redo", close, enabled = state.canRedo) { state.redo() }
-            Item("Delete selected point", close, enabled = state.selected != null) { state.deleteSelected() }
-            HorizontalDivider()
-            CheckItem("Lock order type", state.fixOrderType, close) { state.fixOrderType = !state.fixOrderType }
-        }
-        Menu("View") { close ->
-            Item("Fit", close) { state.requestFit() }
-            Item("Zoom in", close) { view.zoomCenter(1.2) }
-            Item("Zoom out", close) { view.zoomCenter(1 / 1.2) }
-            HorizontalDivider()
-            CheckItem("Line arrangement", state.showLines, close) { state.showLines = !state.showLines }
-            CheckItem("Point labels", state.showLabels, close) { state.showLabels = !state.showLabels }
-            HorizontalDivider()
-            for ((i, w) in Widget.entries.withIndex()) CheckItem("${w.label} (${i + 1})", w in state.openWidgets, close) {
-                state.toggleWidget(w)
+        // scrolls sideways when the menus do not fit
+        Row(
+            Modifier.horizontalScroll(rememberScrollState())
+                .testTag("menu-bar")
+                .focusRequester(barFocus)
+                .onKeyEvent {
+                    if (it.key == Key.Escape && state.openMenu != null) { state.openMenu = null; true } else false
+                }
+                .focusable(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MenuButton(state, "Point Set") {
+                Item(state, "Examples…") { openDialog(DialogKind.EXAMPLES) }
+                Item(state, "Import…") { openDialog(DialogKind.IMPORT) }
+                Item(state, "Random…") { openDialog(DialogKind.RANDOM) }
+                Item(state, "Export…") { openDialog(DialogKind.EXPORT) }
+                HorizontalDivider()
+                Item(state, "Open file…") { state.confirmReplace { opener() } }
+                Item(state, "Save file…") { openDialog(DialogKind.SAVE) }
+                HorizontalDivider()
+                Item(state, "Export SVG") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
+                Item(state, "Export Ipe") { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
             }
-            HorizontalDivider()
-            for (m in LayoutMode.entries) CheckItem("Layout: ${m.name.lowercase()}", state.layoutMode == m, close) {
-                state.layoutMode = m
+            MenuButton(state, "Edit") {
+                Item(state, "Undo", enabled = state.canUndo) { state.undo() }
+                Item(state, "Redo", enabled = state.canRedo) { state.redo() }
+                Item(state, "Delete selected point", enabled = state.selected != null) { state.deleteSelected() }
+                HorizontalDivider()
+                CheckItem(state, "Lock order type", state.fixOrderType) { state.fixOrderType = !state.fixOrderType }
             }
-            HorizontalDivider()
-            Item("Select properties…", close) { openDialog(DialogKind.PROPERTIES) }
+            MenuButton(state, "View") {
+                Item(state, "Fit") { state.requestFit() }
+                Item(state, "Zoom in") { view.zoomCenter(1.2) }
+                Item(state, "Zoom out") { view.zoomCenter(1 / 1.2) }
+                HorizontalDivider()
+                CheckItem(state, "Line arrangement", state.showLines) { state.showLines = !state.showLines }
+                CheckItem(state, "Point labels", state.showLabels) { state.showLabels = !state.showLabels }
+                HorizontalDivider()
+                for ((i, w) in Widget.entries.withIndex()) CheckItem(state, "${w.label} (${i + 1})", w in state.openWidgets) {
+                    state.toggleWidget(w)
+                }
+                HorizontalDivider()
+                MenuHeading("Layout")
+                for (m in LayoutMode.entries) CheckItem(state, "  " + m.name.lowercase(), state.layoutMode == m) {
+                    state.layoutMode = m
+                }
+                HorizontalDivider()
+                Item(state, "Select properties…") { openDialog(DialogKind.PROPERTIES) }
+            }
+            MenuButton(state, "Help") {
+                Item(state, "About PoCoView") { openDialog(DialogKind.ABOUT) }
+                Item(state, "Keyboard shortcuts") { openDialog(DialogKind.SHORTCUTS) }
+            }
         }
-        Menu("Info") { close ->
-            Item("About PoCoView", close) { openDialog(DialogKind.ABOUT) }
-            Item("Keyboard shortcuts", close) { openDialog(DialogKind.SHORTCUTS) }
-        }
+        // one line + ellipsis, shrinking (weight), so a long name cannot push the menus off-screen
+        Text(
+            state.title,
+            style = MonoStyle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp),
+        )
     }
 }
 
@@ -310,9 +408,23 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
 }
 
 /** What is selected in the Examples dialog: a family (generated with n) or a bundled set. */
-private sealed interface ExampleChoice {
+sealed interface ExampleChoice {
     data class Family(val family: PointSetFamily) : ExampleChoice
     data class Single(val example: Example) : ExampleChoice
+}
+
+/**
+ * What the Examples dialog remembers between openings ([AppState.examples]): the loaded catalog,
+ * the expanded nodes (everything starts collapsed), the selection, the n per family and the
+ * scroll position. Reopening shows the tree exactly as it was left.
+ */
+class ExamplesState {
+    var catalog by mutableStateOf<ExampleCatalog?>(null)
+    var error by mutableStateOf<String?>(null)
+    val expanded = mutableStateListOf<String>()
+    var selected by mutableStateOf<ExampleChoice?>(null)
+    val familyN = mutableStateMapOf<String, Int>()
+    val scroll = ScrollState(0)
 }
 
 /**
@@ -322,15 +434,18 @@ private sealed interface ExampleChoice {
  */
 @Composable
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
-    var catalog by remember { mutableStateOf<ExampleCatalog?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val ex = state.examples
     LaunchedEffect(Unit) {
-        try { catalog = loadExamples() } catch (e: Exception) { error = e.message ?: "Cannot load the examples" }
+        if (ex.catalog == null) {
+            try { ex.catalog = loadExamples(); ex.error = null } catch (e: Exception) { ex.error = e.message ?: "Cannot load the examples" }
+        }
     }
-    val open = remember { mutableStateListOf<String>() }
+    val open = ex.expanded
     fun toggle(key: String) { if (key in open) open.remove(key) else open.add(key) }
-    var selected by remember { mutableStateOf<ExampleChoice?>(null) }
-    val familyN = remember { mutableStateMapOf<String, Int>() }
+    var selected by ex::selected
+    val familyN = ex.familyN
+    val catalog = ex.catalog
+    val error = ex.error
     var nError by remember { mutableStateOf<String?>(null) }
     fun load() {
         when (val choice = selected) {
@@ -355,7 +470,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             TextButton(onClick = ::load, enabled = selected != null) { Text("Load") }
         },
     ) {
-        ScrollColumn(Modifier.fillMaxSize()) {
+        ScrollColumn(Modifier.fillMaxSize(), ex.scroll) {
             FeedbackBox("Know a set that belongs here, or have general feedback?")
             Spacer(Modifier.height(8.dp))
             TreeHeader("Families", "Families" in open, depth = 0) { toggle("Families") }

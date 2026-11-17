@@ -4,7 +4,6 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.key
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
@@ -44,10 +42,12 @@ import androidx.compose.ui.unit.dp
 /** Landscape (side panel) needs at least this width in AUTO layout mode (ktoy-style, width based). */
 private val WIDE_MIN = 760.dp
 
-/** Widget column width; columns get narrower (down to [MIN_COLUMN]) to leave the canvas [MIN_CANVAS]. */
-private val COLUMN_WIDTH = 360.dp
+/** Below MIN_CANVAS + MIN_COLUMN per widget, the side by side widget columns scroll horizontally. */
 private val MIN_COLUMN = 260.dp
 private val MIN_CANVAS = 320.dp
+
+/** The canvas's share next to widget columns of share 1 each, until a divider is dragged. */
+private const val WIDE_CANVAS_WEIGHT = 2f
 
 /** Any press inside a widget column makes it the most recently clicked one (not consumed). */
 private fun Modifier.touches(state: AppState, w: Widget) = pointerInput(w) {
@@ -70,8 +70,8 @@ fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
         val columnsScroll = rememberScrollState()
 
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
-        // they are ignored while a text field has focus
-        Surface(Modifier.fillMaxSize().onKeyEvent { state.textFieldsFocused == 0 && handleKey(it, state, view) }) {
+        // they are ignored while a text field has focus or a menu is open
+        Surface(Modifier.fillMaxSize().onKeyEvent { state.shortcutsActive && handleKey(it, state, view) }) {
             var dialog by remember {
                 mutableStateOf(initialDialog ?: if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME)
             }
@@ -81,8 +81,6 @@ fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
                 ToolBar(state)
                 HorizontalDivider()
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                    // portrait: more room below the canvas when several widgets share it
-                    val panelHeight = maxHeight * if (state.openWidgets.size > 1) 0.55f else 0.45f
                     val wide = when (state.layoutMode) {
                         LayoutMode.LANDSCAPE -> true
                         LayoutMode.PORTRAIT -> false
@@ -98,51 +96,38 @@ fun App(initialState: AppState? = null, initialDialog: DialogKind? = null) {
                         }
                     }
                     val selectProperties = { dialog = DialogKind.PROPERTIES }
+                    val column = @Composable { w: Widget, m: Modifier ->
+                        Column(m.touches(state, w)) {
+                            WidgetHeader(state, w)
+                            ScrollColumn(Modifier.weight(1f), scrolls.getValue(w)) {
+                                WidgetContent(state, w, selectProperties)
+                            }
+                        }
+                    }
                     val open = state.openWidgets.toList()
-                    if (wide) {
-                        // the widgets as columns right of the canvas, in opening order
-                        // (if even MIN_COLUMN wide columns do not fit, the columns scroll horizontally)
-                        val columnWidth = if (open.isEmpty()) COLUMN_WIDTH
-                        else ((maxWidth - MIN_CANVAS) / open.size).coerceIn(MIN_COLUMN, COLUMN_WIDTH)
-                        val area = (maxWidth - MIN_CANVAS).coerceAtLeast(MIN_COLUMN)
-                        val scrollColumns = columnWidth * open.size > area
+                    // the canvas (key null) and the widgets in opening order, with draggable dividers
+                    fun panels(canvasWeight: Float): List<SplitPanel<Widget?>> =
+                        listOf(SplitPanel<Widget?>(null, canvasWeight, canvas)) + open.map { w -> SplitPanel<Widget?>(w) { m -> column(w, m) } }
+                    if (wide && maxWidth < MIN_CANVAS + MIN_COLUMN * open.size) {
+                        // too narrow to split: the canvas keeps MIN_CANVAS, the MIN_COLUMN wide
+                        // columns right of it scroll horizontally
                         Row(Modifier.fillMaxSize()) {
-                            canvas(Modifier.weight(1f).fillMaxHeight())
-                            Row(
-                                if (scrollColumns) Modifier.width(area).fillMaxHeight().horizontalScroll(columnsScroll)
-                                else Modifier.fillMaxHeight(),
-                            ) {
-                                for (w in open) key(w) {
-                                    VerticalDivider()
-                                    Column(Modifier.width(columnWidth).fillMaxHeight().touches(state, w)) {
-                                        WidgetHeader(state, w)
-                                        ScrollColumn(Modifier.weight(1f), scrolls.getValue(w)) {
-                                            WidgetContent(state, w, selectProperties)
-                                        }
+                            canvas(Modifier.width(MIN_CANVAS).fillMaxHeight())
+                            ScrollbarBox(null, Modifier.weight(1f).fillMaxHeight(), columnsScroll) {
+                                Row(Modifier.fillMaxHeight().horizontalScroll(columnsScroll)) {
+                                    for (w in open) key(w) {
+                                        VerticalDivider()
+                                        column(w, Modifier.width(MIN_COLUMN).fillMaxHeight())
                                     }
                                 }
                             }
                         }
+                    } else if (wide) {
+                        // the widgets as columns right of the canvas
+                        SplitPane(panels(WIDE_CANVAS_WEIGHT), state.wideWeights, { state.wideWeights = it }, horizontal = true, Modifier.fillMaxSize())
                     } else {
-                        // portrait: the widgets stacked below the canvas, each with its own share
-                        // of the height and its own scrolling
-                        Column(Modifier.fillMaxSize()) {
-                            canvas(Modifier.weight(1f).fillMaxWidth())
-                            if (open.isNotEmpty()) {
-                                HorizontalDivider()
-                                Column(Modifier.fillMaxWidth().height(panelHeight)) {
-                                    for ((i, w) in open.withIndex()) key(w) {
-                                        if (i > 0) HorizontalDivider()
-                                        Column(Modifier.fillMaxWidth().weight(1f).touches(state, w)) {
-                                            WidgetHeader(state, w)
-                                            ScrollColumn(Modifier.weight(1f), scrolls.getValue(w)) {
-                                                WidgetContent(state, w, selectProperties)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // portrait: the widgets stacked below the canvas, each with its own scrolling
+                        SplitPane(panels(1f), state.stackedWeights, { state.stackedWeights = it }, horizontal = false, Modifier.fillMaxSize())
                     }
                 }
                 StatusBar(state)

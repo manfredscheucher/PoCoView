@@ -11,6 +11,9 @@ import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.loadExamples
 import org.bytefred.pocoview.resources.Res
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -70,6 +73,42 @@ class RenderTest {
         for (w in Widget.entries) if (w !in s.openWidgets) s.toggleWidget(w)
         render(s, w = 1800, h = 900)
         render(s, w = 420, h = 860)
+    }
+
+    @Test
+    fun narrowLandscapeColumnsScrollAndOpenMenuRenders() {
+        val s = state()
+        s.layoutMode = LayoutMode.LANDSCAPE
+        s.changeMaxColumns(Widget.entries.size)
+        for (w in Widget.entries) if (w !in s.openWidgets) s.toggleWidget(w)
+        render(s, w = 900, h = 700)
+        s.openMenu = "View"
+        render(s)
+        render(s, w = 420, h = 860)
+    }
+
+    @Test
+    fun examplesDialogKeepsItsStateWhenReopened() {
+        val s = state()
+        val ex = s.examples
+        ex.expanded += listOf("Families", "Singletons", "Links")
+        val family = ExampleChoice.Family(FAMILIES.first())
+        ex.selected = family
+        ex.familyN[family.family.id] = 7
+        render(s, DialogKind.EXAMPLES)
+        val catalog = assertNotNull(ex.catalog, "the catalog is loaded on the first opening")
+        for ((i, g) in catalog.categories.withIndex()) if (i % 2 == 0) ex.expanded += "S/" + g.title
+        render(s, DialogKind.EXAMPLES)
+        val target = ex.scroll.maxValue / 2
+        assertTrue(target > 0, "the expanded tree must scroll")
+        runBlocking { ex.scroll.scrollTo(target) }
+        render(s)
+        render(s, DialogKind.EXAMPLES)
+        assertEquals(target, ex.scroll.value, "scroll position")
+        assertSame(catalog, ex.catalog)
+        assertEquals(family, ex.selected)
+        assertEquals(7, ex.familyN[family.family.id])
+        assertTrue("Singletons" in ex.expanded)
     }
 
     @Test

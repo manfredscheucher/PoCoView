@@ -471,15 +471,19 @@ private fun DataTab(state: AppState) {
         Text("λ matrix", style = MaterialTheme.typography.titleSmall)
         val l = smallLambda(p)
         val w = (p.size - 2).toString().length + 1
-        Text(
-            highlightLine(
-                l.mapIndexed { i, row -> row.joinToString("") { it.toString().padStart(w) } + if (i == sel) "  *" else "" }
-                    .joinToString("\n"),
-                sel, mark,
-            ),
-            style = MonoStyle.copy(fontSize = 11.sp),
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-        )
+        val hScroll = rememberScrollState()
+        ScrollbarBox(null, hScroll = hScroll) {
+            Text(
+                highlightLine(
+                    l.mapIndexed { i, row -> row.joinToString("") { it.toString().padStart(w) } + if (i == sel) "  *" else "" }
+                        .joinToString("\n"),
+                    sel, mark,
+                ),
+                style = MonoStyle.copy(fontSize = 11.sp),
+                // room for the scrollbar below the last line
+                modifier = Modifier.horizontalScroll(hScroll).padding(bottom = 8.dp),
+            )
+        }
     }
 }
 

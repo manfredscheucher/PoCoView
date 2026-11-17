@@ -427,4 +427,26 @@ class AppStateTest {
         assertNull(s.busy)
         assertTrue(s.message!!.contains("n >"), s.message)
     }
+
+    @Test
+    fun shortcutsAreOffWhileAMenuIsOpenOrTyping() {
+        val s = state()
+        assertTrue(s.shortcutsActive)
+        s.openMenu = "View"
+        assertFalse(s.shortcutsActive)
+        s.openMenu = null
+        s.textFieldsFocused = 1
+        assertFalse(s.shortcutsActive)
+    }
+
+    @Test
+    fun titleShowsTheSetOfAMultiSetFile() {
+        val s = state()
+        s.open("one.txt", writeText(square).encodeToByteArray())
+        assertEquals("one", s.title)
+        s.open("two.asc", twoSets())
+        assertEquals("two · set 1/2", s.title)
+        s.showSet(1)
+        assertEquals("two · set 2/2", s.title)
+    }
 }

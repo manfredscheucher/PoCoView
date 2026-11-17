@@ -158,6 +158,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     /** Number of focused text fields: keyboard shortcuts are off while one has focus. */
     var textFieldsFocused by mutableIntStateOf(0)
 
+    /** The open menu's title (one for all menus), or null; keyboard shortcuts are off while a menu is open. */
+    var openMenu by mutableStateOf<String?>(null)
+
+    /** The keyboard shortcuts apply: no text field has focus and no menu is open. */
+    val shortcutsActive: Boolean get() = textFieldsFocused == 0 && openMenu == null
+
+    /** What the Examples dialog shows, kept while it is closed. */
+    val examples = ExamplesState()
+
     /** Property chosen in the Optimize widget (walk, qtvis minimizer, Enter key). */
     var optimizeProperty by mutableStateOf("hole5")
 
@@ -197,6 +206,9 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var fileName by mutableStateOf("points")
         private set
 
+    /** The file name for the menu bar, with "set i/n" when the file holds several sets. */
+    val title: String get() = if (sets.size > 1) "$fileName · set ${setIndex + 1}/${sets.size}" else fileName
+
     /**
      * Set to the number of sets when loaded content holds more than one set (null otherwise),
      * so the UI can tell the user; the UI clears it (sets it to null) after showing it.
@@ -219,6 +231,13 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     var loop by mutableStateOf(false)
         private set
+
+    /**
+     * Shares of the canvas (key null) and the widget columns, changed by dragging the dividers;
+     * kept apart for side by side ([wideWeights]) and stacked ([stackedWeights]).
+     */
+    var wideWeights by mutableStateOf<Map<Widget?, Float>>(emptyMap())
+    var stackedWeights by mutableStateOf<Map<Widget?, Float>>(emptyMap())
 
     /** Open widget columns, in opening order. */
     val openWidgets = mutableStateListOf(Widget.PROPERTIES, Widget.OPTIMIZE)

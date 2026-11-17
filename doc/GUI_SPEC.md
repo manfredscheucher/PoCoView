@@ -29,6 +29,10 @@ Accepted packages (all four):
 - Draggable split between canvas and widget columns (ktoy `SplitPane`).
 - ktoy `ScrollbarBox` (vertical and horizontal thumbs).
 - Examples dialog state (expanded groups, selection, scroll) survives closing.
+- Implemented: dividers between all neighbours (canvas and each widget). Default shares: side by
+  side canvas 2 : each widget 1, stacked all equal (replaces the fixed 0.45/0.55). If a side by side
+  layout is narrower than 320 dp canvas + 260 dp per widget, the canvas keeps 320 dp and the widget
+  columns scroll sideways (as before, now with a ScrollbarBox).
 
 **C. Help / feedback**
 - Help menu with pages (General, Properties, Optimize, Keyboard shortcuts) in a BigDialog,
