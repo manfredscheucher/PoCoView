@@ -643,7 +643,7 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
             Column {
                 Text("Explore planar point sets and their order types.", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
-                FeedbackBox("Interesting point configurations, ideas or general feedback? Please send them, they extend the collection in Point Set → Examples.")
+                FeedbackBox("Interesting point configurations, ideas or general feedback?")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(dontShow, { dontShow = it })
                     Text("Don't show again", style = MaterialTheme.typography.bodyMedium)
