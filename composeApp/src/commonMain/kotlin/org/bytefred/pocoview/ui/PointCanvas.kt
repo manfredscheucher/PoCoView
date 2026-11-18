@@ -142,7 +142,8 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
         }
     }
 
-    // the point whose context menu is open (right-click on it) and where it opens
+    // the point whose context menu is open (right-click or long press on it) and where it opens
+    val gestures = LocalMenuGestures.current
     var pointMenu by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
 
     fun hit(pos: Offset): Int? {
@@ -163,7 +164,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                 .clipToBounds()
                 .background(MaterialTheme.colorScheme.surface)
                 .onSizeChanged { view.resize(it) }
-                .pointerInput(Unit) {
+                .pointerInput(gestures) {
                     awaitPointerEventScope {
                         var down: Offset? = null
                         var last = Offset.Zero
@@ -173,8 +174,23 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                         var dragStarted = false
                         var pinchDist = 0f
                         var pinchCenter = Offset.Zero
+                        // a one-finger press held still until then is a long press (event time)
+                        var longPressAt: Long? = null
+                        var lastTime = 0L
                         while (true) {
-                            val ev = awaitPointerEvent()
+                            val deadline = longPressAt?.takeIf { down != null && !moved }
+                            val ev = if (deadline == null) awaitPointerEvent()
+                            else withTimeoutOrNull((deadline - lastTime).coerceAtLeast(0L)) { awaitPointerEvent() }
+                            if (ev == null) {
+                                // long press: a point's context menu like a right-click, the release then does
+                                // nothing; on empty space no menu, the release is a tap as before
+                                longPressAt = null
+                                val at = down
+                                val i = if (at != null) hit(at) else null
+                                if (at != null && i != null) { pointMenu = i to at; down = null; dragPoint = null }
+                                continue
+                            }
+                            lastTime = ev.changes.first().uptimeMillis
                             val pressed = ev.changes.filter { it.pressed }
                             when (ev.type) {
                                 PointerEventType.Scroll -> {
@@ -192,7 +208,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                                         down = null; dragPoint = null
                                     } else {
                                         onInteract()
-                                        if (ev.buttons.isSecondaryPressed || ctrlClickIsRightClick && ev.keyboardModifiers.isCtrlPressed) {
+                                        if (gestures.rightClick && (ev.buttons.isSecondaryPressed || ctrlClickIsRightClick && ev.keyboardModifiers.isCtrlPressed)) {
                                             // right-click: the context menu of the point under it, nothing on empty space
                                             down = null; dragPoint = null
                                             if (pressed.size == 1) hit(pressed[0].position)?.let { pointMenu = it to pressed[0].position }
@@ -201,6 +217,7 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                                             down = pos; last = pos; moved = false; dragStarted = false
                                             hitAtDown = hit(pos)
                                             dragPoint = if (st.tool != Tool.DELETE) hitAtDown else null
+                                            longPressAt = if (gestures.longPress) lastTime + viewConfiguration.longPressTimeoutMillis else null
                                         } else if (pressed.size == 2) {
                                             // second finger: switch to pinch zoom + two-finger pan
                                             dragPoint = null; moved = true

@@ -192,3 +192,19 @@ dragging points; the viewer is for exploring and visualising its properties). Af
 in the plane. Change a point set by dragging points and explore and visualise its combinatorial
 properties." The first paragraph of Help → General starts with the same text, followed by what an
 order type is. Feedback box and buttons unchanged.
+
+## 2026-11-18: Long press opens the context menu
+
+Manfred: "On the phone a long press is like a right-click, so make the browser do that too." A touch
+screen has no right-click, so a long press opens the same context menu as a right-click.
+
+- Ported from ktoy (`EditGestures`): `MenuGestures(rightClick, longPress)` per platform with
+  `LocalMenuGestures` for tests. Web: right-click and long press. JVM desktop: right-click only
+  (like ktoy).
+- A one-finger press held still for the long-press timeout (Compose's `longPressTimeoutMillis`)
+  on a point opens the "Point i" menu at the press position. Moving more than the touch slop
+  before that is a drag (or pan) as before; after the menu opened, moving and releasing do nothing
+  (no tap action).
+- Interpretation: a long press on empty space opens nothing (like a right-click there); its release
+  then acts as a tap as before (Add adds a point, Move deselects).
+- Help (General and Shortcuts) and the user guide say "right-click (long press on touch screens)".

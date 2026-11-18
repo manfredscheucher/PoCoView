@@ -75,7 +75,8 @@ private val GENERAL_TEXT = listOf(
         "is not in general position, and the properties and optimizers wait until that is fixed.",
     "The mode in the toolbar sets what a click does: Move drags a point or selects it, Add adds a point " +
         "where you click, Delete removes the point you click. Drag empty space to pan, zoom with the wheel " +
-        "or by pinching. Right-click a point to select or delete it. Undo and Redo are in the Edit menu.",
+        "or by pinching. Right-click a point (long press on touch screens) to select or delete it. Undo " +
+        "and Redo are in the Edit menu.",
     "Lock order type keeps a dragged point inside its cell of the line arrangement, so the order type " +
         "stays the same.",
     "The line arrangement is the line through every pair of points. Its cells are the regions in which a " +
@@ -159,7 +160,7 @@ private val SHORTCUTS = listOf(
     "PageUp or ," to "previous set of the file",
     "PageDown or ." to "next set of the file",
     "Mouse" to "drag a point to move it, drag empty space to pan, wheel or pinch to zoom, right-click a " +
-        "point for its menu",
+        "point (long press on touch screens) for its menu",
 )
 
 private const val SHORTCUTS_NOTE = "On a Mac, Cmd works like Ctrl and Ctrl+click like a right-click. The keys " +

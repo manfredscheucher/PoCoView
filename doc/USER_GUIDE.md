@@ -9,8 +9,8 @@
   is on by default (Display widget: "Lines through it: hide") so you can see the cell of the selected
   point; "normal" draws them like the others, "highlight" in their own colour and width.
 - **Mode** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
-  a point). Drag empty space to pan, use the wheel or pinch to zoom. Right-click a point for a small
-  menu: Select, Delete.
+  a point). Drag empty space to pan, use the wheel or pinch to zoom. Right-click a point (long press on
+  touch screens) for a small menu: Select, Delete.
 - **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
   stays the same.
 - Undo/redo are in the Edit menu.
@@ -144,7 +144,7 @@ loading such a file a short note says so (can be switched off).
 | Enter | qtvis minimizer |
 | PageUp or , | previous set of the file |
 | PageDown or . | next set of the file |
-| Mouse | drag a point to move it, drag empty space to pan, wheel or pinch to zoom, right-click a point for its menu |
+| Mouse | drag a point to move it, drag empty space to pan, wheel or pinch to zoom, right-click a point (long press on touch screens) for its menu |
 
 On a Mac, Cmd works like Ctrl and Ctrl+click like a right-click. The keys do nothing while you type
 in a field or a menu is open (except Esc).
