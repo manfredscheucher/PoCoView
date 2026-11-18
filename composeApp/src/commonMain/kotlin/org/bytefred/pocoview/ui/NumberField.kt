@@ -38,7 +38,8 @@ private val FIELD_PADDING = 6.dp
  * high, far bigger than a number. Keeps what the user types; only parseable values are passed to
  * [onValue], so clearing the field to retype does not turn the value into 0. The border turns red
  * when the text is not a number, is outside [range], or [isError]. With [stepper] (integers only),
- * "−"/"+" buttons change the value by 1 within [range].
+ * "−"/"+" buttons change the value by 1 within [range]. [onText] gets every edit, also text that
+ * is not a number (e.g. to disable a button meanwhile).
  *
  * Test tags: "number-<label>" on the field, "number-<label>-minus"/"-plus" on the buttons.
  */
@@ -46,12 +47,14 @@ private val FIELD_PADDING = 6.dp
 fun NumberField(
     state: AppState, label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier,
     decimal: Boolean = false, range: LongRange? = null, stepper: Boolean = false, isError: Boolean = false,
+    onText: (String) -> Unit = {},
 ) {
     var text by remember(value) { mutableStateOf(value) }
     // at most 9 digits: every integer field value fits into an Int
     val maxLength = if (decimal) 10 else 9
     fun edit(v: String) {
         text = v.filter { it.isDigit() || (decimal && it == '.') }.take(maxLength)
+        onText(text)
         if (if (decimal) text.toDoubleOrNull() != null else text.toIntOrNull() != null) onValue(text)
     }
     val current = text.toLongOrNull()

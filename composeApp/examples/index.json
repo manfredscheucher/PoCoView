@@ -62,6 +62,13 @@
       ]
     }
   ],
+  "orderTypes": [
+    "order-types/otypes03.b08",
+    "order-types/otypes04.b08",
+    "order-types/otypes05.b08",
+    "order-types/otypes06.b08",
+    "order-types/otypes07.b08"
+  ],
   "links": [
     {
       "title": "PoSeZo (Point Set Zoo)",

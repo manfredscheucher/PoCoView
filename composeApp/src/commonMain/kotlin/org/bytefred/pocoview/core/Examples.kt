@@ -21,8 +21,15 @@ data class ExampleGroup(val title: String, val examples: List<Example>)
 /** A link shown with the examples (collections, databases). */
 data class ExampleLink(val title: String, val url: String, val description: String?)
 
-/** Everything bundled: the categories of single sets and the links. */
-data class ExampleCatalog(val categories: List<ExampleGroup>, val links: List<ExampleLink>)
+/** One file of the Graz order type database: all order types of [n] points, one set each. */
+data class OrderTypeFile(val n: Int, val file: String, val sets: List<List<Pt>>)
+
+/** Everything bundled: the categories of single sets, the order type files and the links. */
+data class ExampleCatalog(
+    val categories: List<ExampleGroup>,
+    val links: List<ExampleLink>,
+    val orderTypes: List<OrderTypeFile> = emptyList(),
+)
 
 /** All bundled examples, parsed at first use. */
 val EXAMPLES: ExampleCatalog by lazy { loadExamples() }
@@ -45,7 +52,14 @@ fun loadExamples(): ExampleCatalog {
         val o = l.asObject("index.json link")
         ExampleLink(o.string("title", "index.json link"), o.string("url", "index.json link"), o.optString("description", "index.json link"))
     }
-    return ExampleCatalog(categories, links)
+    val orderTypes = index.list("orderTypes", "index.json").map { f ->
+        val path = f as? String ?: throw FormatException("index.json: order type files must be strings")
+        val hex = GeneratedExamples.BINARY_FILES[path] ?: throw FormatException("index.json: $path is not bundled")
+        val name = path.substringAfterLast('/')
+        val sets = readPointSets(name, ByteArray(hex.length / 2) { hex.substring(2 * it, 2 * it + 2).toInt(16).toByte() })
+        OrderTypeFile(sets.first().size, name, sets)
+    }
+    return ExampleCatalog(categories, links, orderTypes)
 }
 
 /** Parses one example file: the JSON point format plus the metadata keys. */

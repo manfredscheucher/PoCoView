@@ -95,8 +95,10 @@ order type hash.
 ## Point Set menu
 
 - **Examples…**: collapsible groups: Families (generated: Horton sets, convex position),
-  Singletons (interesting sets with their original sources, in categories) and Links. Select a family
-  or set (a family also asks for n), then Load. Please send interesting sets or feedback to
+  Singletons (interesting sets with their original sources, in categories), Order types (all order
+  types of 3 to 7 points, from the Graz order type database) and Links. Select a family or set (a
+  family also asks for n, an order type file for the number of the order type), then Load. An order
+  type opens with its whole file, so "set i/n" steps through the others. Please send interesting sets or feedback to
   manfred.scheucher@proton.me (the address is clickable).
 - **Import…**: paste one or more point sets; the format is detected:
   - JSON: `{"points": [[x, y], [x, y, "color"], ...]}`, one set per line (a single set may also

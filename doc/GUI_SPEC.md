@@ -168,3 +168,18 @@ below. Typing, validation and ranges are unchanged.
 "−"/"+" buttons (step 1, clamped to the range) only on the point counts: Random n (1..200) and a
 family's n (1..max n). Not on grid (a size up to 2^29, stepping by 1 is pointless) or the optimizer
 parameters (the buttons would double the width of every parameter row).
+
+## 2026-11-18: Order types in the Examples dialog
+
+Manfred: add the order type database for n = 3 to 7 as an Examples group. The group "Order types" has
+one entry per n, "n = 7 (135)"; the counts 1, 2, 3, 16, 135 match the files (size / (2n bytes)) and
+are tested. The files are copied from data/otypes/ to composeApp/examples/order-types/ (Graz b08) and
+embedded at build time by generateExamples (as hex strings, listed under "orderTypes" in index.json),
+so there is no loading.
+
+The selected entry shows "order type: − [ 1 ] + of 135" (the compact number field) and the short line
+"Order types of 7 points (Graz order type database)". A number that is not in 1..M shows "1 to M" in
+red and disables Load. The chosen number is remembered per n like a family's n.
+
+Claude's choice (preferred by Manfred): Load opens the whole file at the chosen order type, so the
+toolbar shows "otypes07 · set 17/135" and set navigation (PageUp/PageDown, < >) reaches the others.

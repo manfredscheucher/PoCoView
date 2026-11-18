@@ -235,7 +235,8 @@ val generateLicenses = tasks.register<GenerateLicenses>("generateLicenses") {
 
 // ── build-time example sets (GeneratedExamples.kt) ──────────────────────────
 // The example point sets live as JSON files in composeApp/examples/ (the source of
-// truth). index.json and every file it lists are embedded as string constants, so
+// truth), the order type database (n = 3..7) as Graz b08 files in order-types/.
+// index.json and every file it lists are embedded as string constants, so
 // the Examples dialog has them at once (no resource reads, no fetches on the web).
 // They are parsed and checked by core/Examples.kt.
 @CacheableTask
@@ -255,6 +256,12 @@ abstract class GenerateExamples : DefaultTask() {
             require(f.isFile) { "index.json lists $file, which does not exist in $dir" }
             "        ${KotlinLiteral.of(file)} to ${KotlinLiteral.of(f.readText(Charsets.UTF_8))}"
         }
+        // the order type files are binary (Graz b08), embedded as hex strings
+        val binaries = (index["orderTypes"] as List<*>).map { it as String }.joinToString(",\n") { file ->
+            val f = dir.resolve(file)
+            require(f.isFile) { "index.json lists $file, which does not exist in $dir" }
+            "        ${KotlinLiteral.of(file)} to ${KotlinLiteral.of(f.readBytes().joinToString("") { "%02x".format(it) })}"
+        }
         outputDir.get().asFile.apply { mkdirs() }.resolve("GeneratedExamples.kt").writeText(
             """
             |package ${packageName.get()}
@@ -270,6 +277,11 @@ abstract class GenerateExamples : DefaultTask() {
             |    /** The text of every file listed in index.json, by its path there. */
             |    val FILES: Map<String, String> = mapOf(
             |$entries,
+            |    )
+            |
+            |    /** The binary files listed under "orderTypes" in index.json, as hex strings, by their path there. */
+            |    val BINARY_FILES: Map<String, String> = mapOf(
+            |$binaries,
             |    )
             |}
             |""".trimMargin(),

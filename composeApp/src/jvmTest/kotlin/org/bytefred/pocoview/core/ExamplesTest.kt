@@ -31,6 +31,17 @@ class ExamplesTest {
     }
 
     @Test
+    fun orderTypeDatabaseIsBundled() {
+        val files = loadExamples().orderTypes
+        // the numbers of order types of 3..7 points (file size / (n * 2 bytes))
+        assertEquals(listOf(3 to 1, 4 to 2, 5 to 3, 6 to 16, 7 to 135), files.map { it.n to it.sets.size })
+        for (f in files) {
+            assertEquals("otypes0${f.n}.b08", f.file)
+            for (s in f.sets) assertEquals(f.n, s.size)
+        }
+    }
+
+    @Test
     fun propertiesKeyIsParsedAndChecked() {
         val base = """{"name": "n3-c1-t", "description": "d", "group": "g", "points": [[0, 0], [1, 0], [0, 1]]"""
         assertEquals(emptyList(), parseExample("$base}", "t.json").properties)

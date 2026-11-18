@@ -72,6 +72,7 @@ import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
 import org.bytefred.pocoview.core.MonochromaticProperty
+import org.bytefred.pocoview.core.OrderTypeFile
 import org.bytefred.pocoview.core.PointSetFamily
 import org.bytefred.pocoview.core.PolygonProperty
 import org.bytefred.pocoview.core.PropertyDef
@@ -438,6 +439,7 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
 sealed interface ExampleChoice {
     data class Family(val family: PointSetFamily) : ExampleChoice
     data class Single(val example: Example) : ExampleChoice
+    data class OrderTypes(val file: OrderTypeFile) : ExampleChoice
 }
 
 /**
@@ -448,6 +450,8 @@ class ExamplesState {
     val expanded = mutableStateListOf<String>()
     var selected by mutableStateOf<ExampleChoice?>(null)
     val familyN = mutableStateMapOf<String, Int>()
+    /** The chosen order type (1-based) per n. */
+    val orderType = mutableStateMapOf<Int, Int>()
     val scroll = ScrollState(0)
 }
 
@@ -464,6 +468,12 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     var selected by ex::selected
     val familyN = ex.familyN
     var nError by remember { mutableStateOf<String?>(null) }
+    // the order type number as typed; Load is off while it is not in 1..M
+    var orderTypeText by remember { mutableStateOf<String?>(null) }
+    val orderTypeOk = when (val c = selected) {
+        is ExampleChoice.OrderTypes -> orderTypeText.let { it == null || it.toIntOrNull() in 1..c.file.sets.size }
+        else -> true
+    }
     fun load() {
         when (val choice = selected) {
             null -> {}
@@ -476,6 +486,11 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             is ExampleChoice.Single -> {
                 val e = choice.example
                 state.leave { state.loadPoints(e.name, e.points, e.properties); close() }
+            }            is ExampleChoice.OrderTypes -> {
+                val f = choice.file
+                // the whole file, at the chosen set, so "set i/n" steps through the other order types
+                val i = ex.orderType[f.n] ?: 1
+                if (orderTypeOk) state.leave { state.loadSets(f.file, f.sets, start = i - 1); close() }
             }
         }
     }
@@ -484,7 +499,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
         onDismiss = close,
         buttons = {
             TextButton(onClick = close) { Text("Cancel") }
-            TextButton(onClick = ::load, enabled = selected != null) { Text("Load") }
+            TextButton(onClick = ::load, enabled = selected != null && orderTypeOk) { Text("Load") }
         },
     ) {
         ScrollColumn(Modifier.fillMaxSize(), ex.scroll) {
@@ -511,6 +526,15 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
                         if (selected == choice) ExampleDetails(e)
                     }
+                }
+            }
+            TreeHeader("Order types", "Order types" in open, depth = 0) { toggle("Order types") }
+            HorizontalDivider()
+            if ("Order types" in open) for (f in EXAMPLES.orderTypes) {
+                val choice = ExampleChoice.OrderTypes(f)
+                TreeLeaf("n = ${f.n} (${f.sets.size})", depth = 1, selected == choice) { selected = choice; orderTypeText = null }
+                if (selected == choice) OrderTypeDetails(state, f, ex.orderType[f.n] ?: 1, orderTypeOk, { orderTypeText = it }) {
+                    ex.orderType[f.n] = it
                 }
             }
             TreeHeader("Links", "Links" in open, depth = 0) { toggle("Links") }
@@ -608,6 +632,25 @@ private fun FamilyDetails(state: AppState, f: PointSetFamily, n: Int, error: Str
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text(f.description, style = MaterialTheme.typography.bodySmall)
         for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** The details of a selected order type file: which order type to load ("order type: − [17] + of 135"). */
+@Composable
+private fun OrderTypeDetails(
+    state: AppState, f: OrderTypeFile, index: Int, ok: Boolean, onText: (String) -> Unit, onIndex: (Int) -> Unit,
+) {
+    val count = f.sets.size
+    Column(Modifier.padding(start = 48.dp, bottom = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            NumberField(
+                state, "order type", index.toString(), { it.toInt().let { i -> if (i in 1..count) onIndex(i) } },
+                range = 1L..count, stepper = true, onText = onText,
+            )
+            Text(" of $count", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (!ok) Text("1 to $count", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        Text("Order types of ${f.n} points (Graz order type database)", style = MaterialTheme.typography.bodySmall)
     }
 }
 

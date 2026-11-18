@@ -664,18 +664,19 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         load(name, listOf(p))
     }
 
-    /** Loads several sets (e.g. from `importPointSets`) like a multi-set file; the first one is shown. */
-    fun loadSets(name: String, loaded: List<List<Pt>>) = load(name, loaded)
+    /** Loads several sets (e.g. from `importPointSets`) like a multi-set file; set [start] (0-based) is shown. */
+    fun loadSets(name: String, loaded: List<List<Pt>>, start: Int = 0) = load(name, loaded, start)
 
-    private fun load(name: String, loaded: List<List<Pt>>) {
+    private fun load(name: String, loaded: List<List<Pt>>, start: Int = 0) {
         require(loaded.isNotEmpty()) { "No point set to load" }
+        require(start in loaded.indices) { "No set ${start + 1} in ${loaded.size}" }
         cancelOperation()
         coordinatesDraft = null
         sets = loaded
-        setIndex = 0
+        setIndex = start
         fileName = name.substringBeforeLast('.')
         selected = null
-        setPoints(loaded[0], recordUndo = false)
+        setPoints(loaded[start], recordUndo = false)
         clearHistory()
         savedSets = loaded
         requestFit()

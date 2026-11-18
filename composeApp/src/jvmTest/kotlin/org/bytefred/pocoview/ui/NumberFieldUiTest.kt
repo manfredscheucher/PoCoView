@@ -10,7 +10,10 @@ import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -18,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.bytefred.pocoview.core.FAMILIES
+import org.bytefred.pocoview.core.loadExamples
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,6 +100,53 @@ class NumberFieldUiTest {
         onNodeWithTag("number-n-plus").performClick()
         waitForIdle()
         assertEquals((before ?: 16) + 1, s.examples.familyN[f.id])
+    }
+
+    @Test
+    fun orderTypeIsPickedWithTheNumberFieldAndLoadsTheWholeFile() = runComposeUiTest {
+        val s = state()
+        setContent { App(s, DialogKind.EXAMPLES) }
+        onNodeWithText("Order types").performScrollTo().performClick()
+        onNodeWithText("n = 7 (135)").performScrollTo().performClick()
+        onNodeWithText("Order types of 7 points (Graz order type database)").performScrollTo()
+        val field = onNodeWithTag("number-order type")
+        val minus = onNodeWithTag("number-order type-minus")
+        val plus = onNodeWithTag("number-order type-plus")
+        val load = onNodeWithText("Load")
+        field.assertTextEquals("1")
+        minus.assertIsNotEnabled()
+        plus.performClick()
+        plus.performClick()
+        field.assertTextEquals("3")
+        assertEquals(3, s.examples.orderType[7])
+
+        // out of range: "1 to 135", Load off; − clamps back into range
+        field.performTextReplacement("136")
+        onNodeWithText("1 to 135").assertExists()
+        load.assertIsNotEnabled()
+        plus.assertIsNotEnabled()
+        assertEquals(3, s.examples.orderType[7])
+        minus.performClick()
+        field.assertTextEquals("135")
+        load.assertIsEnabled()
+        field.performTextReplacement("")
+        load.assertIsNotEnabled()
+        field.performTextReplacement("17")
+        onNodeWithText("1 to 135").assertDoesNotExist()
+        load.assertIsEnabled()
+
+        load.performClick()
+        waitForIdle()
+        val file = loadExamples().orderTypes.first { it.n == 7 }
+        assertEquals(135, s.sets.size)
+        assertEquals(16, s.setIndex)
+        assertEquals(file.sets[16], s.points)
+        assertEquals("otypes07 · set 17/135", s.title)
+        // the other order types of the file stay reachable with set i/n
+        s.showSet(17)
+        waitForIdle()
+        assertEquals(file.sets[17], s.points)
+        assertEquals("otypes07 · set 18/135", s.title)
     }
 
     @Test
