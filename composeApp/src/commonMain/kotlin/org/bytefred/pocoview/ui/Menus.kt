@@ -693,7 +693,7 @@ private fun SetsLoadedDialog(state: AppState, count: Int) {
         text = {
             Column {
                 Text(
-                    "Showing the first of $count. Switch between them with the arrows < > at the top (or PageUp / PageDown).",
+                    "Showing ${if (state.setIndex == 0) "the first" else "set ${state.setIndex + 1}"} of $count. Switch between them with the arrows < > at the top (or PageUp / PageDown).",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {

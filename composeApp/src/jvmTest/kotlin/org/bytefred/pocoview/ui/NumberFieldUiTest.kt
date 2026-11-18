@@ -142,6 +142,7 @@ class NumberFieldUiTest {
         assertEquals(16, s.setIndex)
         assertEquals(file.sets[16], s.points)
         assertEquals("otypes07 · set 17/135", s.title)
+        onNodeWithText("Showing set 17 of 135", substring = true).assertExists()
         // the other order types of the file stay reachable with set i/n
         s.showSet(17)
         waitForIdle()
