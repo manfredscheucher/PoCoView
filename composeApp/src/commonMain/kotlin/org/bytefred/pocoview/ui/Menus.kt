@@ -425,7 +425,7 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
         title = { Text("Random point set") },
         text = {
             Column {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt(); error = null }, range = 1L..200, stepper = true)
                     NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong(); error = null }, range = 2L..COORD_LIMIT)
                 }
