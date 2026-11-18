@@ -15,6 +15,7 @@ import org.bytefred.pocoview.core.Pt
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** The app name in the menu bar and the file name, n and messages in the toolbar (no status bar). */
 @OptIn(ExperimentalTestApi::class)
@@ -46,5 +47,17 @@ class HeaderUiTest {
         s.showSet(1)
         waitForIdle()
         assertEquals("two · set 2/2  ·  n = 4  ·  NOT in general position", status.text()?.substringBefore("  ·  Loaded"))
+    }
+
+    @Test
+    fun welcomeSaysWhatPoCoViewIsFor() = runComposeUiTest {
+        setContent { App(state(), DialogKind.WELCOME) }
+        onNodeWithText(
+            "PoCoView is a viewer for point sets in the plane. Change a point set by dragging points and " +
+                "explore and visualise its combinatorial properties.",
+        ).assertIsDisplayed()
+        onNodeWithText("Examples").assertIsDisplayed()
+        onNodeWithText("Start").assertIsDisplayed()
+        assertTrue(helpText(HelpPage.GENERAL).first().startsWith(WELCOME_TEXT))
     }
 }

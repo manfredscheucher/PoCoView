@@ -70,8 +70,7 @@ private fun KeyLine(key: String, action: String) {
 }
 
 private val GENERAL_TEXT = listOf(
-    "PoCoView edits planar point sets and shows properties of their order type (for every three points, " +
-        "whether they turn left or right).",
+    WELCOME_TEXT + " The order type of a point set says, for every three points, whether they turn left or right.",
     "Points have integer coordinates, the y axis points up. Three points on a line get a red ring: the set " +
         "is not in general position, and the properties and optimizers wait until that is fixed.",
     "The mode in the toolbar sets what a click does: Move drags a point or selects it, Add adds a point " +

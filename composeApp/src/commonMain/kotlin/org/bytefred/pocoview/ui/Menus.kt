@@ -666,7 +666,7 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
         title = { Text("Welcome to PoCoView") },
         text = {
             Column {
-                Text("Explore planar point sets and their order types.", style = MaterialTheme.typography.bodyMedium)
+                Text(WELCOME_TEXT, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 FeedbackBox("Interesting point configurations, ideas or general feedback?")
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -679,6 +679,10 @@ private fun WelcomeDialog(close: () -> Unit, showExamples: () -> Unit) {
 }
 
 const val WELCOME_PREF = "welcome"
+
+/** What PoCoView is for, at the top of the Welcome dialog and the General help page. */
+const val WELCOME_TEXT = "PoCoView is a viewer for point sets in the plane. Change a point set by dragging points and " +
+    "explore and visualise its combinatorial properties."
 private const val SETS_NOTICE_PREF = "setsNotice"
 
 /** After loading content with several sets. */

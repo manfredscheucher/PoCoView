@@ -183,3 +183,12 @@ red and disables Load. The chosen number is remembered per n like a family's n.
 
 Claude's choice (preferred by Manfred): Load opens the whole file at the chosen order type, so the
 toolbar shows "otypes07 · set 17/135" and set navigation (PageUp/PageDown, < >) reaches the others.
+
+## 2026-11-18: Welcome text
+
+Manfred: the Welcome dialog should say briefly what PoCoView is for (you change a point set by
+dragging points; the viewer is for exploring and visualising its properties). After several drafts
+(one with a list of properties, dropped) the first line is now: "PoCoView is a viewer for point sets
+in the plane. Change a point set by dragging points and explore and visualise its combinatorial
+properties." The first paragraph of Help → General starts with the same text, followed by what an
+order type is. Feedback box and buttons unchanged.
