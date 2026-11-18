@@ -21,9 +21,69 @@
             width: 100%;
             height: 100%;
         }
+        #boot {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: 16px sans-serif;
+            color: #555;
+            background: #fff;
+        }
+        #boot.error {
+            align-items: flex-start;
+            color: #222;
+            overflow: auto;
+        }
+        #boot.error > div {
+            max-width: 640px;
+            padding: 32px 16px;
+        }
+        #boot pre {
+            white-space: pre-wrap;
+            color: #B00020;
+        }
     </style>
 </head>
 <body>
+    <div id="boot">Loading PoCoView...</div>
+    <script>
+        // Until the app has started: a loading note, replaced by the error if the app cannot start.
+        (function () {
+            var started = false;
+            function fail(message) {
+                var boot = document.getElementById('boot');
+                if (started || !boot) return;
+                boot.className = 'error';
+                boot.innerHTML = '<div><b>PoCoView could not start in this browser.</b><pre></pre>' +
+                    'Try reloading without the cache (Ctrl+Shift+R, on a Mac Cmd+Shift+R), switching off an ' +
+                    'ad or tracker blocker for this page, or another browser.</div>';
+                boot.querySelector('pre').textContent = message;
+            }
+            if (typeof WebAssembly !== 'object') fail('WebAssembly is not available.');
+            window.addEventListener('error', function (e) {
+                var t = e.target;
+                fail(t && t !== window && (t.src || t.href) ? 'Cannot load ' + (t.src || t.href) : e.message);
+            }, true);
+            window.addEventListener('unhandledrejection', function (e) {
+                var r = e.reason;
+                fail(String(r && (r.stack || r.message) || r));
+            });
+            new MutationObserver(function (changes, observer) {
+                for (var i = 0; i < document.body.children.length; i++) {
+                    var n = document.body.children[i];
+                    if (n.id !== 'boot' && n.tagName !== 'SCRIPT') {
+                        started = true;
+                        var boot = document.getElementById('boot');
+                        if (boot && boot.className !== 'error') boot.remove();
+                        observer.disconnect();
+                        return;
+                    }
+                }
+            }).observe(document.body, { childList: true });
+        })();
+    </script>
     <script src="composeApp.js"></script>
 </body>
 </html>
