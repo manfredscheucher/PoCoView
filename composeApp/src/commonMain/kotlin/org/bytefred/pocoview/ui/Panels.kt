@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -45,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -273,29 +271,6 @@ private fun doneText(state: AppState, prop: PropertyDef, r: PropertyResult): Str
 private fun truncNote(r: PropertyResult) =
     if (r.truncated) "  ·  drawing first ${r.structures?.size}" else ""
 
-/**
- * A number input that keeps what the user types; only parseable values are passed to
- * [onValue], so clearing the field to retype does not turn the value into 0.
- */
-@Composable
-fun NumberField(
-    state: AppState, label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier,
-    decimal: Boolean = false,
-) {
-    var text by remember(value) { mutableStateOf(value) }
-    OutlinedTextField(
-        text,
-        onValueChange = { v ->
-            // at most 9 digits: every integer field value fits into an Int
-            text = v.filter { it.isDigit() || (decimal && it == '.') }.take(if (decimal) 10 else 9)
-            if (if (decimal) text.toDoubleOrNull() != null else text.toIntOrNull() != null) onValue(text)
-        },
-        label = { Text(label) }, singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number),
-        modifier = modifier.textFocus(state),
-    )
-}
-
 /** Counts focused text fields in [AppState.textFieldsFocused], so shortcuts do not fire while typing. */
 fun Modifier.textFocus(state: AppState): Modifier = composed {
     var focused by remember { mutableStateOf(false) }
@@ -373,16 +348,16 @@ private fun OptimizeTab(state: AppState) {
     OptBox("Minimize", { state.minimizeSettings = MinimizeSettings() }) {
         Hint("Keeps the order type.")
         SelectField("Method", state.minimizeMethod.label, MinimizeMethod.entries, { it.label }) { state.minimizeMethod = it }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             when (state.minimizeMethod) {
                 MinimizeMethod.EVEN_HALVE -> {
-                    NumberField(state, "trials", m.trials.toString(), { setM(m.copy(trials = it.toInt())) }, Modifier.width(90.dp))
-                    NumberField(state, "randomize", m.randomize.toString(), { setM(m.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
+                    NumberField(state, "trials", m.trials.toString(), { setM(m.copy(trials = it.toInt())) })
+                    NumberField(state, "randomize", m.randomize.toString(), { setM(m.copy(randomize = it.toInt())) })
                 }
                 MinimizeMethod.PERTURB -> {
-                    NumberField(state, "max trials", m.psMaxTrials.toString(), { setM(m.copy(psMaxTrials = it.toInt())) }, Modifier.width(100.dp))
-                    NumberField(state, "scale", m.psScale.toString(), { setM(m.copy(psScale = it.toInt())) }, Modifier.width(90.dp))
-                    NumberField(state, "blowup", m.psBlowup.toString(), { setM(m.copy(psBlowup = it.toInt())) }, Modifier.width(90.dp))
+                    NumberField(state, "max trials", m.psMaxTrials.toString(), { setM(m.copy(psMaxTrials = it.toInt())) })
+                    NumberField(state, "scale", m.psScale.toString(), { setM(m.copy(psScale = it.toInt())) })
+                    NumberField(state, "blowup", m.psBlowup.toString(), { setM(m.copy(psBlowup = it.toInt())) })
                 }
             }
         }
@@ -395,10 +370,10 @@ private fun OptimizeTab(state: AppState) {
     OptBox("Minimize w.r.t. property", { state.wrtSettings = WrtSettings() }) {
         Hint("Order type may change; the property never gets worse.")
         PropertySelect(state)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NumberField(state, "max trials", w.maxTrials.toString(), { setW(w.copy(maxTrials = it.toInt())) }, Modifier.width(100.dp))
-            NumberField(state, "randomize", w.randomize.toString(), { setW(w.copy(randomize = it.toInt())) }, Modifier.width(110.dp))
-            NumberField(state, "symmetric k", w.symmetric.toString(), { setW(w.copy(symmetric = it.toInt())) }, Modifier.width(110.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            NumberField(state, "max trials", w.maxTrials.toString(), { setW(w.copy(maxTrials = it.toInt())) })
+            NumberField(state, "randomize", w.randomize.toString(), { setW(w.copy(randomize = it.toInt())) })
+            NumberField(state, "symmetric k", w.symmetric.toString(), { setW(w.copy(symmetric = it.toInt())) })
         }
         SwitchRow("Shear", w.sheering) { setW(w.copy(sheering = it)) }
         SwitchRow("Minimize diameter", w.minimizeDiameter) { setW(w.copy(minimizeDiameter = it)) }
@@ -409,9 +384,9 @@ private fun OptimizeTab(state: AppState) {
     fun setB(c: BeautifySettings) { state.beautifySettings = c }
     OptBox("Beautify", { state.beautifySettings = BeautifySettings() }) {
         Hint("Keeps the order type.")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NumberField(state, "iter1", b.iter1.toString(), { setB(b.copy(iter1 = it.toInt())) }, Modifier.width(90.dp))
-            NumberField(state, "iter2", b.iter2.toString(), { setB(b.copy(iter2 = it.toInt())) }, Modifier.width(100.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            NumberField(state, "iter1", b.iter1.toString(), { setB(b.copy(iter1 = it.toInt())) })
+            NumberField(state, "iter2", b.iter2.toString(), { setB(b.copy(iter2 = it.toInt())) })
         }
         SwitchRow("Minimize after", b.minimizeAfter) { setB(b.copy(minimizeAfter = it)) }
         RunButtons("Beautify", idle, { state.beautify() }, { state.beautify(repeat = true) })
@@ -423,12 +398,12 @@ private fun OptimizeTab(state: AppState) {
         Hint("Order type may change; equal values are taken over.")
         PropertySelect(state)
         SelectField("Flow", flow.label, PROPERTY_SEARCH_FLOWS, { it.label }) { state.searchFlowId = it.id }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             for (param in flow.params) {
                 val key = "${flow.id}.${param.name}"
                 when (val v = state.searchValue(flow, param)) {
-                    is Int -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble().toInt() }, Modifier.width(110.dp))
-                    is Double -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble() }, Modifier.width(110.dp), decimal = true)
+                    is Int -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble().toInt() })
+                    is Double -> NumberField(state, param.name, v.toString(), { state.searchValues[key] = it.toDouble() }, decimal = true)
                     else -> {}
                 }
             }
@@ -443,12 +418,12 @@ private fun OptimizeTab(state: AppState) {
     val c = state.cellHopParams
     OptBox("qtvis minimizer", { state.cellHopParams = CellHopParams() }) {
         Hint("Uses the property above (Enter).")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            NumberField(state, "trials", c.trials.toString(), { state.cellHopParams = c.copy(trials = it.toInt()) }, Modifier.width(90.dp))
-            NumberField(state, "max iter", c.maxIterations.toString(), { state.cellHopParams = c.copy(maxIterations = it.toInt()) }, Modifier.width(100.dp))
-            NumberField(state, "max fail", c.maxFailIterations.toString(), { state.cellHopParams = c.copy(maxFailIterations = it.toInt()) }, Modifier.width(100.dp))
-            NumberField(state, "eps", c.eps.toString(), { state.cellHopParams = c.copy(eps = it.toInt()) }, Modifier.width(80.dp))
-            NumberField(state, "alpha", c.alpha.toString(), { state.cellHopParams = c.copy(alpha = it.toDouble()) }, Modifier.width(90.dp), decimal = true)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            NumberField(state, "trials", c.trials.toString(), { state.cellHopParams = c.copy(trials = it.toInt()) })
+            NumberField(state, "max iter", c.maxIterations.toString(), { state.cellHopParams = c.copy(maxIterations = it.toInt()) })
+            NumberField(state, "max fail", c.maxFailIterations.toString(), { state.cellHopParams = c.copy(maxFailIterations = it.toInt()) })
+            NumberField(state, "eps", c.eps.toString(), { state.cellHopParams = c.copy(eps = it.toInt()) })
+            NumberField(state, "alpha", c.alpha.toString(), { state.cellHopParams = c.copy(alpha = it.toDouble()) }, decimal = true)
         }
         SwitchRow("Last point only", c.onlyLastPoint) { state.cellHopParams = c.copy(onlyLastPoint = it) }
         RunButtons(

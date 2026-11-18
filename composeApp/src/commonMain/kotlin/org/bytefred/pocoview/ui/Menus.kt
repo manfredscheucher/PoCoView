@@ -64,6 +64,7 @@ import androidx.compose.ui.window.PopupProperties
 import org.bytefred.pocoview.GeneratedBuildInfo
 import org.bytefred.pocoview.GeneratedLicenses
 import org.bytefred.pocoview.core.ALL_PROPERTIES
+import org.bytefred.pocoview.core.COORD_LIMIT
 import org.bytefred.pocoview.core.CrossingProperty
 import org.bytefred.pocoview.core.EXAMPLES
 import org.bytefred.pocoview.core.Example
@@ -424,8 +425,8 @@ private fun RandomDialog(state: AppState, close: () -> Unit) {
         text = {
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt(); error = null }, Modifier.width(90.dp))
-                    NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong(); error = null }, Modifier.width(130.dp))
+                    NumberField(state, "n", state.randomN.toString(), { state.randomN = it.toInt(); error = null }, range = 1L..200, stepper = true)
+                    NumberField(state, "grid", state.randomGrid.toString(), { state.randomGrid = it.toLong(); error = null }, range = 2L..COORD_LIMIT)
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
@@ -603,7 +604,7 @@ private fun feedbackMailto(): String {
 @Composable
 private fun FamilyDetails(state: AppState, f: PointSetFamily, n: Int, error: String?, onN: (Int) -> Unit) {
     Column(Modifier.padding(start = 48.dp, bottom = 8.dp)) {
-        NumberField(state, "n", n.toString(), { onN(it.toInt()) }, Modifier.width(90.dp))
+        NumberField(state, "n", n.toString(), { onN(it.toInt()) }, range = 1L..f.maxN, stepper = true, isError = error != null)
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text(f.description, style = MaterialTheme.typography.bodySmall)
         for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)

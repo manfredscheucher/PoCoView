@@ -154,3 +154,17 @@ general position warning and the message moved to the right end of the toolbar r
 ellipsis. The status text keeps a minimum width of 280 dp (Claude's decision, shown to Manfred):
 with less room left in its row it wraps to a line of its own instead of shrinking to a few letters. The start set is the
 example n13-c1-min-convex-3-4-5-holes, so that is the initial file name (was "points").
+
+## 2026-11-18: Compact number fields
+
+Manfred: integer inputs were huge (Material's text field is at least 280 dp wide and 56 dp high);
+make them reasonable everywhere. Every number input (Random n/grid, family n, the Optimize widget's
+parameters) is now one shared `NumberField` modelled on ktoy's steps/sec field: "label:" in front, a
+low field with a 1 dp grey rounded border, as high as the buttons (40 dp), mono text centred
+vertically, as wide as the longest allowed value (digits of the range's maximum, else 9 digits). The
+border turns red when the text is not a number or outside the range; the existing error texts stay
+below. Typing, validation and ranges are unchanged.
+
+"−"/"+" buttons (step 1, clamped to the range) only on the point counts: Random n (1..200) and a
+family's n (1..max n). Not on grid (a size up to 2^29, stepping by 1 is pointless) or the optimizer
+parameters (the buttons would double the width of every parameter row).
