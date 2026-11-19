@@ -208,3 +208,38 @@ screen has no right-click, so a long press opens the same context menu as a righ
 - Interpretation: a long press on empty space opens nothing (like a right-click there); its release
   then acts as a tap as before (Add adds a point, Move deselects).
 - Help (General and Shortcuts) and the user guide say "right-click (long press on touch screens)".
+
+## 2026-11-19: Snap with grid refinement
+
+Manfred: points sit on the grid, and a cell of the line arrangement can be visible without containing
+a grid point. Add a setting, off by default; when on, a released drag or an Add takes the 4 grid
+points around the release position, and if none is possible, blows up the coordinates and tries
+again until the point has room. Plus an info text: everything is computed with exact integers.
+
+- Name: "Snap with grid refinement" (Manfred's suggestion "Allow floats & blow up grid" not taken:
+  no float is ever stored). A checkbox in the Display widget under a new heading "Editing", with a
+  round (i) that opens a short popover. Remembered like the other Display settings; "Reset to
+  defaults" turns it off.
+- Off: unchanged.
+- On, at the release of a drag (not during it) or an Add at the real position p: the target cell
+  is the cell of p in the line arrangement of the other points. A candidate is possible if it is in
+  range, no duplicate, and has the same non-zero orientation as p with every pair of other points
+  (so it is in no line through two others, and the order type is the one the user aimed at). Where
+  p lies exactly on a line, either side is accepted. The 4 corners of the unit square around p are
+  tried nearest first (ties: lower-left, lower-right, upper-left, upper-right).
+- None possible: all coordinates and p are multiplied by 2 (exactly 2; the optimizers' internal
+  blow-ups are not a separate operation), and the 4 corners are tried again; repeat.
+- Lock order type (with no collinear points): the target cell is the point's current cell. A
+  release outside it changes nothing (the point stays where the locked drag left it).
+- The view zooms out by the same factor, so nothing visibly moves; the coordinates grow.
+- The drag (or Add) including its refinement is one undo step. Undo does not change the view, so
+  after undoing a refinement the picture is half as large per doubling.
+- Limits: coordinates stay within ±2^29 (the app computes with exact Long arithmetic, not BigInt).
+  If the next doubling would leave that range, or after the crash guard of 64 doublings, nothing
+  changes and the status line says "No room for the point within ±2^29".
+- p's signs (only the target) are computed in Double; every candidate is checked with exact
+  integer orientations.
+- Tests: `GridRefineTest` (cell without grid points needs 2 doublings, no doubling when a corner
+  fits, nearest corner, Lock, no room, 2000 random sets and releases never hit the cap) and
+  `GridRefineUiTest` (real drags and Add with the setting on and off, the view keeps the picture,
+  undo, checkbox, popover, remembered, reset).

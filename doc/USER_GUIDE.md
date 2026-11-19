@@ -34,6 +34,11 @@ arrangement, labels, the selected point (size, colour, lines through it), the nu
 the layout (auto/portrait/landscape). "Reset to defaults" puts all of them and the divider positions
 back.
 
+**Snap with grid refinement** (Display widget, off by default): when you drop or add a point, it goes
+to the nearest of the 4 grid points around the pointer that lies in the cell of the line arrangement
+you aimed at. If none does, all coordinates are doubled (the view zooms out, so the picture stays) and
+the 4 grid points are tried again, until one fits. Coordinates stay exact integers within ±2^29.
+
 These display settings, the open widgets, the divider positions, and the shown/drawn properties with
 their colours are remembered for the next start.
 
