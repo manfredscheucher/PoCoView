@@ -51,10 +51,25 @@
     <script>
         // Until the app has started: a loading note, replaced by the error if the app cannot start.
         (function () {
-            var started = false;
-            function fail(message) {
+            var started = false, noWebGL = false;
+            // Skiko draws with WebGL; without it the app crashes at its first frame (reading 'getParameter')
+            function showNoWebGL() {
+                noWebGL = true;
                 var boot = document.getElementById('boot');
-                if (started || !boot) return;
+                if (!boot) {
+                    boot = document.createElement('div');
+                    boot.id = 'boot';
+                    document.body.appendChild(boot);
+                }
+                boot.className = 'error';
+                boot.innerHTML = '<div><b></b></div>';
+                boot.querySelector('b').textContent = 'PoCoView needs WebGL. Turn on hardware acceleration in the ' +
+                    'browser settings (Chrome: Settings \u2192 System \u2192 Use graphics acceleration) and reload.';
+            }
+            function fail(message) {
+                if (/getParameter/.test(message)) return showNoWebGL();
+                var boot = document.getElementById('boot');
+                if (started || noWebGL || !boot) return;
                 boot.className = 'error';
                 boot.innerHTML = '<div><b>PoCoView could not start in this browser.</b><pre></pre>' +
                     'Try reloading without the cache (Ctrl+Shift+R, on a Mac Cmd+Shift+R), switching off an ' +
@@ -82,8 +97,15 @@
                     }
                 }
             }).observe(document.body, { childList: true });
+            var probe = document.createElement('canvas');
+            if (probe.getContext('webgl2') || probe.getContext('webgl')) {
+                var app = document.createElement('script');
+                app.src = 'composeApp.js';
+                document.body.appendChild(app);
+            } else {
+                showNoWebGL();
+            }
         })();
     </script>
-    <script src="composeApp.js"></script>
 </body>
 </html>
