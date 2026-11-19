@@ -34,6 +34,7 @@ import org.bytefred.pocoview.core.PropertyResult
 import org.bytefred.pocoview.core.PropertySearchFlow
 import org.bytefred.pocoview.core.Pt
 import org.bytefred.pocoview.core.SearchParam
+import org.bytefred.pocoview.core.Snap
 import org.bytefred.pocoview.core.Ticker
 import org.bytefred.pocoview.core.beautify2Coords
 import org.bytefred.pocoview.core.bitsOf
@@ -51,6 +52,8 @@ import org.bytefred.pocoview.core.readPointSets
 import org.bytefred.pocoview.core.readText
 import org.bytefred.pocoview.core.sameOrderTypeAfterMove
 import org.bytefred.pocoview.core.saveFileName
+import org.bytefred.pocoview.core.snapWithRefinement
+import kotlin.math.roundToLong
 import kotlin.random.Random
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
@@ -242,6 +245,8 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var showLines by mutableStateOf(true)
     var showLabels by mutableStateOf(true)
     var fixOrderType by mutableStateOf(false)
+    /** Display widget "Snap with grid refinement": release/add snaps into the aimed cell, doubling coordinates if needed. */
+    var refineGrid by mutableStateOf(false)
 
     /** All sets of the loaded file (multi order type files) and the shown one. */
     var sets by mutableStateOf<List<List<Pt>>>(emptyList())
@@ -339,6 +344,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         lineColor = DEFAULT_LINE_COLOR; lineAlpha = DEFAULT_LINE_ALPHA
         selectedColor = DEFAULT_SELECTED_COLOR
         incidentLines = IncidentLines.HIDE; incidentLineColor = DEFAULT_INCIDENT_LINE_COLOR; incidentLineWidth = 2f
+        refineGrid = false
         wideWeights = emptyMap(); stackedWeights = emptyMap()
         for (key in RESET_PREFS) removePref(key)
         // other settings the reset changed (open widgets) are stored as usual
@@ -363,6 +369,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         INCIDENT_WIDTH_PREF to incidentLineWidth.toString(),
         LINES_PREF to showLines.toString(),
         LABELS_PREF to showLabels.toString(),
+        REFINE_GRID_PREF to refineGrid.toString(),
         WIDE_WEIGHTS_PREF to encodeWeights(wideWeights),
         STACKED_WEIGHTS_PREF to encodeWeights(stackedWeights),
     )
@@ -409,6 +416,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         floatPref(INCIDENT_WIDTH_PREF, INCIDENT_WIDTH_RANGE)?.let { incidentLineWidth = it }
         booleanPref(LINES_PREF)?.let { showLines = it }
         booleanPref(LABELS_PREF)?.let { showLabels = it }
+        booleanPref(REFINE_GRID_PREF)?.let { refineGrid = it }
         loadPref(WIDE_WEIGHTS_PREF)?.let { wideWeights = decodeWeights(it) }
         loadPref(STACKED_WEIGHTS_PREF)?.let { stackedWeights = decodeWeights(it) }
         for (p in ALL_PROPERTIES) {
@@ -561,6 +569,44 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
         points = points.toMutableList().also { it[i] = q.copy(color = points[i].color) }
         if (!sameOrderType) onPointsChanged()
         return true
+    }
+
+    /**
+     * End of a drag of point [i], released at the world position ([x], [y]). With [refineGrid] the
+     * point snaps into the cell of that position (see [snapWithRefinement]); the drag stays one undo
+     * step. Returns the number of coordinate doublings (the canvas zooms out by 2^k).
+     */
+    fun endDrag(i: Int, x: Double, y: Double): Int {
+        if (!refineGrid || i !in points.indices) return 0
+        return when (val r = snapWithRefinement(points, i, x, y, lock = fixOrderType && collinear.isEmpty())) {
+            is Snap.Placed -> {
+                if (r.points != points) {
+                    if (dragUndoPending) { pushUndo(); dragUndoPending = false }
+                    points = r.points
+                    onPointsChanged()
+                }
+                r.doublings
+            }
+            Snap.OutsideLockedCell -> 0
+            Snap.NoRoom -> { showNote(NO_ROOM); 0 }
+        }
+    }
+
+    /**
+     * Add at the world position ([x], [y]): without [refineGrid] the nearest grid point
+     * ([addPoint]), with it see [endDrag]. Returns the number of coordinate doublings.
+     */
+    fun addPointAt(x: Double, y: Double): Int {
+        if (!refineGrid) { addPoint(Pt(x.roundToLong(), y.roundToLong())); return 0 }
+        return when (val r = snapWithRefinement(points, null, x, y)) {
+            is Snap.Placed -> {
+                cancelOperation()
+                setPoints(r.points)
+                select(points.size - 1)
+                r.doublings
+            }
+            else -> { showNote(NO_ROOM); 0 }
+        }
     }
 
     fun addPoint(q: Pt) {
@@ -1072,13 +1118,15 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
 
         /** How long a [StatusMessage.transient] message stays. */
         const val INFO_DURATION_MS = 3000L
+        const val NO_ROOM = "No room for the point within ±2^29"
+
         private const val PREF_SAVE_DELAY_MS = 300L
 
         /** The stored settings "Reset to defaults" (Display widget) forgets. */
         private val RESET_PREFS = setOf(
             LAYOUT_PREF, MAX_WIDGETS_PREF, POINT_SIZE_PREF, LINE_WIDTH_PREF, LINE_COLOR_PREF, LINE_ALPHA_PREF,
             SELECTED_SIZE_PREF, SELECTED_COLOR_PREF, INCIDENT_LINES_PREF, INCIDENT_COLOR_PREF, INCIDENT_WIDTH_PREF,
-            LINES_PREF, LABELS_PREF, WIDE_WEIGHTS_PREF, STACKED_WEIGHTS_PREF,
+            LINES_PREF, LABELS_PREF, REFINE_GRID_PREF, WIDE_WEIGHTS_PREF, STACKED_WEIGHTS_PREF,
         )
 
         /** Slider ranges of the Display widget (stored values are clamped to them). */

@@ -1,6 +1,10 @@
 package org.bytefred.pocoview.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -199,6 +203,15 @@ private fun DisplayWidget(state: AppState) {
     }
 
     Spacer(Modifier.height(12.dp))
+    Text("Editing", style = MaterialTheme.typography.titleSmall)
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
+        Checkbox(state.refineGrid, { state.refineGrid = it }, Modifier.testTag("refineGrid"))
+        Text(REFINE_GRID_LABEL, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.width(6.dp))
+        InfoButton(REFINE_GRID_INFO)
+    }
+
+    Spacer(Modifier.height(12.dp))
     Text("Widgets", style = MaterialTheme.typography.titleSmall)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Max. widgets: ${state.maxColumns}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -211,6 +224,30 @@ private fun DisplayWidget(state: AppState) {
     }
     Spacer(Modifier.height(8.dp))
     OutlinedButton(onClick = state::resetDisplay) { Text("Reset to defaults") }
+}
+
+const val REFINE_GRID_LABEL = "Snap with grid refinement"
+const val REFINE_GRID_INFO =
+    "When you drop or add a point, it goes to the nearest of the 4 grid points around the pointer " +
+        "that lies in the same cell of the line arrangement. If none does, all coordinates are doubled " +
+        "(the picture stays the same) and the 4 grid points are tried again, until one fits. " +
+        "All coordinates stay exact integers and every orientation is computed exactly, so there are " +
+        "no floating point rounding errors."
+
+/** A small round (i) that shows [text] in a popover when clicked. */
+@Composable
+private fun InfoButton(text: String) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Box(
+            Modifier.size(20.dp).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                .clickable { open = !open }.testTag("info"),
+            contentAlignment = Alignment.Center,
+        ) { Text("i", style = MaterialTheme.typography.labelMedium) }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            Text(text, Modifier.widthIn(max = 300.dp).padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
 
 @Composable

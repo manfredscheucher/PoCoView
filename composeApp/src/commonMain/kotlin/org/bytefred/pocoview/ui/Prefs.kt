@@ -28,6 +28,7 @@ internal const val INCIDENT_COLOR_PREF = "incidentLineColor"
 internal const val INCIDENT_WIDTH_PREF = "incidentLineWidth"
 internal const val LINES_PREF = "lineArrangement"
 internal const val LABELS_PREF = "pointLabels"
+internal const val REFINE_GRID_PREF = "refineGrid"
 internal const val WIDE_WEIGHTS_PREF = "wideWeights"
 internal const val STACKED_WEIGHTS_PREF = "stackedWeights"
 

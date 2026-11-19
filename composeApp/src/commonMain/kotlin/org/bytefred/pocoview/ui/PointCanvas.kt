@@ -58,6 +58,13 @@ class ViewTransform {
 
     fun toScreen(p: Pt) = Offset((ox + p.x * scale).toFloat(), (oy - p.y * scale).toFloat())
     fun toWorld(s: Offset) = Pt(((s.x - ox) / scale).roundToLong(), ((oy - s.y) / scale).roundToLong())
+    fun worldX(s: Offset) = (s.x - ox) / scale
+    fun worldY(s: Offset) = (oy - s.y) / scale
+
+    /** The coordinates were multiplied by 2^[doublings]: zoom out by as much, so the picture stays. */
+    fun coordinatesDoubled(doublings: Int) {
+        repeat(doublings) { scale /= 2 }
+    }
 
     fun zoomAt(anchor: Offset, factor: Double) {
         val f = factor.coerceIn(0.02, 50.0)
@@ -260,9 +267,15 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                                             val h = hitAtDown
                                             when (st.tool) {
                                                 Tool.MOVE -> st.select(h)
-                                                Tool.ADD -> if (h != null) st.select(h) else st.addPoint(view.toWorld(start))
+                                                Tool.ADD -> if (h != null) st.select(h)
+                                                else view.coordinatesDoubled(st.addPointAt(view.worldX(start), view.worldY(start)))
                                                 Tool.DELETE -> if (h != null) st.deletePoint(h)
                                             }
+                                        }
+                                        val dp = dragPoint
+                                        if (start != null && dragStarted && dp != null) {
+                                            val pos = ev.changes.first().position
+                                            view.coordinatesDoubled(st.endDrag(dp, view.worldX(pos), view.worldY(pos)))
                                         }
                                         down = null; dragPoint = null; pinchDist = 0f
                                     } else {
