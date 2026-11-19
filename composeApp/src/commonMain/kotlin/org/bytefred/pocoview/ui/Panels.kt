@@ -2,7 +2,6 @@ package org.bytefred.pocoview.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -204,11 +203,12 @@ private fun DisplayWidget(state: AppState) {
 
     Spacer(Modifier.height(12.dp))
     Text("Editing", style = MaterialTheme.typography.titleSmall)
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(44.dp)) {
-        Checkbox(state.refineGrid, { state.refineGrid = it }, Modifier.testTag("refineGrid"))
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(44.dp)) {
         Text(REFINE_GRID_LABEL, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.width(6.dp))
         InfoButton(REFINE_GRID_INFO)
+        Spacer(Modifier.weight(1f))
+        Switch(state.refineGrid, { state.refineGrid = it }, Modifier.testTag("refineGrid"))
     }
 
     Spacer(Modifier.height(12.dp))

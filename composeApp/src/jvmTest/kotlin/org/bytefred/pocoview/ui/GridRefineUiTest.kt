@@ -129,7 +129,7 @@ class GridRefineUiTest {
     }
 
     @Test
-    fun theCheckboxIsOffByDefaultRememberedAndExplained() = runComposeUiTest {
+    fun theSwitchIsOffByDefaultRememberedAndExplained() = runComposeUiTest {
         val s = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
         assertFalse(s.refineGrid)
         setContent { WidgetContent(s, Widget.DISPLAY) {} }

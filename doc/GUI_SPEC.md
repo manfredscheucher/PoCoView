@@ -217,7 +217,7 @@ points around the release position, and if none is possible, blows up the coordi
 again until the point has room. Plus an info text: everything is computed with exact integers.
 
 - Name: "Snap with grid refinement" (Manfred's suggestion "Allow floats & blow up grid" not taken:
-  no float is ever stored). A checkbox in the Display widget under a new heading "Editing", with a
+  no float is ever stored). A switch in the Display widget under a new heading "Editing", with a
   round (i) that opens a short popover. Remembered like the other Display settings; "Reset to
   defaults" turns it off.
 - Off: unchanged.
@@ -242,4 +242,4 @@ again until the point has room. Plus an info text: everything is computed with e
 - Tests: `GridRefineTest` (cell without grid points needs 2 doublings, no doubling when a corner
   fits, nearest corner, Lock, no room, 2000 random sets and releases never hit the cap) and
   `GridRefineUiTest` (real drags and Add with the setting on and off, the view keeps the picture,
-  undo, checkbox, popover, remembered, reset).
+  undo, switch, popover, remembered, reset).
