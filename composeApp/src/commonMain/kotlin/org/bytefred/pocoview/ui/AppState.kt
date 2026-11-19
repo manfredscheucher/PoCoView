@@ -577,7 +577,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      * step. Returns the number of coordinate doublings (the canvas zooms out by 2^k).
      */
     fun endDrag(i: Int, x: Double, y: Double): Int {
-        if (!refineGrid || i !in points.indices) return 0
+        if (!refineGrid || i !in points.indices || !Pt(x.roundToLong(), y.roundToLong()).inRange()) return 0
         return when (val r = snapWithRefinement(points, i, x, y, lock = fixOrderType && collinear.isEmpty())) {
             is Snap.Placed -> {
                 if (r.points != points) {
@@ -598,6 +598,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
      */
     fun addPointAt(x: Double, y: Double): Int {
         if (!refineGrid) { addPoint(Pt(x.roundToLong(), y.roundToLong())); return 0 }
+        if (!Pt(x.roundToLong(), y.roundToLong()).inRange()) return 0
         return when (val r = snapWithRefinement(points, null, x, y)) {
             is Snap.Placed -> {
                 cancelOperation()
