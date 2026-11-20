@@ -256,16 +256,25 @@ private fun exportLayers(state: AppState): Pair<List<Pair<Color, List<Structure>
     return layers to emphasized
 }
 
-private fun lineStyle(state: AppState) = if (state.showLines) LineStyle(state.lineColor, state.lineAlpha, state.lineWidth) else null
+/** The Display settings the canvas draws with. */
+fun exportStyle(state: AppState) = ExportStyle(
+    labels = state.showLabels,
+    pointRadius = state.pointRadius,
+    structureWidth = state.lineWidth,
+    lines = if (state.showLines) LineStyle(state.lineColor, state.lineAlpha, state.lineWidth) else null,
+    selected = state.selected,
+    incident = state.incidentLines,
+    incidentStyle = LineStyle(state.incidentLineColor, 1f, state.incidentLineWidth),
+)
 
 fun exportSvg(state: AppState): String {
     val (layers, emphasized) = exportLayers(state)
-    return pointSetSvg(state.points, layers, state.showLabels, lineStyle(state), emphasized)
+    return pointSetSvg(state.points, layers, exportStyle(state), emphasized)
 }
 
 fun exportIpe(state: AppState): String {
     val (layers, emphasized) = exportLayers(state)
-    return pointSetIpe(state.points, layers, state.showLabels, lineStyle(state), emphasized)
+    return pointSetIpe(state.points, layers, exportStyle(state), emphasized)
 }
 
 @Composable

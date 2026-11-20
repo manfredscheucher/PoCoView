@@ -246,10 +246,12 @@ Apply deselects, fits the view and is one undo step. Text that cannot be read op
 - **Export…**: all sets as JSON or text (Format) in a text field, with Copy. This does not count as
   saving.
 - **Export SVG** / **Export Ipe**: a picture of the current set, fitted to the page, not the current
-  view. It has the points (fixed size, with their R/B/G colours), the labels and the whole line
-  arrangement if shown (with its colour, opacity and width), and the highlighted structures if
-  Highlight is on. The selected point is not marked. Ipe files open in the Ipe editor. This does
-  not count as saving either.
+  view. It is drawn with the Display settings: point size and the R/B/G point colours, the labels
+  and the line arrangement if shown (colour, opacity, width), the lines through the selected point
+  (hidden, normal or highlighted as set), and the highlighted structures if Highlight is on, with
+  their colours and the line width. Sizes are in canvas pixels on a 1000-wide page. Points are
+  black on white (no dark theme), and the selected point itself is not marked. Ipe files open in
+  the Ipe editor, one layer per part. This does not count as saving either.
 
 ## Settings
 

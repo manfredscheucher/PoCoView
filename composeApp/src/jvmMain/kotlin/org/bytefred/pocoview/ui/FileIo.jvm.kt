@@ -18,7 +18,9 @@ actual fun rememberFileOpener(
         dialogTitle = "Open point set"
         // JSON is the default; the other point set formats are one filter away
         addChoosableFileFilter(FileNameExtensionFilter("JSON point set (*.json)", "json"))
-        addChoosableFileFilter(FileNameExtensionFilter("All point sets (*.json, *.txt, *.asc, *.psz, *.b08, *.b16, *.b32)", *LOAD_EXTENSIONS.toTypedArray()))
+        addChoosableFileFilter(FileNameExtensionFilter(
+            "All point sets (${LOAD_EXTENSIONS.joinToString(", ") { "*.$it" }})", *LOAD_EXTENSIONS.toTypedArray(),
+        ))
         fileFilter = choosableFileFilters.first { it.description.startsWith("JSON") }
     }
     if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {

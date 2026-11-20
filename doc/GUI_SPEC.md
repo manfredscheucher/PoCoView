@@ -273,3 +273,46 @@ fitted), so opening a widget cut off points and closing one left the set small.
 Open questions:
 - Should a size change that happened during a drag refit at the release? (Now: no.)
 - Should undo/redo of an edit that moved points out of view refit? (Now: no, only size changes.)
+
+## 2026-11-20: Export shows the drawing
+
+Request: Manfred: "pocoview hat auch export, passt da alles? also nicht nur arrview sondern überall
+export sinnvoll" (PoCoView also has export, is everything fine there? make export sensible
+everywhere). Interpretation (coordinator, same as in ArrView): the SVG/Ipe picture shows what the
+canvas draws for the drawing itself, with the Display settings; no UI chrome. JSON/text exports are
+data and stay as they are.
+
+Before: the export used a fixed point radius (6) and fixed structure pens (1.5 / 4), ignored the
+line width for structures, drew polygon outlines fully opaque (canvas: 70 %; in Ipe even at the
+13 % fill opacity), drew the lines through the selected point even when set to hide, never drew
+them highlighted, and crashed on structures with a stale point index (the canvas skips those).
+
+- Point radius = the Display point size; labels sit point size + 2 right/up of the point.
+- Structures: pen 1.5 / 3.5 (emphasized) times the line width, polygon outline at 70 %, fill 13 %,
+  segments 50 % / 100 % as on the canvas. Ipe: fill and outline are two paths (one opacity each).
+- Lines through the selected point: hide = left out of the arrangement, normal = like the others,
+  highlight = drawn in the incident colour and width (only while the arrangement is shown, as on
+  the canvas). Ipe puts them in their own layer "incident".
+- Structures with a vertex outside the point list are skipped.
+- Sizes: canvas pixels = SVG units on the 1000-wide page; Ipe = half (500 pt box), the mark size is
+  set absolutely (radius = 0.6 x size).
+- Unchanged (Claude's reading, as the canvas look without the theme): points without a colour token
+  are black on a white page, not the theme's onSurface.
+- Open file (desktop): the "All point sets" filter label is built from the accepted extensions and
+  now lists .pb08/.pb16/.pb32 too.
+- Tests: `ExportTest` (point size, structure pens and outline opacity, hide/normal/highlight with and
+  without arrangement, Ipe mark size and layers, stale indices, export from an `AppState`). Visually
+  checked: app screenshot vs the SVG in headless Chrome and the Ipe file via iperender.
+
+Open questions:
+- Export the current view (zoom/pan crop of the canvas) instead of the whole set fitted to the page?
+  (Now: fitted. Recommendation: keep fitted, a picture of the set should not depend on the window.)
+- Should the selected point be marked in the export (selected colour, size, ring)? (Now: no.
+  Recommendation: no; it is an editing state, but highlighted incident lines already show it.)
+- The red rings around collinear points: not exported (a warning, not part of the drawing).
+- Point size relative to the picture: the canvas fit leaves 85 % of the canvas, the page 920 of
+  1000 units, so on a small canvas the points look larger relative to the set than in the export.
+  Scale sizes by page / canvas size? (Now: no, the export does not depend on the window size.)
+- Open file (desktop) starts with the JSON-only filter, so .txt/.b08 files are hidden until the user
+  picks "All point sets". Start with "All point sets" instead? (Recommendation: yes.)
+

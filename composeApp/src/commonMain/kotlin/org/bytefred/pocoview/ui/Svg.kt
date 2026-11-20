@@ -11,6 +11,34 @@ import kotlin.math.round
 data class LineStyle(val color: Color = Color(0xFF1C1B1F), val alpha: Float = 0.18f, val width: Float = 1f)
 
 /**
+ * The Display settings an export draws with, as on the canvas (sizes in canvas pixels = SVG units).
+ * [lines]: the line arrangement, null = not shown. [selected]: the selected point; its lines are left
+ * out of the arrangement unless [incident] is NORMAL, and with HIGHLIGHT drawn in [incidentStyle].
+ * [structureWidth]: factor on the structure pen widths (the canvas line width).
+ */
+data class ExportStyle(
+    val labels: Boolean = true,
+    val pointRadius: Float = 6f,
+    val structureWidth: Float = 1f,
+    val lines: LineStyle? = null,
+    val selected: Int? = null,
+    val incident: IncidentLines = IncidentLines.HIDE,
+    val incidentStyle: LineStyle = LineStyle(Color(0xFFE53935), 1f, 2f),
+) {
+    /** The point whose lines are left out of the arrangement (hide or highlight). */
+    val separate: Int? get() = selected.takeIf { incident != IncidentLines.NORMAL }
+
+    /** The style of the lines through the selected point if they are highlighted. */
+    val highlighted: LineStyle? get() = incidentStyle.takeIf { lines != null && selected != null && incident == IncidentLines.HIGHLIGHT }
+
+    /** Structure pen width, as on the canvas: 1.5 or (emphasized) 3.5 times the line width. */
+    fun structurePen(bold: Boolean) = (if (bold) 3.5 else 1.5) * structureWidth
+}
+
+/** The structures with every vertex a valid point index (the canvas skips the others, too). */
+internal fun List<Structure>.drawable(n: Int) = filter { st -> st.vertices.all { it in 0 until n } }
+
+/**
  * Maps the points into a [size] x [size] box with [margin] on all sides, keeping the aspect ratio;
  * [yDown]: screen coordinates (SVG) instead of y up (Ipe). [offsetX], [offsetY]: position of the box.
  */
@@ -50,10 +78,15 @@ internal class ExportFrame(
         return doubleArrayOf(ax + t0 * dx, ay + t0 * dy, ax + t1 * dx, ay + t1 * dy)
     }
 
-    /** All lines through two points, clipped to the box. */
-    fun arrangement(points: List<Pt>): List<DoubleArray> = buildList {
-        for (i in points.indices) for (j in i + 1 until points.size) clippedLine(points[i], points[j])?.let(::add)
+    /** All lines through two points, clipped to the box; lines through [hidden] are left out. */
+    fun arrangement(points: List<Pt>, hidden: Int? = null): List<DoubleArray> = buildList {
+        for (i in points.indices) if (i != hidden)
+            for (j in i + 1 until points.size) if (j != hidden) clippedLine(points[i], points[j])?.let(::add)
     }
+
+    /** The lines through point [sel] and every other point, clipped to the box. */
+    fun incident(points: List<Pt>, sel: Int): List<DoubleArray> =
+        points.indices.filter { it != sel }.mapNotNull { clippedLine(points[sel], points[it]) }
 }
 
 /** [decimals] decimals (rounded), no exponent notation. */
@@ -67,49 +100,55 @@ internal fun fmt(v: Double, decimals: Int = 1): String {
 }
 
 /**
- * SVG of the point set with the given structure layers; fits into a 1000x1000 box, y up.
- * [lines]: draw the line arrangement (all lines through two points, clipped to the box) in this
- * style; null = no lines. [emphasized]: indices of [layers] drawn bold and opaque.
+ * SVG of the point set with the given structure layers; fits into a 1000x1000 box, y up, drawn with
+ * the Display settings in [style] (the canvas look; points black instead of the theme colour, on
+ * white). [emphasized]: indices of [layers] drawn bold and opaque.
  */
 fun pointSetSvg(
     points: List<Pt>,
     layers: List<Pair<Color, List<Structure>>>,
-    labels: Boolean,
-    lines: LineStyle? = null,
+    style: ExportStyle = ExportStyle(),
     emphasized: Set<Int> = emptySet(),
 ): String {
     val fr = ExportFrame(points, 1000.0, 40.0, yDown = true)
     fun x(p: Pt) = fmt(fr.x(p))
     fun y(p: Pt) = fmt(fr.y(p))
+    fun lineGroup(sb: StringBuilder, ls: LineStyle, lines: List<DoubleArray>) {
+        sb.append("<g stroke=\"${ls.color.toHex()}\" stroke-opacity=\"${fmt(ls.alpha.toDouble(), 2)}\" stroke-width=\"${fmt(ls.width.toDouble(), 2)}\">\n")
+        for (l in lines) sb.append("<line x1=\"${fmt(l[0])}\" y1=\"${fmt(l[1])}\" x2=\"${fmt(l[2])}\" y2=\"${fmt(l[3])}\"/>\n")
+        sb.append("</g>\n")
+    }
+    val r = fmt(style.pointRadius.toDouble(), 2)
     return buildString {
         append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 1000\" width=\"1000\" height=\"1000\">\n")
         append("<rect width=\"1000\" height=\"1000\" fill=\"white\"/>\n")
-        if (lines != null) {
-            append("<g stroke=\"${lines.color.toHex()}\" stroke-opacity=\"${fmt(lines.alpha.toDouble(), 2)}\" stroke-width=\"${fmt(lines.width.toDouble(), 2)}\">\n")
-            for (l in fr.arrangement(points))
-                append("<line x1=\"${fmt(l[0])}\" y1=\"${fmt(l[1])}\" x2=\"${fmt(l[2])}\" y2=\"${fmt(l[3])}\"/>\n")
-            append("</g>\n")
-        }
+        style.lines?.let { lineGroup(this, it, fr.arrangement(points, style.separate)) }
+        val sel = style.selected?.takeIf { it in points.indices }
+        style.highlighted?.let { ls -> if (sel != null) lineGroup(this, ls, fr.incident(points, sel)) }
         layers.forEachIndexed { li, (color, list) ->
             val bold = li in emphasized
-            for (st in list) {
+            val pen = fmt(style.structurePen(bold), 2)
+            for (st in list.drawable(points.size)) {
                 val v = st.vertices.map { points[it] }
                 when (st.shape) {
                     Shape.POLYGON -> append(
                         "<polygon points=\"${v.joinToString(" ") { "${x(it)},${y(it)}" }}\" " +
-                            "fill=\"${color.toHex()}\" fill-opacity=\"0.13\" stroke=\"${color.toHex()}\" stroke-width=\"${if (bold) 4 else 1.5}\"/>\n"
+                            "fill=\"${color.toHex()}\" fill-opacity=\"0.13\" stroke=\"${color.toHex()}\" stroke-opacity=\"0.7\" stroke-width=\"$pen\"/>\n"
                     )
                     Shape.SEGMENTS -> for (i in 0 until v.size - 1 step 2) append(
                         "<line x1=\"${x(v[i])}\" y1=\"${y(v[i])}\" x2=\"${x(v[i + 1])}\" y2=\"${y(v[i + 1])}\" " +
-                            "stroke=\"${color.toHex()}\" stroke-opacity=\"${if (bold) 1 else 0.5}\" stroke-width=\"${if (bold) 4 else 1.5}\"/>\n"
+                            "stroke=\"${color.toHex()}\" stroke-opacity=\"${if (bold) 1 else 0.5}\" stroke-width=\"$pen\"/>\n"
                     )
                 }
             }
         }
         points.forEachIndexed { i, p ->
             val fill = tokenColor(p.color)?.toHex() ?: "black"
-            append("<circle cx=\"${x(p)}\" cy=\"${y(p)}\" r=\"6\" fill=\"$fill\"/>\n")
-            if (labels) append("<text x=\"${fmt(fr.x(p) + 8)}\" y=\"${fmt(fr.y(p) - 8)}\" font-size=\"14\" font-family=\"sans-serif\">$i</text>\n")
+            append("<circle cx=\"${x(p)}\" cy=\"${y(p)}\" r=\"$r\" fill=\"$fill\"/>\n")
+            if (style.labels) {
+                val d = style.pointRadius + 2.0
+                append("<text x=\"${fmt(fr.x(p) + d)}\" y=\"${fmt(fr.y(p) - d)}\" font-size=\"14\" font-family=\"sans-serif\">$i</text>\n")
+            }
         }
         append("</svg>\n")
     }
