@@ -18,7 +18,7 @@ PoCoView is the successor of qtvis (a C++/Qt point set visualizer) and of the ed
 (Python order type library). It is written in Kotlin Multiplatform (Compose) and also runs as a
 desktop app.
 
-- Features: [doc/USER_GUIDE.md](doc/USER_GUIDE.md)
+- User manual (all features, keys, file formats): [doc/USER_GUIDE.md](doc/USER_GUIDE.md)
 - Building, testing, deploying: [doc/DEVELOPMENT.md](doc/DEVELOPMENT.md)
 
 Example data: `data/otypes/` (all order types for n = 3..8), `data/posezo/`.
