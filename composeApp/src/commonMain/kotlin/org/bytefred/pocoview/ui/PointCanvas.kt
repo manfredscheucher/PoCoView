@@ -56,6 +56,16 @@ class ViewTransform {
     /** The [AppState.fitRequest] this view was last fitted for: a re-created canvas keeps the zoom. */
     var fittedRequest = -1
 
+    /**
+     * The user zoomed or panned since the last fit: a new canvas size keeps the view. Until then the
+     * view is refitted on every size change. Editing points (drag, add, grid refinement) does not count.
+     */
+    var userAdjusted = false
+        private set
+
+    /** A point is being dragged: a size change keeps the view, so the picture does not jump under it. */
+    var dragging = false
+
     fun toScreen(p: Pt) = Offset((ox + p.x * scale).toFloat(), (oy - p.y * scale).toFloat())
     fun toWorld(s: Offset) = Pt(((s.x - ox) / scale).roundToLong(), ((oy - s.y) / scale).roundToLong())
     fun worldX(s: Offset) = (s.x - ox) / scale
@@ -67,6 +77,7 @@ class ViewTransform {
     }
 
     fun zoomAt(anchor: Offset, factor: Double) {
+        userAdjusted = true
         val f = factor.coerceIn(0.02, 50.0)
         val newScale = (scale * f).coerceIn(1e-7, 1e4)
         val k = newScale / scale
@@ -75,21 +86,35 @@ class ViewTransform {
         scale = newScale
     }
 
-    /** New canvas size (e.g. a widget column opened or closed): the view keeps its centre. */
-    fun resize(newSize: IntSize) {
+    fun pan(dx: Double, dy: Double) {
+        userAdjusted = true
+        ox += dx
+        oy += dy
+    }
+
+    /**
+     * New canvas size (window resize, a widget opened or closed, a divider moved): refit to [points]
+     * unless the user zoomed or panned since the last fit or a drag is running; then the view keeps
+     * its centre.
+     */
+    fun resize(newSize: IntSize, points: List<Pt>) {
         // keep the last real size while the canvas is squeezed to nothing
         if (newSize.width == 0 || newSize.height == 0) return
-        if (size != IntSize.Zero) {
-            ox += (newSize.width - size.width) / 2.0
-            oy += (newSize.height - size.height) / 2.0
-        }
+        val old = size
         size = newSize
+        if (old == IntSize.Zero || newSize == old) return
+        if (!userAdjusted && !dragging) fit(points)
+        else {
+            ox += (newSize.width - old.width) / 2.0
+            oy += (newSize.height - old.height) / 2.0
+        }
     }
 
     fun zoomCenter(factor: Double) = zoomAt(Offset(size.width / 2f, size.height / 2f), factor)
 
     fun fit(points: List<Pt>) {
         if (size.width == 0 || size.height == 0) return
+        userAdjusted = false
         if (points.isEmpty()) { scale = 1.0; ox = size.width / 2.0; oy = size.height / 2.0; return }
         val minX = points.minOf { it.x }.toDouble()
         val maxX = points.maxOf { it.x }.toDouble()
@@ -139,8 +164,9 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
     val textMeasurer = rememberTextMeasurer()
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    // fit on request and once the canvas has a size; a later resize keeps the user's zoom, and so
-    // does a canvas re-created by a layout switch (the request was already handled)
+    // fit on request and once the canvas has a size; a re-created canvas (layout switch) does not
+    // fit again for the same request (later size changes refit in ViewTransform.resize unless the
+    // user zoomed or panned)
     val sized = view.size.width > 0 && view.size.height > 0
     LaunchedEffect(state.fitRequest, sized) {
         if (sized && view.fittedRequest != state.fitRequest) {
@@ -170,123 +196,128 @@ fun PointCanvas(state: AppState, view: ViewTransform, modifier: Modifier = Modif
                 .testTag("canvas")
                 .clipToBounds()
                 .background(MaterialTheme.colorScheme.surface)
-                .onSizeChanged { view.resize(it) }
+                .onSizeChanged { view.resize(it, st.points) }
                 .pointerInput(gestures) {
-                    awaitPointerEventScope {
-                        var down: Offset? = null
-                        var last = Offset.Zero
-                        var dragPoint: Int? = null
-                        var hitAtDown: Int? = null
-                        var moved = false
-                        var dragStarted = false
-                        var pinchDist = 0f
-                        var pinchCenter = Offset.Zero
-                        // a one-finger press held still until then is a long press (event time)
-                        var longPressAt: Long? = null
-                        var lastTime = 0L
-                        while (true) {
-                            val deadline = longPressAt?.takeIf { down != null && !moved }
-                            val ev = if (deadline == null) awaitPointerEvent()
-                            else withTimeoutOrNull((deadline - lastTime).coerceAtLeast(0L)) { awaitPointerEvent() }
-                            if (ev == null) {
-                                // long press: a point's context menu like a right-click, the release then does
-                                // nothing; on empty space no menu, the release is a tap as before
-                                longPressAt = null
-                                val at = down
-                                val i = if (at != null) hit(at) else null
-                                if (at != null && i != null) { pointMenu = i to at; down = null; dragPoint = null }
-                                continue
-                            }
-                            lastTime = ev.changes.first().uptimeMillis
-                            val pressed = ev.changes.filter { it.pressed }
-                            when (ev.type) {
-                                PointerEventType.Scroll -> {
-                                    val c = ev.changes.first()
-                                    // mouse wheels report about 1 per notch; some browsers report pixels
-                                    val dy = c.scrollDelta.y.toDouble()
-                                    val notches = (if (abs(dy) >= 10) dy / 100 else dy).coerceIn(-5.0, 5.0)
-                                    view.zoomAt(c.position, 1.15.pow(-notches))
-                                    c.consume()
+                    // a gesture cancelled mid-drag (canvas re-created) must not leave the view in drag mode
+                    try {
+                        awaitPointerEventScope {
+                            var down: Offset? = null
+                            var last = Offset.Zero
+                            var dragPoint: Int? = null
+                            var hitAtDown: Int? = null
+                            var moved = false
+                            var dragStarted = false
+                            var pinchDist = 0f
+                            var pinchCenter = Offset.Zero
+                            // a one-finger press held still until then is a long press (event time)
+                            var longPressAt: Long? = null
+                            var lastTime = 0L
+                            while (true) {
+                                val deadline = longPressAt?.takeIf { down != null && !moved }
+                                val ev = if (deadline == null) awaitPointerEvent()
+                                else withTimeoutOrNull((deadline - lastTime).coerceAtLeast(0L)) { awaitPointerEvent() }
+                                if (ev == null) {
+                                    // long press: a point's context menu like a right-click, the release then does
+                                    // nothing; on empty space no menu, the release is a tap as before
+                                    longPressAt = null
+                                    val at = down
+                                    val i = if (at != null) hit(at) else null
+                                    if (at != null && i != null) { pointMenu = i to at; down = null; dragPoint = null }
+                                    continue
                                 }
-                                PointerEventType.Press -> {
-                                    if (st.consumeMenuPress()) {
-                                        // the press only closes the open menu (its popup is not focusable)
-                                        st.openMenu = null
-                                        down = null; dragPoint = null
-                                    } else {
-                                        onInteract()
-                                        if (gestures.rightClick && (ev.buttons.isSecondaryPressed || ctrlClickIsRightClick && ev.keyboardModifiers.isCtrlPressed)) {
-                                            // right-click: the context menu of the point under it, nothing on empty space
+                                lastTime = ev.changes.first().uptimeMillis
+                                val pressed = ev.changes.filter { it.pressed }
+                                when (ev.type) {
+                                    PointerEventType.Scroll -> {
+                                        val c = ev.changes.first()
+                                        // mouse wheels report about 1 per notch; some browsers report pixels
+                                        val dy = c.scrollDelta.y.toDouble()
+                                        val notches = (if (abs(dy) >= 10) dy / 100 else dy).coerceIn(-5.0, 5.0)
+                                        view.zoomAt(c.position, 1.15.pow(-notches))
+                                        c.consume()
+                                    }
+                                    PointerEventType.Press -> {
+                                        if (st.consumeMenuPress()) {
+                                            // the press only closes the open menu (its popup is not focusable)
+                                            st.openMenu = null
                                             down = null; dragPoint = null
-                                            if (pressed.size == 1) hit(pressed[0].position)?.let { pointMenu = it to pressed[0].position }
-                                        } else if (pressed.size == 1) {
+                                        } else {
+                                            onInteract()
+                                            if (gestures.rightClick && (ev.buttons.isSecondaryPressed || ctrlClickIsRightClick && ev.keyboardModifiers.isCtrlPressed)) {
+                                                // right-click: the context menu of the point under it, nothing on empty space
+                                                down = null; dragPoint = null
+                                                if (pressed.size == 1) hit(pressed[0].position)?.let { pointMenu = it to pressed[0].position }
+                                            } else if (pressed.size == 1) {
+                                                val pos = pressed[0].position
+                                                down = pos; last = pos; moved = false; dragStarted = false
+                                                view.dragging = false
+                                                hitAtDown = hit(pos)
+                                                dragPoint = if (st.tool != Tool.DELETE) hitAtDown else null
+                                                longPressAt = if (gestures.longPress) lastTime + viewConfiguration.longPressTimeoutMillis else null
+                                            } else if (pressed.size == 2) {
+                                                // second finger: switch to pinch zoom + two-finger pan
+                                                dragPoint = null; moved = true
+                                                pinchDist = (pressed[0].position - pressed[1].position).getDistance()
+                                                pinchCenter = (pressed[0].position + pressed[1].position) / 2f
+                                            }
+                                        }
+                                        ev.changes.forEach { it.consume() }
+                                    }
+                                    PointerEventType.Move -> {
+                                        if (pressed.size >= 2) {
+                                            val d = (pressed[0].position - pressed[1].position).getDistance()
+                                            val center = (pressed[0].position + pressed[1].position) / 2f
+                                            view.pan((center.x - pinchCenter.x).toDouble(), (center.y - pinchCenter.y).toDouble())
+                                            if (pinchDist > 0f && d > 0f) view.zoomAt(center, (d / pinchDist).toDouble())
+                                            pinchDist = d
+                                            pinchCenter = center
+                                        } else if (pressed.size == 1 && down != null) {
                                             val pos = pressed[0].position
-                                            down = pos; last = pos; moved = false; dragStarted = false
-                                            hitAtDown = hit(pos)
-                                            dragPoint = if (st.tool != Tool.DELETE) hitAtDown else null
-                                            longPressAt = if (gestures.longPress) lastTime + viewConfiguration.longPressTimeoutMillis else null
-                                        } else if (pressed.size == 2) {
-                                            // second finger: switch to pinch zoom + two-finger pan
-                                            dragPoint = null; moved = true
-                                            pinchDist = (pressed[0].position - pressed[1].position).getDistance()
-                                            pinchCenter = (pressed[0].position + pressed[1].position) / 2f
+                                            if (!moved && (pos - down).getDistance() > TOUCH_SLOP) moved = true
+                                            if (moved) {
+                                                val dp = dragPoint
+                                                if (dp != null) {
+                                                    if (!dragStarted) { st.beginDrag(dp); dragStarted = true; view.dragging = true }
+                                                    st.dragTo(dp, view.toWorld(pos))
+                                                } else {
+                                                    view.pan((pos.x - last.x).toDouble(), (pos.y - last.y).toDouble())
+                                                }
+                                            }
+                                            last = pos
                                         }
+                                        ev.changes.forEach { it.consume() }
                                     }
-                                    ev.changes.forEach { it.consume() }
-                                }
-                                PointerEventType.Move -> {
-                                    if (pressed.size >= 2) {
-                                        val d = (pressed[0].position - pressed[1].position).getDistance()
-                                        val center = (pressed[0].position + pressed[1].position) / 2f
-                                        view.ox += (center.x - pinchCenter.x).toDouble()
-                                        view.oy += (center.y - pinchCenter.y).toDouble()
-                                        if (pinchDist > 0f && d > 0f) view.zoomAt(center, (d / pinchDist).toDouble())
-                                        pinchDist = d
-                                        pinchCenter = center
-                                    } else if (pressed.size == 1 && down != null) {
-                                        val pos = pressed[0].position
-                                        if (!moved && (pos - down).getDistance() > TOUCH_SLOP) moved = true
-                                        if (moved) {
+                                    PointerEventType.Release -> {
+                                        if (pressed.isEmpty()) {
+                                            val start = down
+                                            if (start != null && !moved) {
+                                                val h = hitAtDown
+                                                when (st.tool) {
+                                                    Tool.MOVE -> st.select(h)
+                                                    Tool.ADD -> if (h != null) st.select(h)
+                                                    else view.coordinatesDoubled(st.addPointAt(view.worldX(start), view.worldY(start)))
+                                                    Tool.DELETE -> if (h != null) st.deletePoint(h)
+                                                }
+                                            }
                                             val dp = dragPoint
-                                            if (dp != null) {
-                                                if (!dragStarted) { st.beginDrag(dp); dragStarted = true }
-                                                st.dragTo(dp, view.toWorld(pos))
-                                            } else {
-                                                view.ox += (pos.x - last.x).toDouble()
-                                                view.oy += (pos.y - last.y).toDouble()
+                                            if (start != null && dragStarted && dp != null) {
+                                                val pos = ev.changes.first().position
+                                                view.coordinatesDoubled(st.endDrag(dp, view.worldX(pos), view.worldY(pos)))
                                             }
+                                            down = null; dragPoint = null; pinchDist = 0f
+                                            view.dragging = false
+                                        } else {
+                                            // back from pinch to one finger: continue panning from here
+                                            last = pressed[0].position
+                                            pinchDist = 0f
                                         }
-                                        last = pos
+                                        ev.changes.forEach { it.consume() }
                                     }
-                                    ev.changes.forEach { it.consume() }
-                                }
-                                PointerEventType.Release -> {
-                                    if (pressed.isEmpty()) {
-                                        val start = down
-                                        if (start != null && !moved) {
-                                            val h = hitAtDown
-                                            when (st.tool) {
-                                                Tool.MOVE -> st.select(h)
-                                                Tool.ADD -> if (h != null) st.select(h)
-                                                else view.coordinatesDoubled(st.addPointAt(view.worldX(start), view.worldY(start)))
-                                                Tool.DELETE -> if (h != null) st.deletePoint(h)
-                                            }
-                                        }
-                                        val dp = dragPoint
-                                        if (start != null && dragStarted && dp != null) {
-                                            val pos = ev.changes.first().position
-                                            view.coordinatesDoubled(st.endDrag(dp, view.worldX(pos), view.worldY(pos)))
-                                        }
-                                        down = null; dragPoint = null; pinchDist = 0f
-                                    } else {
-                                        // back from pinch to one finger: continue panning from here
-                                        last = pressed[0].position
-                                        pinchDist = 0f
-                                    }
-                                    ev.changes.forEach { it.consume() }
                                 }
                             }
                         }
+                    } finally {
+                        view.dragging = false
                     }
                 }
         ) {

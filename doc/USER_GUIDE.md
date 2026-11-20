@@ -11,6 +11,9 @@
 - **Mode** (toolbar): Move (drag points, click to select), Add (click empty space), Delete (click
   a point). Drag empty space to pan, use the wheel or pinch to zoom. Right-click a point (long press on
   touch screens) for a small menu: Select, Delete.
+- **View**: while you have not zoomed or panned, the view fits the points again whenever the canvas
+  changes size (window, widgets, dividers). After a zoom or pan it stays; Fit (Home or 0) or loading
+  a set brings back the automatic fit.
 - **Lock order type** (toolbar chip): points cannot be dragged out of their cell, so the order type
   stays the same.
 - Undo/redo are in the Edit menu.

@@ -69,6 +69,7 @@ fun App(
     initialDialog: DialogKind? = null,
     closeRequests: Int = 0,
     onClose: () -> Unit = {},
+    initialView: ViewTransform? = null,
 ) {
     PoCoViewTheme { ProvideMonoStyle {
         val state = remember { initialState ?: AppState() }
@@ -77,7 +78,7 @@ fun App(
         LaunchedEffect(closeRequests) {
             if (closeRequests > 0) state.leave { state.saveDisplayPrefs(); onClose() }
         }
-        val view = remember { ViewTransform() }
+        val view = remember { initialView ?: ViewTransform() }
         val focus = remember { FocusRequester() }
         // scroll positions survive closing and reopening a widget
         val scrolls = remember { Widget.entries.associateWith { ScrollState(0) } }

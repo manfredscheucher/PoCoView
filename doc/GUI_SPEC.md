@@ -243,3 +243,33 @@ again until the point has room. Plus an info text: everything is computed with e
   fits, nearest corner, Lock, no room, 2000 random sets and releases never hit the cap) and
   `GridRefineUiTest` (real drags and Add with the setting on and off, the view keeps the picture,
   undo, switch, popover, remembered, reset).
+
+## 2026-11-20: Refit on resize
+
+Request: refit the point set to the canvas when the canvas size changes (window resize, a widget
+opens or closes). Manfred: "sounds reasonable, also for PoCoView". Same semantics as ArrView:
+auto-fit while the user has not zoomed or panned.
+
+Before: a size change kept the view's centre and scale (only Fit, loading and optimizer results
+fitted), so opening a widget cut off points and closing one left the set small.
+
+- Every canvas size change (window, opening/closing a widget, layout switch, dragging a divider)
+  refits, unless the user zoomed or panned since the last fit; then the view keeps its centre and
+  scale as before.
+- Zoom or pan = wheel, pinch, two-finger pan, dragging empty space, +/- keys, Zoom in/out in the
+  View menu.
+- Reset (auto-fit again): every fit, i.e. Fit (menu, Home, 0), loading a file/example/random set,
+  Import, Apply in the Data widget, switching sets, optimizer results.
+- Editing does not count as zoom or pan: dragging or adding points, deleting, undo/redo, and the zoom
+  out of "Snap with grid refinement" (that one only keeps the picture after doubling coordinates).
+  Edits never refit by themselves; the next size change fits the edited set.
+- Claude's decision: while a point is being dragged a size change keeps the view (no refit), so the
+  picture cannot jump under the pointer; there is no refit after the release either (the next size
+  change does it).
+- Tests: `RefitOnResizeUiTest` (opening and closing all widgets and portrait keep every point inside
+  the canvas and give exactly a fresh fit; after a key zoom, a wheel zoom or a pan the view is kept;
+  Fit restores auto-fit; a drag and an Add do not count; a resize during a drag keeps the view).
+
+Open questions:
+- Should a size change that happened during a drag refit at the release? (Now: no.)
+- Should undo/redo of an edit that moved points out of view refit? (Now: no, only size changes.)
