@@ -128,11 +128,16 @@ class ViewTransform {
     }
 }
 
+/**
+ * One colour per property (at least as many as [ALL_PROPERTIES], so none repeats). No red: that is
+ * the crossing families' colour ([AppState.EMPHASIZED_COLOR]).
+ */
 private val PALETTE = listOf(
-    Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFF43A047), Color(0xFFFB8C00), Color(0xFF8E24AA),
+    Color(0xFF1E88E5), Color(0xFF1B5E20), Color(0xFF43A047), Color(0xFFFB8C00), Color(0xFF8E24AA),
     Color(0xFF00ACC1), Color(0xFF6D4C41), Color(0xFFD81B60), Color(0xFF7CB342), Color(0xFF3949AB),
     Color(0xFFFDD835), Color(0xFF546E7A), Color(0xFF00897B), Color(0xFFAD1457), Color(0xFF5D4037),
-    Color(0xFF0277BD),
+    Color(0xFF0277BD), Color(0xFFA1887F), Color(0xFF827717), Color(0xFFBA68C8), Color(0xFFFF8A65),
+    Color(0xFF90A4AE), Color(0xFF004D40), Color(0xFFF06292),
 )
 
 /** Default highlight colour of a property (by its position in the registry). */
@@ -141,7 +146,7 @@ fun defaultPropertyColor(index: Int): Color = PALETTE[index.coerceAtLeast(0) % P
 /** Colours offered by the colour chooser. */
 val CHOOSER_COLORS: List<Color> = PALETTE + listOf(
     Color(0xFF000000), Color(0xFF616161), Color(0xFF9E9E9E), Color(0xFFBDBDBD),
-    Color(0xFF880E4F), Color(0xFF1A237E), Color(0xFF004D40), Color(0xFFE65100),
+    Color(0xFFE53935), Color(0xFF880E4F), Color(0xFF1A237E), Color(0xFFE65100),
 )
 
 /** Colour of a point colour token (PoSeZo bicoloured sets: B / R). */
