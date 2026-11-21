@@ -140,7 +140,10 @@ private val OPTIMIZE_TEXT = listOf(
         "If it finds nothing, the start configuration comes back.",
 )
 
-/** The keyboard shortcuts page: key and action (doc/USER_GUIDE.md has the same list). */
+/**
+ * The keyboard shortcuts page: key and action. doc/USER_GUIDE.md has the same keys; it splits the
+ * mouse line into one row per gesture.
+ */
 private val SHORTCUTS = listOf(
     "Esc" to "deselect, or close the open menu",
     "Del or Backspace" to "delete the selected point",
