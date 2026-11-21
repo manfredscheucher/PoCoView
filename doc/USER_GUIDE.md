@@ -2,7 +2,7 @@
 
 PoCoView is a viewer and editor for point sets in the plane. You change a point set by dragging
 points and look at its combinatorial properties. It runs in the browser
-(https://manfredscheucher.github.io/PoCoView/) and as a desktop app; both work the same, except
+(https://scheucher.dev/PoCoView/) and as a desktop app; both work the same, except
 where this manual says otherwise.
 
 ![PoCoView with the 5-holes highlighted](img/overview.png)

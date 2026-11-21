@@ -3,7 +3,7 @@
 Point Configuration Viewer: look at, edit and analyze planar point sets and their order types,
 right in the browser.
 
-**Web app:** https://manfredscheucher.github.io/PoCoView/
+**Web app:** https://scheucher.dev/PoCoView/
 
 ![PoCoView](doc/screenshot.png)
 

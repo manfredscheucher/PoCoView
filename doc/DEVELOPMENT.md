@@ -75,5 +75,5 @@ git push origin gh-pages
 
 `deployPages.sh` builds the site, copies it into a worktree of the `gh-pages` branch (`.gh-pages/`,
 created on first use) and commits it there. It does not push. The site is served from
-https://manfredscheucher.github.io/PoCoView/ (one-time setup on github.com: Settings, Pages, deploy
+https://scheucher.dev/PoCoView/ (one-time setup on github.com: Settings, Pages, deploy
 from branch `gh-pages`, root).
