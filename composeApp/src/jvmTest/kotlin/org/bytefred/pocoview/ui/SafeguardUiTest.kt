@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performMultiModalInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -155,6 +156,41 @@ class SafeguardUiTest {
         onNodeWithText("Discard").performClick()
         waitForIdle()
         assertEquals(2, closed)
+    }
+
+    @Test
+    fun ctrlOAndCtrlSWorkOnTheCanvasAndWhileTyping() = runComposeUiTest {
+        val s = state()
+        s.toggleWidget(Widget.DATA)
+        s.deletePoint(0)
+        setContent { App(s, DialogKind.NONE) }
+        // the menu entries show their keys
+        onNodeWithTag("menu-Point Set").performClick()
+        onNodeWithText("Ctrl+O").assertExists()
+        onNodeWithText("Ctrl+S").assertExists()
+        onNodeWithTag("menu-bar").performKeyInput { pressKey(Key.Escape) }
+        waitForIdle()
+        onNodeWithTag("canvas").performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.S) } }
+        onNodeWithText("Save file").assertExists()
+        onNodeWithText("Cancel").performClick()
+        waitForIdle()
+        // Open file goes through "Save changes?" like the menu entry
+        onNodeWithTag("canvas").performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.O) } }
+        onNodeWithText("Save changes?").assertExists()
+        onNodeWithText("Cancel").performClick()
+        waitForIdle()
+        // also while a text field has focus (the other shortcuts are off then)
+        onNodeWithTag("coordinates").performClick()
+        waitForIdle()
+        assertTrue(s.textFieldsFocused > 0)
+        onNodeWithTag("coordinates").performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.S) } }
+        onNodeWithText("Save file").assertExists()
+        onNodeWithText("Cancel").performClick()
+        waitForIdle()
+        // Cmd+O (on macOS a text field takes Ctrl+O itself: a new line, as in every Mac text field)
+        onNodeWithTag("coordinates").performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.O) } }
+        onNodeWithText("Save changes?").assertExists()
+        assertNull(s.coordinatesDraft)
     }
 
     @Test

@@ -144,6 +144,8 @@ private val OPTIMIZE_TEXT = listOf(
 private val SHORTCUTS = listOf(
     "Esc" to "deselect, or close the open menu",
     "Del or Backspace" to "delete the selected point",
+    "Ctrl+O" to "open a file",
+    "Ctrl+S" to "save to a file",
     "Ctrl+Z" to "undo",
     "Ctrl+Shift+Z or Ctrl+Y" to "redo",
     "+ / -" to "zoom in / out",
@@ -164,4 +166,4 @@ private val SHORTCUTS = listOf(
 )
 
 private const val SHORTCUTS_NOTE = "On a Mac, Cmd works like Ctrl and Ctrl+click like a right-click. The keys " +
-    "do nothing while you type in a field or a menu is open (except Esc)."
+    "do nothing while you type in a field or a menu is open (except Esc, Ctrl+O and Ctrl+S)."

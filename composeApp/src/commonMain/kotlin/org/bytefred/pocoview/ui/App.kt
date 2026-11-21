@@ -85,14 +85,17 @@ fun App(
         val columnsScroll = rememberScrollState()
 
         // shortcuts on the root: key events of the focused canvas, chip or button bubble up here;
-        // they are ignored while a text field has focus or a menu is open (Escape closes the menu)
-        Surface(Modifier.fillMaxSize().onKeyEvent { closeMenuOnEscape(it, state) || state.shortcutsActive && handleKey(it, state, view) }) {
-            var dialog by remember {
-                mutableStateOf(initialDialog ?: if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME)
-            }
+        // they are ignored while a text field has focus or a menu is open (Escape closes the menu),
+        // except Ctrl+O and Ctrl+S (else the browser would open or save the page)
+        var dialog by remember {
+            mutableStateOf(initialDialog ?: if (loadPref(WELCOME_PREF) == "off") DialogKind.NONE else DialogKind.WELCOME)
+        }
+        val opener = rememberFileOpener(onError = { state.error = it }) { name, bytes -> state.open(name, bytes) }
+        val files = FileKeys(open = { state.leave { opener() } }, save = { dialog = DialogKind.SAVE })
+        Surface(Modifier.fillMaxSize().onKeyEvent { closeMenuOnEscape(it, state) || handleFileKey(it, files) || state.shortcutsActive && handleKey(it, state, view) }) {
             Dialogs(state, dialog, open = { dialog = it }) { dialog = DialogKind.NONE }
             Column(Modifier.fillMaxSize()) {
-                MenuBar(state, view) { dialog = it }
+                MenuBar(state, view, files.open) { dialog = it }
                 ToolBar(state)
                 HorizontalDivider()
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
@@ -157,6 +160,19 @@ fun App(
 private fun closeMenuOnEscape(e: KeyEvent, state: AppState): Boolean {
     if (e.type != KeyEventType.KeyDown || e.key != Key.Escape || state.openMenu == null) return false
     state.openMenu = null
+    return true
+}
+
+/** The file actions of the shortcuts Ctrl+O and Ctrl+S (the same as the menu entries). */
+private class FileKeys(val open: () -> Unit, val save: () -> Unit)
+
+private fun handleFileKey(e: KeyEvent, files: FileKeys): Boolean {
+    if (e.type != KeyEventType.KeyDown || !(e.isCtrlPressed || e.isMetaPressed) || e.isShiftPressed) return false
+    when (e.key) {
+        Key.O -> files.open()
+        Key.S -> files.save()
+        else -> return false
+    }
     return true
 }
 

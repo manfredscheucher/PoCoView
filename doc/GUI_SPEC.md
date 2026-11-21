@@ -316,3 +316,28 @@ Open questions:
 - Open file (desktop) starts with the JSON-only filter, so .txt/.b08 files are hidden until the user
   picks "All point sets". Start with "All point sets" instead? (Recommendation: yes.)
 
+
+## 2026-11-21: Keyboard shortcuts
+
+Request (all apps, ported from RotSysView): standard keyboard shortcuts. PoCoView's line widths stay
+unchanged (Manfred: only the point items are relevant here).
+
+- Ctrl/Cmd+O = Point Set > Open file… (with "Save changes?" first if there are unsaved changes),
+  Ctrl/Cmd+S = Point Set > Save file… (the format dialog). The same actions as the menu entries.
+- Both also work while a text field has focus or a menu is open, so the browser does not open its
+  own Open/Save page. With Shift they do nothing.
+- The menu entries show their keys on the right: Open file Ctrl+O, Save file Ctrl+S, Undo Ctrl+Z,
+  Redo Ctrl+Shift+Z, Delete selected point Del, Fit 0, Zoom in +, Zoom out −. The widget items keep
+  their "(1)".."(4)" in the label; check items (Lock order type F, Line arrangement L) show no key.
+- Help > Keyboard shortcuts and doc/USER_GUIDE.md list Ctrl+O and Ctrl+S.
+- macOS: inside a text field Ctrl+O is the system's "insert line break" (as in every Mac text
+  field), so there Cmd+O opens; on the canvas both work.
+- Web: Compose prevents the browser default only when no text field has focus, so main.kt adds a
+  window keydown listener (bubble phase) that calls preventDefault for Ctrl/Cmd+O/S without Shift.
+  (In the capture phase a focused text field dropped Cmd+O/S.) Claude's addition beyond the
+  RotSysView port, needed for "the browser must not open its own dialogs".
+- Tests: `SafeguardUiTest.ctrlOAndCtrlSWorkOnTheCanvasAndWhileTyping` (menu shows the keys, Ctrl+S
+  and Cmd+O on the canvas and in the Data widget's coordinates field). Web, headless Chrome
+  (scripts/probe/web_keys.py): Ctrl and Cmd with O and S, on the canvas and in the coordinates
+  field: keydown defaultPrevented, Save file dialog opens, the file picker is called (or "Save
+  changes?" first with an unapplied edit).

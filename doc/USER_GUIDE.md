@@ -282,6 +282,8 @@ PoCoView (build, links, license texts).
 |---|---|
 | Esc | deselect, or close the open menu |
 | Del or Backspace | delete the selected point |
+| Ctrl+O | open a file |
+| Ctrl+S | save to a file |
 | Ctrl+Z | undo |
 | Ctrl+Shift+Z or Ctrl+Y | redo |
 | + / - | zoom in / out |
@@ -305,7 +307,7 @@ PoCoView (build, links, license texts).
 | Right-click or long press on a point | its menu: Select, Delete |
 
 On a Mac, Cmd works like Ctrl and Ctrl+click like a right-click. The keys do nothing while you type
-in a field or a menu is open (except Esc).
+in a field or a menu is open (except Esc, Ctrl+O and Ctrl+S).
 
 ## File formats
 

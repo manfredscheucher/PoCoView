@@ -495,7 +495,7 @@ private fun DataTab(state: AppState) {
         textStyle = MonoStyle,
         // the line of the selected point is highlighted
         visualTransformation = remember(sel, mark) { LineHighlight(sel, mark) },
-        modifier = Modifier.fillMaxWidth().height(200.dp).textFocus(state),
+        modifier = Modifier.fillMaxWidth().height(200.dp).testTag("coordinates").textFocus(state),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = { state.applyCoordinatesText(draft ?: current) }, enabled = draft != null) { Text("Apply") }

@@ -141,8 +141,13 @@ internal val MENU_CLICK_GUARD = 500.milliseconds
 
 /** A menu entry: closes the menu, then runs [onClick]. */
 @Composable
-private fun Item(state: AppState, text: String, enabled: Boolean = true, onClick: () -> Unit) =
-    DropdownMenuItem(text = { Text(text) }, enabled = enabled, onClick = { state.openMenu = null; onClick() })
+private fun Item(state: AppState, text: String, enabled: Boolean = true, shortcut: String? = null, onClick: () -> Unit) =
+    DropdownMenuItem(
+        text = { Text(text) },
+        trailingIcon = shortcut?.let { { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+        enabled = enabled,
+        onClick = { state.openMenu = null; onClick() },
+    )
 
 /** A menu toggle with a checkmark; like ktoy's, a click keeps the menu open (to toggle several). */
 @Composable
@@ -160,8 +165,7 @@ fun MenuHeading(text: String) = Text(
 
 /** Point Set / Edit / View / Help on the left, the app name (and on the web a subtitle) on the right. */
 @Composable
-fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Unit) {
-    val opener = rememberFileOpener(onError = { state.error = it }) { name, bytes -> state.open(name, bytes) }
+fun MenuBar(state: AppState, view: ViewTransform, openFile: () -> Unit, openDialog: (DialogKind) -> Unit) {
     val saver = rememberFileSaver(onError = { state.error = it }) { name -> if (name != null) state.showInfo("Saved $name") }
     // the popups are not focusable (see MenuButton), so the bar takes the focus while a menu
     // is open; Escape bubbles up from here to the app's key handler, which closes the menu
@@ -187,16 +191,16 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 Item(state, "Random…") { openDialog(DialogKind.RANDOM) }
                 Item(state, "Export…") { openDialog(DialogKind.EXPORT) }
                 HorizontalDivider()
-                Item(state, "Open file…") { state.leave { opener() } }
-                Item(state, "Save file…") { openDialog(DialogKind.SAVE) }
+                Item(state, "Open file…", shortcut = "Ctrl+O") { openFile() }
+                Item(state, "Save file…", shortcut = "Ctrl+S") { openDialog(DialogKind.SAVE) }
                 HorizontalDivider()
                 Item(state, "Export SVG") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
                 Item(state, "Export Ipe") { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
             }
             MenuButton(state, "Edit") {
-                Item(state, "Undo", enabled = state.canUndo) { state.undo() }
-                Item(state, "Redo", enabled = state.canRedo) { state.redo() }
-                Item(state, "Delete selected point", enabled = state.selected != null) { state.deleteSelected() }
+                Item(state, "Undo", enabled = state.canUndo, shortcut = "Ctrl+Z") { state.undo() }
+                Item(state, "Redo", enabled = state.canRedo, shortcut = "Ctrl+Shift+Z") { state.redo() }
+                Item(state, "Delete selected point", enabled = state.selected != null, shortcut = "Del") { state.deleteSelected() }
                 HorizontalDivider()
                 // unlike the View check items, this one closes the menu (GUI spec)
                 CheckItem("Lock order type", state.fixOrderType) {
@@ -205,9 +209,9 @@ fun MenuBar(state: AppState, view: ViewTransform, openDialog: (DialogKind) -> Un
                 }
             }
             MenuButton(state, "View") {
-                Item(state, "Fit") { state.requestFit() }
-                Item(state, "Zoom in") { view.zoomCenter(1.2) }
-                Item(state, "Zoom out") { view.zoomCenter(1 / 1.2) }
+                Item(state, "Fit", shortcut = "0") { state.requestFit() }
+                Item(state, "Zoom in", shortcut = "+") { view.zoomCenter(1.2) }
+                Item(state, "Zoom out", shortcut = "−") { view.zoomCenter(1 / 1.2) }
                 HorizontalDivider()
                 CheckItem("Line arrangement", state.showLines) { state.showLines = !state.showLines }
                 CheckItem("Point labels", state.showLabels) { state.showLabels = !state.showLabels }
