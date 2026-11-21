@@ -20,8 +20,8 @@ Problems found while writing the manual; Manfred: "ja bitte".
 - Desktop save asks "<name> already exists. Replace it?" before it overwrites a file (yes/no; no
   goes back to the chooser). All saves go through it: Save file, Export SVG, Export Ipe (Manfred:
   "jo").
-- Menu items that open a dialog end with "…": Export SVG…, Export Ipe…, the Help pages and
-  About PoCoView….
+- Menu items that open a dialog end with "..." (ASCII, as in ArrView and RotSysView; was "…"):
+  now also Export SVG, Export Ipe, the Help pages and About PoCoView.
 
 ## 2026-11-21: Keyboard shortcuts
 

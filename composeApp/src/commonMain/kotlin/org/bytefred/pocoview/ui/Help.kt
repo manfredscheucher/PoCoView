@@ -90,10 +90,10 @@ private val GENERAL_TEXT = listOf(
     "The Display widget sets how points and lines are drawn, the number of widgets and the layout. These " +
         "settings, the open widgets, the divider positions and the shown properties are remembered for " +
         "the next start.",
-    "In the Point Set menu, Examples… has generated families, interesting sets from the literature and " +
-        "all order types of 3 to 7 points, Import… reads pasted text, Random… makes a random set and " +
-        "Export… gives the text to copy. Open file… and Save file… read and write files, Export SVG… and " +
-        "Export Ipe… save a picture.",
+    "In the Point Set menu, Examples... has generated families, interesting sets from the literature and " +
+        "all order types of 3 to 7 points, Import... reads pasted text, Random... makes a random set and " +
+        "Export... gives the text to copy. Open file... and Save file... read and write files, Export SVG... and " +
+        "Export Ipe... save a picture.",
     "If the points have changed since they were loaded or saved, PoCoView asks whether to save them before " +
         "it replaces them. On the desktop, closing the app asks too. An unapplied edit in the Data widget " +
         "is never saved, only discarded.",
@@ -102,12 +102,12 @@ private val GENERAL_TEXT = listOf(
 )
 
 private val PROPERTIES_TEXT = listOf(
-    "The Properties widget lists the properties picked in View → Select properties…. Most depend only on " +
+    "The Properties widget lists the properties picked in View → Select properties.... Most depend only on " +
         "the order type (the monochromatic ones also on the colours), and all need general position. " +
         "Triangulations is off by default (it is slow).",
     "Highlight draws the structures of every property whose switch is on, for example the 5-holes as " +
         "filled polygons. It is off by default. At most 3000 structures per property are drawn, " +
-        "and the colour of each property is set in Select properties….",
+        "and the colour of each property is set in Select properties....",
     "Incident only counts and draws only the structures that contain the selected point.",
     "Convex hull: the number of points on the convex hull.",
     "Onion layers: how often the convex hull can be peeled off until no point is left.",

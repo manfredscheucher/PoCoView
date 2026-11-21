@@ -186,16 +186,16 @@ fun MenuBar(state: AppState, view: ViewTransform, openFile: () -> Unit, openDial
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MenuButton(state, "Point Set") {
-                Item(state, "Examples…") { openDialog(DialogKind.EXAMPLES) }
-                Item(state, "Import…") { openDialog(DialogKind.IMPORT) }
-                Item(state, "Random…") { openDialog(DialogKind.RANDOM) }
-                Item(state, "Export…") { openDialog(DialogKind.EXPORT) }
+                Item(state, "Examples...") { openDialog(DialogKind.EXAMPLES) }
+                Item(state, "Import...") { openDialog(DialogKind.IMPORT) }
+                Item(state, "Random...") { openDialog(DialogKind.RANDOM) }
+                Item(state, "Export...") { openDialog(DialogKind.EXPORT) }
                 HorizontalDivider()
-                Item(state, "Open file…", shortcut = "Ctrl+O") { openFile() }
-                Item(state, "Save file…", shortcut = "Ctrl+S") { openDialog(DialogKind.SAVE) }
+                Item(state, "Open file...", shortcut = "Ctrl+O") { openFile() }
+                Item(state, "Save file...", shortcut = "Ctrl+S") { openDialog(DialogKind.SAVE) }
                 HorizontalDivider()
-                Item(state, "Export SVG…") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
-                Item(state, "Export Ipe…") { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
+                Item(state, "Export SVG...") { saver("${state.fileName}.svg", exportSvg(state).encodeToByteArray()) }
+                Item(state, "Export Ipe...") { saver("${state.fileName}.ipe", exportIpe(state).encodeToByteArray()) }
             }
             MenuButton(state, "Edit") {
                 Item(state, "Undo", enabled = state.canUndo, shortcut = "Ctrl+Z") { state.undo() }
@@ -225,11 +225,11 @@ fun MenuBar(state: AppState, view: ViewTransform, openFile: () -> Unit, openDial
                     state.layoutMode = m
                 }
                 HorizontalDivider()
-                Item(state, "Select properties…") { openDialog(DialogKind.PROPERTIES) }
+                Item(state, "Select properties...") { openDialog(DialogKind.PROPERTIES) }
             }
             MenuButton(state, "Help") {
-                for (page in HelpPage.entries) Item(state, "${page.title}…") { state.helpPage = page; openDialog(DialogKind.HELP) }
-                Item(state, "About PoCoView…") { openDialog(DialogKind.ABOUT) }
+                for (page in HelpPage.entries) Item(state, "${page.title}...") { state.helpPage = page; openDialog(DialogKind.HELP) }
+                Item(state, "About PoCoView...") { openDialog(DialogKind.ABOUT) }
             }
         }
         // one line + ellipsis, shrinking (weight), so the header cannot push the menus off-screen

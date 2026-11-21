@@ -285,7 +285,7 @@ private fun PropertiesTab(state: AppState, onSelectProperties: () -> Unit) {
         }
     }
     Spacer(Modifier.height(8.dp))
-    OutlinedButton(onClick = onSelectProperties) { Text("Select properties…") }
+    OutlinedButton(onClick = onSelectProperties) { Text("Select properties...") }
 }
 
 private fun resultText(state: AppState, prop: PropertyDef, s: PropState?): String = when (s) {

@@ -56,7 +56,7 @@ Error dialog.
 
 All of these are in the Point Set menu.
 
-**Examples…** has four groups, each collapsible:
+**Examples...** has four groups, each collapsible:
 
 - Families: generated sets. Horton set (no empty convex 7-gon; n is rounded up to the next power
   of 2) and Convex position (points on the moment curve). Set n with the number field or `−`/`+`
@@ -74,13 +74,13 @@ and scroll position. The yellow box has a mail address for sending interesting s
 
 ![Examples dialog](img/examples.png)
 
-**Random…** makes n random points in general position with coordinates from 0 to grid − 1 (n from 1
+**Random...** makes n random points in general position with coordinates from 0 to grid − 1 (n from 1
 to 200, default 12; grid from 2 to 2^29, default 1000), then Generate.
 
-**Import…** reads pasted text, one or more sets; the format is detected (see
+**Import...** reads pasted text, one or more sets; the format is detected (see
 [File formats](#file-formats)).
 
-**Open file…** reads `.json`, `.txt`, `.asc`, `.psz` and the order type database files `.b08`,
+**Open file...** reads `.json`, `.txt`, `.asc`, `.psz` and the order type database files `.b08`,
 `.b16`, `.b32` (also `.pb08`, `.pb16`, `.pb32`). On the web this uses the browser's file picker. On
 the desktop the file chooser starts with the JSON filter; choose "All point sets" for the others.
 
@@ -168,7 +168,7 @@ and hide the widgets. The x in a widget's title closes it.
 ## Properties
 
 The Properties widget lists the chosen properties with their values. Choose them in View → Select
-properties… (or the button at the bottom of the widget): one checkbox per property, "all" and "none"
+properties... (or the button at the bottom of the widget): one checkbox per property, "all" and "none"
 per group, and a colour dot that sets the highlight colour.
 
 ![Select properties](img/select-properties.png)
@@ -240,12 +240,12 @@ Apply deselects, fits the view and is one undo step. Text that cannot be read op
 
 ## Save and export
 
-- **Save file…** (Point Set menu): Save JSON or Save text writes all sets of the file, including your
+- **Save file...** (Point Set menu): Save JSON or Save text writes all sets of the file, including your
   edits. The desktop app opens a file chooser and asks before it replaces an existing file; the web
   app downloads the file. After saving, the points count as saved.
-- **Export…**: all sets as JSON or text (Format) in a text field, with Copy. This does not count as
+- **Export...**: all sets as JSON or text (Format) in a text field, with Copy. This does not count as
   saving.
-- **Export SVG…** / **Export Ipe…**: a picture of the current set, fitted to the page, not the current
+- **Export SVG...** / **Export Ipe...**: a picture of the current set, fitted to the page, not the current
   view. It is drawn with the Display settings: point size and the R/B/G point colours, the labels
   and the line arrangement if shown (colour, opacity, width), the lines through the selected point
   (hidden, normal or highlighted as set), and the highlighted structures if Highlight is on, with

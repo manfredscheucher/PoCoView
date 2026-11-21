@@ -227,7 +227,7 @@ class AppState(private val scope: CoroutineScope = CoroutineScope(SupervisorJob(
     var lineColor by mutableStateOf(DEFAULT_LINE_COLOR)
     var lineAlpha by mutableStateOf(DEFAULT_LINE_ALPHA)
 
-    /** Highlight colour per property id (chosen in "Select properties…"); default: [defaultPropertyColor]. */
+    /** Highlight colour per property id (chosen in "Select properties..."); default: [defaultPropertyColor]. */
     val propertyColors = mutableStateMapOf<String, Color>()
 
     fun colorOf(id: String): Color = propertyColors[id]
