@@ -241,11 +241,11 @@ Apply deselects, fits the view and is one undo step. Text that cannot be read op
 ## Save and export
 
 - **Save file…** (Point Set menu): Save JSON or Save text writes all sets of the file, including your
-  edits. The desktop app opens a file chooser; the web app downloads the file. After saving, the
-  points count as saved.
+  edits. The desktop app opens a file chooser and asks before it replaces an existing file; the web
+  app downloads the file. After saving, the points count as saved.
 - **Export…**: all sets as JSON or text (Format) in a text field, with Copy. This does not count as
   saving.
-- **Export SVG** / **Export Ipe**: a picture of the current set, fitted to the page, not the current
+- **Export SVG…** / **Export Ipe…**: a picture of the current set, fitted to the page, not the current
   view. It is drawn with the Display settings: point size and the R/B/G point colours, the labels
   and the line arrangement if shown (colour, opacity, width), the lines through the selected point
   (hidden, normal or highlighted as set), and the highlighted structures if Highlight is on, with

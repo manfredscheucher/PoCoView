@@ -17,6 +17,11 @@ Problems found while writing the manual; Manfred: "ja bitte".
   general feedback?" + mail); the "early development" sentence is gone.
 - This log lists the entries newest first, as its header says.
 - The two "Minimize" buttons (Minimize, Minimize w.r.t. property) keep their labels for now.
+- Desktop save asks "<name> already exists. Replace it?" before it overwrites a file (yes/no; no
+  goes back to the chooser). All saves go through it: Save file, Export SVG, Export Ipe (Manfred:
+  "jo").
+- Menu items that open a dialog end with "…": Export SVG…, Export Ipe…, the Help pages and
+  About PoCoView….
 
 ## 2026-11-21: Keyboard shortcuts
 

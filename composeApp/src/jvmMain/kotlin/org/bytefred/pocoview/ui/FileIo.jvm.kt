@@ -5,6 +5,7 @@ import org.bytefred.pocoview.core.LOAD_EXTENSIONS
 import java.io.File
 import java.io.IOException
 import javax.swing.JFileChooser
+import javax.swing.JOptionPane
 import javax.swing.filechooser.FileNameExtensionFilter
 
 private var lastDir: File? = null
@@ -39,14 +40,37 @@ actual fun rememberFileSaver(
         dialogTitle = "Save"
         selectedFile = File(lastDir, fileName)
     }
-    if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
-        var f = chooser.selectedFile
-        val ext = fileName.substringAfterLast('.', "")
-        if (ext.isNotEmpty() && !f.name.contains('.')) f = File(f.path + "." + ext)
+    val f = chooseSaveTarget(
+        fileName,
+        choose = { if (chooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null },
+        confirmReplace = { existing ->
+            chooser.selectedFile = existing
+            JOptionPane.showConfirmDialog(null, replaceQuestion(existing), "Save", JOptionPane.YES_NO_OPTION) ==
+                JOptionPane.YES_OPTION
+        },
+    )
+    if (f != null) {
         lastDir = f.parentFile
         writeFile(f, bytes, onError, onSaved)
     } else {
         onSaved(null)
+    }
+}
+
+/** The question before replacing [f]. */
+internal fun replaceQuestion(f: File) = "${f.name} already exists. Replace it?"
+
+/**
+ * The file to save to: [choose] shows the chooser (null: cancelled). The suggested [fileName]'s
+ * extension is added to a name without one. An existing file is taken only when [confirmReplace]
+ * says yes; no shows the chooser again.
+ */
+internal fun chooseSaveTarget(fileName: String, choose: () -> File?, confirmReplace: (File) -> Boolean): File? {
+    val ext = fileName.substringAfterLast('.', "")
+    while (true) {
+        var f = choose() ?: return null
+        if (ext.isNotEmpty() && !f.name.contains('.')) f = File(f.path + "." + ext)
+        if (!f.exists() || confirmReplace(f)) return f
     }
 }
 

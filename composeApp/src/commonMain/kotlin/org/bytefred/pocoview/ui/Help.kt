@@ -92,8 +92,8 @@ private val GENERAL_TEXT = listOf(
         "the next start.",
     "In the Point Set menu, Examples… has generated families, interesting sets from the literature and " +
         "all order types of 3 to 7 points, Import… reads pasted text, Random… makes a random set and " +
-        "Export… gives the text to copy. Open file… and Save file… read and write files, Export SVG and " +
-        "Export Ipe save a picture.",
+        "Export… gives the text to copy. Open file… and Save file… read and write files, Export SVG… and " +
+        "Export Ipe… save a picture.",
     "If the points have changed since they were loaded or saved, PoCoView asks whether to save them before " +
         "it replaces them. On the desktop, closing the app asks too. An unapplied edit in the Data widget " +
         "is never saved, only discarded.",
