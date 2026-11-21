@@ -515,7 +515,8 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             is ExampleChoice.Single -> {
                 val e = choice.example
                 state.leave { state.loadPoints(e.name, e.points, e.properties); close() }
-            }            is ExampleChoice.OrderTypes -> {
+            }
+            is ExampleChoice.OrderTypes -> {
                 val f = choice.file
                 // the whole file, at the chosen set, so "set i/n" steps through the other order types
                 val i = ex.orderType[f.n] ?: 1

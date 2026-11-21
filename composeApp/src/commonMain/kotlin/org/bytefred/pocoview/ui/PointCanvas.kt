@@ -129,8 +129,8 @@ class ViewTransform {
 }
 
 /**
- * One colour per property (at least as many as [ALL_PROPERTIES], so none repeats). No red: that is
- * the crossing families' colour ([AppState.EMPHASIZED_COLOR]).
+ * Default property colours by registry position, as many as [ALL_PROPERTIES], so none repeats. No
+ * red: that is the crossing families' colour ([AppState.EMPHASIZED_COLOR]), which they use instead.
  */
 private val PALETTE = listOf(
     Color(0xFF1E88E5), Color(0xFF1B5E20), Color(0xFF43A047), Color(0xFFFB8C00), Color(0xFF8E24AA),

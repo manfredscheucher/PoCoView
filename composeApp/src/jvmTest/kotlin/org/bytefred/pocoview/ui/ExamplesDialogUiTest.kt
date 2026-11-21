@@ -55,6 +55,6 @@ class ExamplesDialogUiTest {
         ex.toggle("Singletons")
         assertNull(ex.selected)
         // the inner node stays open, so reopening the outer one shows it as it was
-        assertEquals(listOf("S/" + group.title, "Order types"), ex.expanded.toList())
+        assertEquals(setOf("S/" + group.title, "Order types"), ex.expanded.toSet())
     }
 }
