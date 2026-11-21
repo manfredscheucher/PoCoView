@@ -466,6 +466,23 @@ class ExamplesState {
     /** The chosen order type (1-based) per n. */
     val orderType = mutableStateMapOf<Int, Int>()
     val scroll = ScrollState(0)
+
+    /** Opens or closes a tree node; closing the node that holds the selection clears it (Load is off then). */
+    fun toggle(key: String) {
+        if (key !in expanded) expanded.add(key)
+        else {
+            expanded.remove(key)
+            if (selected?.let { key in treeKeys(it) } == true) selected = null
+        }
+    }
+}
+
+/** The keys of the tree nodes that hold [choice]: collapsing one of them hides it. */
+private fun treeKeys(choice: ExampleChoice): List<String> = when (choice) {
+    is ExampleChoice.Family -> listOf("Families")
+    is ExampleChoice.OrderTypes -> listOf("Order types")
+    is ExampleChoice.Single -> listOf("Singletons") +
+        EXAMPLES.categories.filter { choice.example in it.examples }.map { "S/" + it.title }
 }
 
 /**
@@ -477,7 +494,6 @@ class ExamplesState {
 private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     val ex = state.examples
     val open = ex.expanded
-    fun toggle(key: String) { if (key in open) open.remove(key) else open.add(key) }
     var selected by ex::selected
     val familyN = ex.familyN
     var nError by remember { mutableStateOf<String?>(null) }
@@ -518,7 +534,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
         ScrollColumn(Modifier.fillMaxSize(), ex.scroll) {
             FeedbackBox("Know a set that belongs here, or have general feedback?")
             Spacer(Modifier.height(8.dp))
-            TreeHeader("Families", "Families" in open, depth = 0) { toggle("Families") }
+            TreeHeader("Families", "Families" in open, depth = 0) { ex.toggle("Families") }
             HorizontalDivider()
             if ("Families" in open) for (f in FAMILIES) {
                 val choice = ExampleChoice.Family(f)
@@ -528,12 +544,12 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     nError = null
                 }
             }
-            TreeHeader("Singletons", "Singletons" in open, depth = 0) { toggle("Singletons") }
+            TreeHeader("Singletons", "Singletons" in open, depth = 0) { ex.toggle("Singletons") }
             HorizontalDivider()
             if ("Singletons" in open) {
                 for (g in EXAMPLES.categories) {
                     val key = "S/" + g.title
-                    TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { toggle(key) }
+                    TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { ex.toggle(key) }
                     if (key in open) for (e in g.examples) {
                         val choice = ExampleChoice.Single(e)
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
@@ -541,7 +557,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     }
                 }
             }
-            TreeHeader("Order types", "Order types" in open, depth = 0) { toggle("Order types") }
+            TreeHeader("Order types", "Order types" in open, depth = 0) { ex.toggle("Order types") }
             HorizontalDivider()
             if ("Order types" in open) for (f in EXAMPLES.orderTypes) {
                 val choice = ExampleChoice.OrderTypes(f)
@@ -550,7 +566,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     ex.orderType[f.n] = it
                 }
             }
-            TreeHeader("Links", "Links" in open, depth = 0) { toggle("Links") }
+            TreeHeader("Links", "Links" in open, depth = 0) { ex.toggle("Links") }
             HorizontalDivider()
             if ("Links" in open) for (l in EXAMPLES.links) Column(Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)) {
                 LinkText(l.title, l.url, MaterialTheme.typography.bodyLarge)
@@ -747,7 +763,7 @@ private fun AboutDialog(close: () -> Unit) = AlertDialog(
         ScrollColumn(Modifier.heightIn(max = 520.dp)) {
             Text(ABOUT, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(8.dp))
-            FeedbackBox("PoCoView is in early development. Feedback is very welcome:")
+            FeedbackBox("Interesting point configurations, ideas or general feedback?")
             Spacer(Modifier.height(8.dp))
             ProjectLine("PoCoView", "https://github.com/manfredscheucher/PoCoView", "this app")
             ProjectLine(
