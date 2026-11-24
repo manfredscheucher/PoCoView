@@ -13,6 +13,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.bytefred.pocoview.core.EXAMPLES
+import org.bytefred.pocoview.core.Example
+import org.bytefred.pocoview.core.ExampleGroup
+import org.bytefred.pocoview.core.ExampleLink
+import org.bytefred.pocoview.core.ExampleSupergroup
 import org.bytefred.pocoview.core.FAMILIES
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -102,5 +106,19 @@ class ExamplesDialogUiTest {
         onNodeWithText("Load").performClick()
         waitForIdle()
         assertEquals(EXAMPLES.examples.first { it.name == "n12-c1-min-crossing-number-153" }.points, s.points)
+    }
+
+    @Test
+    fun aSetLeavesOutLinksItsGroupOrSupergroupShowsByUrl() {
+        fun link(title: String, url: String) = ExampleLink(title, url, null)
+        val sg = ExampleSupergroup("s", "S", null, listOf(link("Database", "https://example.org/db")), emptyList())
+        val g = ExampleGroup("g", "G", links = listOf(link("Paper", "https://example.org/paper")))
+        val own = link("PoSeZo", "https://example.org/own")
+        val e = Example(
+            "n3-c1-t", "d", "G", null,
+            listOf(link("Order type database", "https://example.org/db"), link("The paper", "https://example.org/paper"), own),
+            emptyList(),
+        )
+        assertEquals(listOf(own), shownLinks(e, sg, g))
     }
 }

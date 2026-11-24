@@ -64,6 +64,9 @@ class ExamplesTest {
         // ids must be unique (they are the tree keys)
         assertFailsWith<FormatException> { parseIndex(index.replace("\"id\": \"h\"", "\"id\": \"g\""), mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff")) }
         assertFailsWith<FormatException> { parseIndex(index, emptyMap(), mapOf("b/otypes03.b08" to "000080ff00ff")) }
+        // an empty order type file is a format error, not a NoSuchElementException
+        val empty = assertFailsWith<FormatException> { parseIndex(index, mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "")) }
+        assertEquals("No point set found in otypes03.b08", empty.message)
     }
 
     @Test

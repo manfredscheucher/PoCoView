@@ -1,5 +1,6 @@
 package org.bytefred.pocoview.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
@@ -544,7 +546,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
     ) {
         ScrollColumn(Modifier.fillMaxSize(), ex.scroll) {
             FeedbackBox("Know a set that belongs here, or have general feedback?")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             for (sg in EXAMPLES.supergroups) {
                 val sgKey = supergroupKey(sg)
                 TreeHeader(sg.title, sgKey in open, depth = 0) { ex.toggle(sgKey) }
@@ -561,12 +563,12 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     for (e in g.examples) {
                         val choice = ExampleChoice.Single(e)
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
-                        if (selected == choice) ExampleDetails(e)
+                        if (selected == choice) ExampleDetails(e, shownLinks(e, sg, g), depth = 2)
                     }
                     for (f in g.orderTypes) {
                         val choice = ExampleChoice.OrderTypes(f)
                         TreeLeaf("n = ${f.n} (${f.sets.size})", depth = 2, selected == choice) { selected = choice; orderTypeText = null }
-                        if (selected == choice) OrderTypeDetails(state, f, ex.orderType[f.n] ?: 1, orderTypeOk, { orderTypeText = it }) {
+                        if (selected == choice) OrderTypeDetails(state, f, depth = 2, ex.orderType[f.n] ?: 1, orderTypeOk, { orderTypeText = it }) {
                             ex.orderType[f.n] = it
                         }
                     }
@@ -577,7 +579,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
             if ("Families" in open) for (f in FAMILIES) {
                 val choice = ExampleChoice.Family(f)
                 TreeLeaf(f.name, depth = 1, selected == choice) { selected = choice; nError = null }
-                if (selected == choice) FamilyDetails(state, f, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
+                if (selected == choice) FamilyDetails(state, f, depth = 1, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
                     familyN[f.id] = it
                     nError = null
                 }
@@ -599,15 +601,16 @@ private const val DEFAULT_FAMILY_N = 16
 @Composable
 private fun NodeInfo(description: String?, links: List<ExampleLink>, depth: Int) {
     if (description == null && links.isEmpty()) return
-    Column(Modifier.padding(start = (depth * 16 + 24).dp, bottom = 8.dp)) {
+    Column(Modifier.padding(start = (depth * 16 + 24).dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        if (links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
-        }
+        for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
     }
 }
 
-/** A clickable, expand/collapse tree node (supergroup, group, Families, Links); the top level ([depth] 0) has the larger titleLarge font. */
+/**
+ * A clickable, expand/collapse tree node (supergroup, group, Families, Links) with a drawn arrow (no glyph: the web
+ * font lacks them); the top level ([depth] 0) has the larger titleLarge font.
+ */
 @Composable
 private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () -> Unit) {
     Row(
@@ -617,13 +620,36 @@ private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () ->
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(if (open) "▾" else "▸", style = MaterialTheme.typography.bodyLarge)
+        TreeArrow(open)
         Text(
             label,
             style = if (depth == 0) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 8.dp),
         )
+    }
+}
+
+/** A triangle pointing right (collapsed) or down (expanded), as ArrView's and RotSysView's. */
+@Composable
+private fun TreeArrow(open: Boolean) {
+    val color = MaterialTheme.colorScheme.onSurface
+    Canvas(Modifier.size(12.dp)) {
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            if (open) {
+                moveTo(0.05f * w, 0.25f * h)
+                lineTo(0.95f * w, 0.25f * h)
+                lineTo(0.5f * w, 0.85f * h)
+            } else {
+                moveTo(0.25f * w, 0.05f * h)
+                lineTo(0.85f * w, 0.5f * h)
+                lineTo(0.25f * w, 0.95f * h)
+            }
+            close()
+        }
+        drawPath(path, color)
     }
 }
 
@@ -642,15 +668,21 @@ private fun TreeLeaf(name: String, depth: Int, selected: Boolean, onSelect: () -
     }
 }
 
-/** The details of the selected bundled set: description, note, reference, links. */
+/** The links the selected set [e] shows: those whose URL its group [g] and supergroup [sg] do not show already. */
+internal fun shownLinks(e: Example, sg: ExampleSupergroup, g: ExampleGroup): List<ExampleLink> {
+    val above = (sg.links + g.links).map { it.url }.toSet()
+    return e.links.filter { it.url !in above }
+}
+
+/** The details of the selected bundled set at [depth]: description, note, reference, [links]. */
 @Composable
-private fun ExampleDetails(e: Example) {
-    Column(Modifier.padding(start = 64.dp, bottom = 8.dp)) {
+private fun ExampleDetails(e: Example, links: List<ExampleLink>, depth: Int) {
+    Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-        if (e.links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (l in e.links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
+        if (links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -681,10 +713,10 @@ private fun feedbackMailto(): String {
     return "mailto:$EMAIL?subject=${enc(subject)}&body=${enc(body)}"
 }
 
-/** The details of the selected family: its n, description and references. */
+/** The details of the selected family at [depth]: its n, description and references. */
 @Composable
-private fun FamilyDetails(state: AppState, f: PointSetFamily, n: Int, error: String?, onN: (Int) -> Unit) {
-    Column(Modifier.padding(start = 48.dp, bottom = 8.dp)) {
+private fun FamilyDetails(state: AppState, f: PointSetFamily, depth: Int, n: Int, error: String?, onN: (Int) -> Unit) {
+    Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
         NumberField(state, "n", n.toString(), { onN(it.toInt()) }, range = 1L..f.maxN, stepper = true, isError = error != null)
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text(f.description, style = MaterialTheme.typography.bodySmall)
@@ -692,13 +724,13 @@ private fun FamilyDetails(state: AppState, f: PointSetFamily, n: Int, error: Str
     }
 }
 
-/** The details of a selected order type file: which order type to load ("order type: − [17] + of 135"). */
+/** The details of a selected order type file at [depth]: which order type to load ("order type: − [17] + of 135"). */
 @Composable
 private fun OrderTypeDetails(
-    state: AppState, f: OrderTypeFile, index: Int, ok: Boolean, onText: (String) -> Unit, onIndex: (Int) -> Unit,
+    state: AppState, f: OrderTypeFile, depth: Int, index: Int, ok: Boolean, onText: (String) -> Unit, onIndex: (Int) -> Unit,
 ) {
     val count = f.sets.size
-    Column(Modifier.padding(start = 64.dp, bottom = 8.dp)) {
+    Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             NumberField(
                 state, "order type", index.toString(), { it.toInt().let { i -> if (i in 1..count) onIndex(i) } },

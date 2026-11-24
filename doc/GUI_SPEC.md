@@ -18,7 +18,8 @@ Decisions:
 - Supergroup header: like the former top-level headers (▸/▾, SemiBold, divider), title only. When
   open, its description and links show below it, then the groups.
 - Group header: "Title (count)", count = number of point sets (an order type file counts each order
-  type, so "Order types (157)"); its description and links, if any, show when open.
+  type, so "Order types (157)"); its description and links, if any, show when open. Superseded: group
+  headers have no count (see below).
 - Database has one group "Order types" with the leaves "n = 3 (1)" ... "n = 7 (135)". The order type
   database link moved from Links to the Database supergroup; PoSeZo stays under Links (it also has
   families, not only extremal sets).
@@ -27,8 +28,17 @@ Decisions:
 Aligned with ArrView/RotSysView/PoCoView: the depth-0 headers (supergroups, and Families and Links,
 which stay after them) use titleLarge; group headers show the title only, without the count ("Order
 types" instead of "Order types (157)"; the leaves keep "n = 5 (3)"); an open group does not repeat
-links its supergroup already shows. Arrow (▸/▾), 16 dp per level and the collapse rules were already
-the same. `ExampleGroup.size` is gone (it only served the count); `doc/img/examples.png` re-rendered.
+links its supergroup already shows. 16 dp per level and the collapse rules were already the same.
+`ExampleGroup.size` is gone (it only served the count); `doc/img/examples.png` re-rendered.
+
+Review fixes, same as ArrView's dialog:
+- The arrow is a drawn triangle (Canvas), not the glyphs ▸/▾: the web font lacks them. (The arrow was
+  not already the same, as said above.)
+- The description and links of an open supergroup or group: one link per line (Column, 2 dp apart,
+  4 dp below), so they wrap at phone width.
+- The details of a selected leaf are indented depth * 16 + 48 dp (sets and order types 80, families 64).
+- A set shows only the links whose URL its group and supergroup do not show already.
+- 4 dp (was 8) below the feedback box. `doc/img/examples.png` re-rendered.
 
 ## 2026-11-21: Fixes from the manual walkthrough
 
