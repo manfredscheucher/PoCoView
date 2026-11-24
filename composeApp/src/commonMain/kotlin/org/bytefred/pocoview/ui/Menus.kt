@@ -830,6 +830,7 @@ private fun AboutDialog(close: () -> Unit) = AlertDialog(
                 "pyotlib2", "https://github.com/manfredscheucher/pyotlib2",
                 "the Python library whose editor PoCoView replaces and whose optimizers it ports",
             )
+            if (isWeb) TermsAndPrivacy(feedbackMailto())
             Spacer(Modifier.height(8.dp))
             Text(buildLine(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             var showLicenses by remember { mutableStateOf(false) }

@@ -117,7 +117,7 @@ fun LinkText(label: String, url: String, style: TextStyle = LocalTextStyle.curre
  * Opens a link without ever crashing the app: the JVM throws when the desktop can't browse (and
  * Android would when no browser or mail app is installed). Then nothing happens.
  */
-private fun openUriSafely(uri: UriHandler, url: String) {
+internal fun openUriSafely(uri: UriHandler, url: String) {
     try { uri.openUri(url) } catch (e: Exception) { }
 }
 

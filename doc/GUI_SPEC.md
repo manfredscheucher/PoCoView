@@ -2,6 +2,21 @@
 
 Requests and decisions about the GUI. Newest first.
 
+## 2026-11-24: Terms & privacy note (web)
+
+Request (Manfred, relayed by turingmachine-ef): every GitHub Pages site gets the approved "Terms &
+privacy" text, word for word the "Draft" section of misc/turingmachine/doc/privacy-github-pages.md,
+with the "(Compose sites only)" paragraph but without that label. It goes in the About dialog, web
+build only, as in ktoy. "Please let me know" points to the feedback e-mail.
+
+Decisions:
+- `ui/TermsPrivacy.kt`, the same in ArrView, PoCoView and RotSysView: heading "Terms & privacy",
+  then "Privacy" (4 paragraphs) and "Terms" (1 paragraph, the draft's two lines joined, because
+  "please let me know" is a link in it). Shown after the project links, before the build line.
+- "privacy statement" links to GitHub's privacy statement, as in the draft; "please let me know"
+  opens the same mailto as the feedback box.
+- The CSP line in index.html stays (see DEVELOPMENT.md, "No third-party requests").
+
 ## 2026-11-24: Examples in supergroups and groups
 
 Request (all three apps uniform, ArrView and RotSysView get the same): group the bundled examples
