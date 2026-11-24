@@ -5,7 +5,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -17,14 +22,17 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 
 /**
- * The website's Terms & privacy note (About dialog, web build only). Word for word the approved
+ * The website's Terms & privacy note (About dialog, web build only, collapsed until clicked). Word for word the approved
  * "Draft" of misc/turingmachine/doc/privacy-github-pages.md (Manfred, 2026-11-24), the same in
  * ArrView, PoCoView and RotSysView. "privacy statement" and "please let me know" are links.
  */
 @Composable
 fun TermsAndPrivacy(feedbackUrl: String) {
     Spacer(Modifier.height(8.dp))
-    Text("Terms & privacy", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+    // collapsed by default, like the license texts
+    var show by remember { mutableStateOf(false) }
+    TextButton(onClick = { show = !show }) { Text(if (show) "Hide terms & privacy" else "Terms & privacy") }
+    if (!show) return
     Text("Privacy", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
     for (p in PRIVACY_PARAGRAPHS) LinkParagraph(p, listOf(PRIVACY_LINK_LABEL to GITHUB_PRIVACY_URL))
     Text("Terms", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))

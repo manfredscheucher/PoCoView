@@ -16,6 +16,8 @@ Decisions:
 - "privacy statement" links to GitHub's privacy statement, as in the draft; "please let me know"
   opens the same mailto as the feedback box.
 - The CSP line in index.html stays (see DEVELOPMENT.md, "No third-party requests").
+- Later the same day (Manfred): collapsed by default like the license texts, a TextButton
+  "Terms & privacy" / "Hide terms & privacy" in place of the heading.
 
 ## 2026-11-24: Examples in supergroups and groups
 
