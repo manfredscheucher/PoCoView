@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Examples dialog: collapsing the node that holds the selection clears it, so Load is off. */
+/** Examples dialog: supergroups and groups expand and collapse; collapsing the node that holds the selection clears it, so Load is off. */
 @OptIn(ExperimentalTestApi::class)
 class ExamplesDialogUiTest {
     private fun state() = AppState(CoroutineScope(SupervisorJob() + Dispatchers.Default))
@@ -45,16 +46,58 @@ class ExamplesDialogUiTest {
     @Test
     fun collapsingAnOuterNodeClearsANestedSelection() {
         val ex = ExamplesState()
-        val group = EXAMPLES.categories.first()
-        val choice = ExampleChoice.Single(group.examples.first())
-        ex.toggle("Singletons")
-        ex.toggle("S/" + group.title)
+        val choice = ExampleChoice.Single(EXAMPLES.supergroups[1].groups.first().examples.first())
+        ex.toggle("SG/extremal")
+        ex.toggle("G/extremal/holes")
         ex.selected = choice
-        ex.toggle("Order types")
+        ex.toggle("SG/database")
         assertEquals(choice, ex.selected)
-        ex.toggle("Singletons")
+        ex.toggle("SG/extremal")
         assertNull(ex.selected)
         // the inner node stays open, so reopening the outer one shows it as it was
-        assertEquals(setOf("S/" + group.title, "Order types"), ex.expanded.toSet())
+        assertEquals(setOf("G/extremal/holes", "SG/database"), ex.expanded.toSet())
+    }
+
+    @Test
+    fun supergroupsAndGroupsWithClicks() = runComposeUiTest {
+        val s = state()
+        setContent { App(s, DialogKind.EXAMPLES) }
+        val load = onNodeWithText("Load")
+        // all collapsed: the supergroups, Families and Links, no groups
+        for (t in listOf("Database", "Extremal point sets", "Families", "Links")) onNodeWithText(t).assertExists()
+        onNodeWithText("Holes and convex gons (9)").assertDoesNotExist()
+        onNodeWithText("Extremal point sets").performClick()
+        onNodeWithText("Sets from the literature that are extremal for a problem.").assertExists()
+        onNodeWithText("Bicolored sets (6)").performScrollTo().performClick()
+        onNodeWithText("n8-c2-no-monochromatic-3-hole").performScrollTo().performClick()
+        load.assertIsEnabled()
+        // collapsing the group of the selection clears it
+        onNodeWithText("Bicolored sets (6)").performScrollTo().performClick()
+        load.assertIsNotEnabled()
+        onNodeWithText("Bicolored sets (6)").performClick()
+        onNodeWithText("n8-c2-no-monochromatic-3-hole").performScrollTo().performClick()
+        // the database: description, its link, one group with the order type files
+        onNodeWithText("Database").performScrollTo().performClick()
+        onNodeWithText("All order types of 3 to 7 points.").assertExists()
+        onNodeWithText("Order type database").assertExists()
+        load.assertIsEnabled()
+        onNodeWithText("Order types (157)").performScrollTo().performClick()
+        onNodeWithText("n = 5 (3)").performScrollTo().performClick()
+        load.performClick()
+        waitForIdle()
+        assertEquals(3, s.sets.size)
+        assertEquals(EXAMPLES.orderTypes.first { it.n == 5 }.sets[0], s.points)
+    }
+
+    @Test
+    fun loadsASingleSet() = runComposeUiTest {
+        val s = state()
+        setContent { App(s, DialogKind.EXAMPLES) }
+        onNodeWithText("Extremal point sets").performClick()
+        onNodeWithText("Crossing number (2)").performScrollTo().performClick()
+        onNodeWithText("n12-c1-min-crossing-number-153").performScrollTo().performClick()
+        onNodeWithText("Load").performClick()
+        waitForIdle()
+        assertEquals(EXAMPLES.examples.first { it.name == "n12-c1-min-crossing-number-153" }.points, s.points)
     }
 }

@@ -44,7 +44,7 @@ class RenderTest {
 
     @Test
     fun everyExampleAndFamilyRenders() {
-        val sets = loadExamples().categories.flatMap { it.examples }.map { it.name to it.points } +
+        val sets = loadExamples().examples.map { it.name to it.points } +
             FAMILIES.map { it.id to it.generate(minOf(16, it.maxN)) }
         for ((name, pts) in sets) {
             val s = state()
@@ -108,12 +108,12 @@ class RenderTest {
     fun examplesDialogKeepsItsStateWhenReopened() {
         val s = state()
         val ex = s.examples
-        ex.expanded += listOf("Families", "Singletons", "Links")
+        ex.expanded += listOf("Families", "SG/extremal", "Links")
         val family = ExampleChoice.Family(FAMILIES.first())
         ex.selected = family
         ex.familyN[family.family.id] = 7
         render(s, DialogKind.EXAMPLES)
-        for ((i, g) in EXAMPLES.categories.withIndex()) if (i % 2 == 0) ex.expanded += "S/" + g.title
+        for ((i, g) in EXAMPLES.supergroups[1].groups.withIndex()) if (i % 2 == 0) ex.expanded += "G/extremal/" + g.id
         render(s, DialogKind.EXAMPLES)
         val target = ex.scroll.maxValue / 2
         assertTrue(target > 0, "the expanded tree must scroll")
@@ -123,7 +123,7 @@ class RenderTest {
         assertEquals(target, ex.scroll.value, "scroll position")
         assertEquals(family, ex.selected)
         assertEquals(7, ex.familyN[family.family.id])
-        assertTrue("Singletons" in ex.expanded)
+        assertTrue("SG/extremal" in ex.expanded)
     }
 
     @Test

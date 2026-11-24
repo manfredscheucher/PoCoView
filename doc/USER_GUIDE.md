@@ -56,21 +56,21 @@ Error dialog.
 
 All of these are in the Point Set menu.
 
-**Examples...** has four groups, each collapsible:
+**Examples...** is a tree; every node opens and closes with a click:
 
+- Database: all order types of 3 to 7 points (Graz order type database, with a link to its website).
+  Choose the number of the order type ("order type: 17 of 135"; a number out of range disables
+  Load). The whole file is loaded, so you can step through the other order types with `<` `>`.
+- Extremal point sets: sets from papers and from PoSeZo, in groups (holes and convex gons, crossing
+  number, bicolored sets, crossing families, universal point sets, miscellaneous). The selected set
+  shows its description, reference and links.
 - Families: generated sets. Horton set (no empty convex 7-gon; n is rounded up to the next power
   of 2) and Convex position (points on the moment curve). Set n with the number field or `−`/`+`
   (default 16).
-- Singletons: sets from papers and from PoSeZo, in categories (holes and convex gons, crossing
-  number, bicolored sets, crossing families, universal point sets, miscellaneous). The selected set
-  shows its description, reference and links.
-- Order types: all order types of 3 to 7 points (Graz order type database). Choose the number of the
-  order type ("order type: 17 of 135"; a number out of range disables Load). The whole file is
-  loaded, so you can step through the other order types with `<` `>`.
-- Links: PoSeZo and the order type database.
+- Links: PoSeZo.
 
-Select an entry, then Load. While the app runs, the dialog keeps its open groups, selection, numbers
-and scroll position. The yellow box has a mail address for sending interesting sets or feedback.
+Select an entry, then Load. Closing the node that holds the selection clears it. While the app runs,
+the dialog keeps its open nodes, selection, numbers and scroll position. The yellow box has a mail address for sending interesting sets or feedback.
 
 ![Examples dialog](img/examples.png)
 

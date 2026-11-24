@@ -106,7 +106,8 @@ class NumberFieldUiTest {
     fun orderTypeIsPickedWithTheNumberFieldAndLoadsTheWholeFile() = runComposeUiTest {
         val s = state()
         setContent { App(s, DialogKind.EXAMPLES) }
-        onNodeWithText("Order types").performScrollTo().performClick()
+        onNodeWithText("Database").performScrollTo().performClick()
+        onNodeWithText("Order types (157)").performScrollTo().performClick()
         onNodeWithText("n = 7 (135)").performScrollTo().performClick()
         onNodeWithText("Order types of 7 points (Graz order type database)").performScrollTo()
         val field = onNodeWithTag("number-order type")

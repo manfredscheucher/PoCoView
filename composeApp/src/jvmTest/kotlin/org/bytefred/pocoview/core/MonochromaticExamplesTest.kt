@@ -35,7 +35,7 @@ class MonochromaticExamplesTest {
 
     @Test
     fun claimsAndPyotlibCounts() = runTest {
-        val all = loadExamples().categories.flatMap { it.examples }.associateBy { it.name }
+        val all = loadExamples().examples.associateBy { it.name }
         for ((name, props) in expected) {
             val p = all.getValue(name).points
             for ((id, v) in props) assertEquals(v, count(p, id), "$name $id")
@@ -44,7 +44,7 @@ class MonochromaticExamplesTest {
 
     @Test
     fun timingsOnN64() = runTest {
-        val p = loadExamples().categories.flatMap { it.examples }.first { it.name == "n64-c2-no-monochromatic-5-island" }.points
+        val p = loadExamples().examples.first { it.name == "n64-c2-no-monochromatic-5-island" }.points
         for (prop in ALL_PROPERTIES.filter { it.id.startsWith("mono") }) {
             lateinit var r: PropertyResult
             val t = measureTime { r = prop.evaluate(p, null, true, Ticker()) }

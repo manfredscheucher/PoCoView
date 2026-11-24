@@ -2,6 +2,28 @@
 
 Requests and decisions about the GUI. Newest first.
 
+## 2026-11-24: Examples in supergroups and groups
+
+Request (all three apps uniform, ArrView and RotSysView get the same): group the bundled examples
+into supergroups with groups. "Database": the order type database n = 3..7; "Extremal point sets":
+the former Singletons categories as groups. Attach a natural website to a supergroup.
+
+Decisions:
+- index.json: `supergroups` (id, title, description, links, groups), groups (id, title,
+  description, links, files), top-level `links`; description and links optional. Replaces the keys
+  `categories` and `orderTypes`, which are no longer read (the group fields title and files keep their
+  meaning). Schema in DEVELOPMENT.md.
+- Tree: Database, Extremal point sets, Families, Links (Database first; Families are generated in
+  code, not in index.json, and stay a top-level node). Everything starts collapsed.
+- Supergroup header: like the former top-level headers (▸/▾, SemiBold, divider), title only. When
+  open, its description and links show below it, then the groups.
+- Group header: "Title (count)", count = number of point sets (an order type file counts each order
+  type, so "Order types (157)"); its description and links, if any, show when open.
+- Database has one group "Order types" with the leaves "n = 3 (1)" ... "n = 7 (135)". The order type
+  database link moved from Links to the Database supergroup; PoSeZo stays under Links (it also has
+  families, not only extremal sets).
+- Collapsing a supergroup or group that holds the selection clears the selection (as before).
+
 ## 2026-11-21: Fixes from the manual walkthrough
 
 Problems found while writing the manual; Manfred: "ja bitte".

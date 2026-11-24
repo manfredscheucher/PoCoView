@@ -16,6 +16,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
 import javax.inject.Inject
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.TimeZone
@@ -250,18 +251,17 @@ abstract class GenerateExamples : DefaultTask() {
         val dir = examplesDir.get().asFile
         val indexText = dir.resolve("index.json").readText(Charsets.UTF_8)
         val index = JsonSlurper().parseText(indexText) as Map<*, *>
-        val files = (index["categories"] as List<*>).flatMap { (it as Map<*, *>)["files"] as List<*> }.map { it as String }
-        val entries = files.joinToString(",\n") { file ->
+        // every file of every group: point set JSON as text, the order type files (Graz b08) as hex strings
+        val files = (index["supergroups"] as List<*>).flatMap { (it as Map<*, *>)["groups"] as List<*> }
+            .flatMap { (it as Map<*, *>)["files"] as List<*> }.map { it as String }
+        fun embed(file: String, content: (File) -> String): String {
             val f = dir.resolve(file)
             require(f.isFile) { "index.json lists $file, which does not exist in $dir" }
-            "        ${KotlinLiteral.of(file)} to ${KotlinLiteral.of(f.readText(Charsets.UTF_8))}"
+            return "        ${KotlinLiteral.of(file)} to ${KotlinLiteral.of(content(f))}"
         }
-        // the order type files are binary (Graz b08), embedded as hex strings
-        val binaries = (index["orderTypes"] as List<*>).map { it as String }.joinToString(",\n") { file ->
-            val f = dir.resolve(file)
-            require(f.isFile) { "index.json lists $file, which does not exist in $dir" }
-            "        ${KotlinLiteral.of(file)} to ${KotlinLiteral.of(f.readBytes().joinToString("") { "%02x".format(it) })}"
-        }
+        val (texts, bins) = files.partition { it.endsWith(".json") }
+        val entries = texts.joinToString(",\n") { file -> embed(file) { it.readText(Charsets.UTF_8) } }
+        val binaries = bins.joinToString(",\n") { file -> embed(file) { f -> f.readBytes().joinToString("") { "%02x".format(it) } } }
         outputDir.get().asFile.apply { mkdirs() }.resolve("GeneratedExamples.kt").writeText(
             """
             |package ${packageName.get()}
@@ -279,7 +279,7 @@ abstract class GenerateExamples : DefaultTask() {
             |$entries,
             |    )
             |
-            |    /** The binary files listed under "orderTypes" in index.json, as hex strings, by their path there. */
+            |    /** The binary files listed in index.json (order type files), as hex strings, by their path there. */
             |    val BINARY_FILES: Map<String, String> = mapOf(
             |$binaries,
             |    )

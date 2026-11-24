@@ -30,7 +30,33 @@ something looks odd, check the original first.
 ## Example point sets
 
 Source files in `composeApp/examples/`: one JSON file per set in a subfolder per group
-(`singletons/holes/`, `singletons/crossing-families/`, …), listed in `index.json` (groups in order).
+(`singletons/holes/`, `singletons/crossing-families/`, …), the order type database as Graz b08 files
+(`order-types/`). `index.json` lists them as a two-level tree, supergroups and groups, in display order:
+
+```json
+{
+  "supergroups": [
+    {
+      "id": "database",
+      "title": "Database",
+      "description": "All order types of 3 to 7 points.",
+      "links": [{"title": "Order type database", "url": "http://...", "description": "..."}],
+      "groups": [
+        {"id": "order-types", "title": "Order types", "files": ["order-types/otypes03.b08", "..."]}
+      ]
+    }
+  ],
+  "links": [{"title": "PoSeZo (Point Set Zoo)", "url": "https://...", "description": "..."}]
+}
+```
+
+`id`, `title` and `groups`/`files` are required; `description` and `links` are optional (on
+supergroups, groups and the top level). Supergroup ids are unique, group ids unique within their
+supergroup; they make the dialog's tree keys (`SG/<id>`, `G/<supergroup id>/<id>`). In a group's
+`files`, `.json` files are single sets, all others are order type files (read with the file formats
+of Open file). The top-level `links` show under Links in the dialog. The sister apps ArrView and
+RotSysView use the same tree (supergroup, group).
+
 The `generateExamples` Gradle task embeds `index.json` and every listed file into the generated
 `GeneratedExamples.kt`, so the app has them at once (no resource reads); `core/Examples.kt` parses
 them at first use. Generated families (Horton sets, convex position) are code in `core/Families.kt`
@@ -43,7 +69,7 @@ File = the app's JSON point format plus metadata:
   "name": "n13-c1-min-convex-3-4-5-holes",
   "n": 13,
   "colors": 1,
-  "group": "Singletons",
+  "group": "Holes and convex gons",
   "description": "Set of 13 points minimizing the numbers of convex 3-, 4-, and 5-holes.",
   "reference": "original source (paper, or PoSeZo if unpublished)",
   "url": "link or null",

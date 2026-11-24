@@ -68,6 +68,9 @@ import org.bytefred.pocoview.core.COORD_LIMIT
 import org.bytefred.pocoview.core.CrossingProperty
 import org.bytefred.pocoview.core.EXAMPLES
 import org.bytefred.pocoview.core.Example
+import org.bytefred.pocoview.core.ExampleGroup
+import org.bytefred.pocoview.core.ExampleLink
+import org.bytefred.pocoview.core.ExampleSupergroup
 import org.bytefred.pocoview.core.ExportFormat
 import org.bytefred.pocoview.core.FAMILIES
 import org.bytefred.pocoview.core.MonochromaticGeneralHoleProperty
@@ -477,16 +480,23 @@ class ExamplesState {
     }
 }
 
+/** The tree keys of a supergroup and of a group in it. */
+private fun supergroupKey(sg: ExampleSupergroup) = "SG/" + sg.id
+private fun groupKey(sg: ExampleSupergroup, g: ExampleGroup) = "G/" + sg.id + "/" + g.id
+
 /** The keys of the tree nodes that hold [choice]: collapsing one of them hides it. */
 private fun treeKeys(choice: ExampleChoice): List<String> = when (choice) {
     is ExampleChoice.Family -> listOf("Families")
-    is ExampleChoice.OrderTypes -> listOf("Order types")
-    is ExampleChoice.Single -> listOf("Singletons") +
-        EXAMPLES.categories.filter { choice.example in it.examples }.map { "S/" + it.title }
+    else -> EXAMPLES.supergroups.flatMap { sg ->
+        sg.groups.filter { g ->
+            (choice is ExampleChoice.Single && choice.example in g.examples) ||
+                (choice is ExampleChoice.OrderTypes && choice.file in g.orderTypes)
+        }.flatMap { g -> listOf(supergroupKey(sg), groupKey(sg, g)) }
+    }
 }
 
 /**
- * Families (generated), the bundled single sets in categories, and links; all collapsible.
+ * The bundled sets in supergroups and groups (index.json), the generated families, and links; all collapsible.
  * Families and sets are radio buttons; the selected one shows its details (a family also its n).
  * Load replaces the current set with it (after "Save changes?", [AppState.leave]).
  */
@@ -535,6 +545,31 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
         ScrollColumn(Modifier.fillMaxSize(), ex.scroll) {
             FeedbackBox("Know a set that belongs here, or have general feedback?")
             Spacer(Modifier.height(8.dp))
+            for (sg in EXAMPLES.supergroups) {
+                val sgKey = supergroupKey(sg)
+                TreeHeader(sg.title, sgKey in open, depth = 0) { ex.toggle(sgKey) }
+                HorizontalDivider()
+                if (sgKey !in open) continue
+                NodeInfo(sg.description, sg.links, depth = 0)
+                for (g in sg.groups) {
+                    val key = groupKey(sg, g)
+                    TreeHeader("${g.title} (${g.size})", key in open, depth = 1) { ex.toggle(key) }
+                    if (key !in open) continue
+                    NodeInfo(g.description, g.links, depth = 1)
+                    for (e in g.examples) {
+                        val choice = ExampleChoice.Single(e)
+                        TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
+                        if (selected == choice) ExampleDetails(e)
+                    }
+                    for (f in g.orderTypes) {
+                        val choice = ExampleChoice.OrderTypes(f)
+                        TreeLeaf("n = ${f.n} (${f.sets.size})", depth = 2, selected == choice) { selected = choice; orderTypeText = null }
+                        if (selected == choice) OrderTypeDetails(state, f, ex.orderType[f.n] ?: 1, orderTypeOk, { orderTypeText = it }) {
+                            ex.orderType[f.n] = it
+                        }
+                    }
+                }
+            }
             TreeHeader("Families", "Families" in open, depth = 0) { ex.toggle("Families") }
             HorizontalDivider()
             if ("Families" in open) for (f in FAMILIES) {
@@ -543,28 +578,6 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 if (selected == choice) FamilyDetails(state, f, familyN[f.id] ?: DEFAULT_FAMILY_N, nError) {
                     familyN[f.id] = it
                     nError = null
-                }
-            }
-            TreeHeader("Singletons", "Singletons" in open, depth = 0) { ex.toggle("Singletons") }
-            HorizontalDivider()
-            if ("Singletons" in open) {
-                for (g in EXAMPLES.categories) {
-                    val key = "S/" + g.title
-                    TreeHeader("${g.title} (${g.examples.size})", key in open, depth = 1) { ex.toggle(key) }
-                    if (key in open) for (e in g.examples) {
-                        val choice = ExampleChoice.Single(e)
-                        TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
-                        if (selected == choice) ExampleDetails(e)
-                    }
-                }
-            }
-            TreeHeader("Order types", "Order types" in open, depth = 0) { ex.toggle("Order types") }
-            HorizontalDivider()
-            if ("Order types" in open) for (f in EXAMPLES.orderTypes) {
-                val choice = ExampleChoice.OrderTypes(f)
-                TreeLeaf("n = ${f.n} (${f.sets.size})", depth = 1, selected == choice) { selected = choice; orderTypeText = null }
-                if (selected == choice) OrderTypeDetails(state, f, ex.orderType[f.n] ?: 1, orderTypeOk, { orderTypeText = it }) {
-                    ex.orderType[f.n] = it
                 }
             }
             TreeHeader("Links", "Links" in open, depth = 0) { ex.toggle("Links") }
@@ -580,7 +593,19 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
 
 private const val DEFAULT_FAMILY_N = 16
 
-/** A clickable, expand/collapse tree node (category or subfolder). */
+/** The description and links of an expanded supergroup or group, below its header (nothing if it has none). */
+@Composable
+private fun NodeInfo(description: String?, links: List<ExampleLink>, depth: Int) {
+    if (description == null && links.isEmpty()) return
+    Column(Modifier.padding(start = (depth * 16 + 20).dp, bottom = 8.dp)) {
+        description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        if (links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+/** A clickable, expand/collapse tree node (supergroup, group, Families, Links). */
 @Composable
 private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () -> Unit) {
     Row(
@@ -671,7 +696,7 @@ private fun OrderTypeDetails(
     state: AppState, f: OrderTypeFile, index: Int, ok: Boolean, onText: (String) -> Unit, onIndex: (Int) -> Unit,
 ) {
     val count = f.sets.size
-    Column(Modifier.padding(start = 48.dp, bottom = 8.dp)) {
+    Column(Modifier.padding(start = 64.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             NumberField(
                 state, "order type", index.toString(), { it.toInt().let { i -> if (i in 1..count) onIndex(i) } },

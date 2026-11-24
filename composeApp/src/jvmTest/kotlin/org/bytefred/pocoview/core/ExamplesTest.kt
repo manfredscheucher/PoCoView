@@ -9,23 +9,28 @@ class ExamplesTest {
     @Test
     fun groupsAndCounts() {
         val catalog = loadExamples()
+        assertEquals(listOf("database" to "Database", "extremal" to "Extremal point sets"), catalog.supergroups.map { it.id to it.title })
+        val (database, extremal) = catalog.supergroups
+        assertEquals(listOf("Order types" to 157), database.groups.map { it.title to it.size })
+        assertEquals(listOf("Order type database"), database.links.map { it.title })
         assertEquals(
             listOf(
                 "Holes and convex gons" to 9, "Crossing number" to 2, "Bicolored sets" to 6,
                 "Crossing families" to 5, "Universal point sets" to 6, "Miscellaneous" to 3,
             ),
-            catalog.categories.map { it.title to it.examples.size },
+            extremal.groups.map { it.title to it.examples.size },
         )
-        for (g in catalog.categories) for (e in g.examples) assertEquals(g.title, e.group, e.name)
-        assertEquals(2, catalog.links.size)
-        val n13 = catalog.categories.flatMap { it.examples }.first { it.name == "n13-c1-min-convex-3-4-5-holes" }
+        assertTrue(extremal.groups.all { it.orderTypes.isEmpty() })
+        for (g in catalog.groups) for (e in g.examples) assertEquals(g.title, e.group, e.name)
+        assertEquals(listOf("PoSeZo (Point Set Zoo)"), catalog.links.map { it.title })
+        val n13 = catalog.examples.first { it.name == "n13-c1-min-convex-3-4-5-holes" }
         assertEquals(
             listOf("https://scheucher.dev/files/theses/bachelors_thesis_2013.pdf",
                 "https://www.eurogiga-compose.eu/posezo/n13_c1_min_convex_3_4_5_holes/n13_c1_min_convex_3_4_5_holes.php"),
             n13.links.map { it.url },
         )
         // no link to the PoSeZo main page per example, no dead links
-        for (e in catalog.categories.flatMap { it.examples }) for (l in e.links) {
+        for (e in catalog.examples) for (l in e.links) {
             assertTrue(l.url != "https://www.eurogiga-compose.eu/posezo.php" && "markov/sixgon" !in l.url, "${e.name}: ${l.url}")
         }
     }
@@ -42,6 +47,27 @@ class ExamplesTest {
     }
 
     @Test
+    fun indexSchema() {
+        val set = """{"name": "n3-c1-t", "description": "d", "group": "G", "points": [[0, 0], [1, 0], [0, 1]]}"""
+        val index = """{"supergroups": [{"id": "s", "title": "S", "description": "about S",
+            "links": [{"title": "site", "url": "https://example.org"}],
+            "groups": [{"id": "g", "title": "G", "files": ["a/t.json", "b/otypes03.b08"]}, {"id": "h", "title": "H", "files": []}]}]}"""
+        val c = parseIndex(index, mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff"))
+        val sg = c.supergroups.single()
+        assertEquals("about S", sg.description)
+        assertEquals(listOf("site"), sg.links.map { it.title })
+        assertEquals(emptyList(), c.links)
+        val g = sg.groups.first()
+        assertEquals(null, g.description)
+        assertEquals(listOf("n3-c1-t"), g.examples.map { it.name })
+        assertEquals(listOf(3), g.orderTypes.map { it.n })
+        assertEquals(2, g.size)
+        // ids must be unique (they are the tree keys)
+        assertFailsWith<FormatException> { parseIndex(index.replace("\"id\": \"h\"", "\"id\": \"g\""), mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff")) }
+        assertFailsWith<FormatException> { parseIndex(index, emptyMap(), mapOf("b/otypes03.b08" to "000080ff00ff")) }
+    }
+
+    @Test
     fun propertiesKeyIsParsedAndChecked() {
         val base = """{"name": "n3-c1-t", "description": "d", "group": "g", "points": [[0, 0], [1, 0], [0, 1]]"""
         assertEquals(emptyList(), parseExample("$base}", "t.json").properties)
@@ -51,7 +77,7 @@ class ExamplesTest {
 
     @Test
     fun everySetIsDistinctAndInGeneralPosition() {
-        for (e in loadExamples().categories.flatMap { it.examples }) {
+        for (e in loadExamples().examples) {
             assertEquals(e.points.size, e.points.map { it.x to it.y }.toSet().size, "duplicates in ${e.name}")
             assertTrue(isGeneralPosition(e.points), "not in general position: ${e.name}")
             assertTrue(e.points.all { it.inRange() }, "out of range: ${e.name}")
@@ -62,7 +88,7 @@ class ExamplesTest {
 
     @Test
     fun spotChecks() {
-        val all = loadExamples().categories.flatMap { it.examples }.associateBy { it.name }
+        val all = loadExamples().examples.associateBy { it.name }
         val bi = all.getValue("n8-c2-no-monochromatic-3-hole").points
         assertEquals(Pt(0, 0, "B"), bi[0])
         assertEquals(Pt(40, 10, "R"), bi[2])
