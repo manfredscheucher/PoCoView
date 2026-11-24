@@ -841,7 +841,7 @@ private fun AboutDialog(close: () -> Unit) = AlertDialog(
                 for (notice in GeneratedLicenses.NOTICES) {
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
                     Text(notice.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                    Text(notice.text, style = MonoStyle.copy(fontSize = MaterialTheme.typography.labelSmall.fontSize))
+                    Text(notice.text, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
