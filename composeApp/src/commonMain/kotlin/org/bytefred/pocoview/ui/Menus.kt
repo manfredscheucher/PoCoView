@@ -554,6 +554,7 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 for (g in sg.groups) {
                     val key = groupKey(sg, g)
                     TreeHeader(g.title, key in open, depth = 1) { ex.toggle(key) }
+                    HorizontalDivider(Modifier.padding(start = 16.dp))
                     if (key !in open) continue
                     // links its supergroup already shows are not repeated
                     NodeInfo(g.description, g.links.filter { l -> sg.links.none { it.url == l.url } }, depth = 1)
@@ -598,7 +599,7 @@ private const val DEFAULT_FAMILY_N = 16
 @Composable
 private fun NodeInfo(description: String?, links: List<ExampleLink>, depth: Int) {
     if (description == null && links.isEmpty()) return
-    Column(Modifier.padding(start = (depth * 16 + 20).dp, bottom = 8.dp)) {
+    Column(Modifier.padding(start = (depth * 16 + 24).dp, bottom = 8.dp)) {
         description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         if (links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
