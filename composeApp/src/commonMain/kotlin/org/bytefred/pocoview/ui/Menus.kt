@@ -556,8 +556,8 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                     TreeHeader(g.title, key in open, depth = 1) { ex.toggle(key) }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     if (key !in open) continue
-                    // links its supergroup already shows are not repeated
-                    NodeInfo(g.description, g.links.filter { l -> sg.links.none { it.url == l.url } }, depth = 1)
+                    // its own links, unless they are exactly the supergroup's (shown above)
+                    NodeInfo(g.description, if (g.links.map { it.url }.toSet() == sg.links.map { it.url }.toSet()) emptyList() else g.links, depth = 1)
                     for (e in g.examples) {
                         val choice = ExampleChoice.Single(e)
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
