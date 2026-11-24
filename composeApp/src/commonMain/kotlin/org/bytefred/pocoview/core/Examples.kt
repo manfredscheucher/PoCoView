@@ -38,10 +38,7 @@ data class ExampleGroup(
     val links: List<ExampleLink> = emptyList(),
     val examples: List<Example> = emptyList(),
     val orderTypes: List<OrderTypeFile> = emptyList(),
-) {
-    /** The number of point sets in the group (an order type file counts each of its sets). */
-    val size: Int get() = examples.size + orderTypes.sumOf { it.sets.size }
-}
+)
 
 /** A link shown with the examples (collections, databases). */
 data class ExampleLink(val title: String, val url: String, val description: String?)

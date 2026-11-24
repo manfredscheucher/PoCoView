@@ -11,7 +11,7 @@ class ExamplesTest {
         val catalog = loadExamples()
         assertEquals(listOf("database" to "Database", "extremal" to "Extremal point sets"), catalog.supergroups.map { it.id to it.title })
         val (database, extremal) = catalog.supergroups
-        assertEquals(listOf("Order types" to 157), database.groups.map { it.title to it.size })
+        assertEquals(listOf("Order types" to 157), database.groups.map { g -> g.title to g.orderTypes.sumOf { it.sets.size } })
         assertEquals(listOf("Order type database"), database.links.map { it.title })
         assertEquals(
             listOf(
@@ -61,7 +61,6 @@ class ExamplesTest {
         assertEquals(null, g.description)
         assertEquals(listOf("n3-c1-t"), g.examples.map { it.name })
         assertEquals(listOf(3), g.orderTypes.map { it.n })
-        assertEquals(2, g.size)
         // ids must be unique (they are the tree keys)
         assertFailsWith<FormatException> { parseIndex(index.replace("\"id\": \"h\"", "\"id\": \"g\""), mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff")) }
         assertFailsWith<FormatException> { parseIndex(index, emptyMap(), mapOf("b/otypes03.b08" to "000080ff00ff")) }

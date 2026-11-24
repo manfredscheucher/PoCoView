@@ -553,9 +553,10 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 NodeInfo(sg.description, sg.links, depth = 0)
                 for (g in sg.groups) {
                     val key = groupKey(sg, g)
-                    TreeHeader("${g.title} (${g.size})", key in open, depth = 1) { ex.toggle(key) }
+                    TreeHeader(g.title, key in open, depth = 1) { ex.toggle(key) }
                     if (key !in open) continue
-                    NodeInfo(g.description, g.links, depth = 1)
+                    // links its supergroup already shows are not repeated
+                    NodeInfo(g.description, g.links.filter { l -> sg.links.none { it.url == l.url } }, depth = 1)
                     for (e in g.examples) {
                         val choice = ExampleChoice.Single(e)
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
@@ -605,7 +606,7 @@ private fun NodeInfo(description: String?, links: List<ExampleLink>, depth: Int)
     }
 }
 
-/** A clickable, expand/collapse tree node (supergroup, group, Families, Links). */
+/** A clickable, expand/collapse tree node (supergroup, group, Families, Links); the top level ([depth] 0) has the larger titleLarge font. */
 @Composable
 private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () -> Unit) {
     Row(
@@ -618,7 +619,7 @@ private fun TreeHeader(label: String, open: Boolean, depth: Int, onToggle: () ->
         Text(if (open) "▾" else "▸", style = MaterialTheme.typography.bodyLarge)
         Text(
             label,
-            style = MaterialTheme.typography.bodyLarge,
+            style = if (depth == 0) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 8.dp),
         )

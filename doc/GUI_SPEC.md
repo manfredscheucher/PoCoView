@@ -24,6 +24,12 @@ Decisions:
   families, not only extremal sets).
 - Collapsing a supergroup or group that holds the selection clears the selection (as before).
 
+Aligned with ArrView/RotSysView/PoCoView: the depth-0 headers (supergroups, and Families and Links,
+which stay after them) use titleLarge; group headers show the title only, without the count ("Order
+types" instead of "Order types (157)"; the leaves keep "n = 5 (3)"); an open group does not repeat
+links its supergroup already shows. Arrow (▸/▾), 16 dp per level and the collapse rules were already
+the same. `ExampleGroup.size` is gone (it only served the count); `doc/img/examples.png` re-rendered.
+
 ## 2026-11-21: Fixes from the manual walkthrough
 
 Problems found while writing the manual; Manfred: "ja bitte".

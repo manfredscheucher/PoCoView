@@ -3,6 +3,8 @@ package org.bytefred.pocoview.ui
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -65,23 +67,23 @@ class ExamplesDialogUiTest {
         val load = onNodeWithText("Load")
         // all collapsed: the supergroups, Families and Links, no groups
         for (t in listOf("Database", "Extremal point sets", "Families", "Links")) onNodeWithText(t).assertExists()
-        onNodeWithText("Holes and convex gons (9)").assertDoesNotExist()
+        onNodeWithText("Holes and convex gons").assertDoesNotExist()
         onNodeWithText("Extremal point sets").performClick()
         onNodeWithText("Sets from the literature that are extremal for a problem.").assertExists()
-        onNodeWithText("Bicolored sets (6)").performScrollTo().performClick()
+        onNodeWithText("Bicolored sets").performScrollTo().performClick()
         onNodeWithText("n8-c2-no-monochromatic-3-hole").performScrollTo().performClick()
         load.assertIsEnabled()
         // collapsing the group of the selection clears it
-        onNodeWithText("Bicolored sets (6)").performScrollTo().performClick()
+        onNodeWithText("Bicolored sets").performScrollTo().performClick()
         load.assertIsNotEnabled()
-        onNodeWithText("Bicolored sets (6)").performClick()
+        onNodeWithText("Bicolored sets").performClick()
         onNodeWithText("n8-c2-no-monochromatic-3-hole").performScrollTo().performClick()
         // the database: description, its link, one group with the order type files
         onNodeWithText("Database").performScrollTo().performClick()
         onNodeWithText("All order types of 3 to 7 points.").assertExists()
         onNodeWithText("Order type database").assertExists()
         load.assertIsEnabled()
-        onNodeWithText("Order types (157)").performScrollTo().performClick()
+        onNodeWithText("Order types").performScrollTo().performClick()
         onNodeWithText("n = 5 (3)").performScrollTo().performClick()
         load.performClick()
         waitForIdle()
@@ -94,7 +96,8 @@ class ExamplesDialogUiTest {
         val s = state()
         setContent { App(s, DialogKind.EXAMPLES) }
         onNodeWithText("Extremal point sets").performClick()
-        onNodeWithText("Crossing number (2)").performScrollTo().performClick()
+        // the group header, not the Crossing number property of the widget behind the dialog
+        onNode(hasText("Crossing number") and hasClickAction()).performScrollTo().performClick()
         onNodeWithText("n12-c1-min-crossing-number-153").performScrollTo().performClick()
         onNodeWithText("Load").performClick()
         waitForIdle()
