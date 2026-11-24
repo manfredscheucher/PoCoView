@@ -96,11 +96,12 @@ only switches properties on, never off.
 
 ```
 ./scripts/deployPages.sh
-git push origin gh-pages
+git push --force origin gh-pages
 ```
 
 `deployPages.sh` builds the site, copies it into a worktree of the `gh-pages` branch (`.gh-pages/`,
-created on first use) and commits it there. It does not push. The site is served from
+created on first use) and commits it there as the branch's only commit (no deploy history,
+hence the force push). It does not push. The site is served from
 https://scheucher.dev/PoCoView/ (one-time setup on github.com: Settings, Pages, deploy
 from branch `gh-pages`, root).
 
