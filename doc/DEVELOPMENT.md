@@ -103,3 +103,14 @@ git push origin gh-pages
 created on first use) and commits it there. It does not push. The site is served from
 https://scheucher.dev/PoCoView/ (one-time setup on github.com: Settings, Pages, deploy
 from branch `gh-pages`, root).
+
+### No third-party requests
+
+The site must not load anything from other origins (Manfred, 2026-11-24). Compose web fetches
+fallback fonts from fonts.gstatic.com for characters no bundled font covers (emoji, CJK, Hebrew,
+...), e.g. when such text is typed or pasted; the app's own texts never trigger it. The fallback
+downloader is internal to Compose, so `index.html` sets
+`<meta http-equiv="Content-Security-Policy" content="connect-src 'self'">` (same line in ArrView,
+PoCoView and RotSysView). Such characters then show as boxes, and the console logs
+"Failed to download fallback font" with retries. Check after a deploy: type an emoji into a text
+field; `performance.getEntriesByType('resource')` must list only same-origin URLs.
