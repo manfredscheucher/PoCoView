@@ -40,9 +40,11 @@ Source files in `composeApp/examples/`: one JSON file per set in a subfolder per
       "id": "database",
       "title": "Database",
       "description": "All order types of 3 to 7 points.",
-      "links": [{"title": "Order type database", "url": "http://...", "description": "..."}],
       "groups": [
-        {"id": "order-types", "title": "Order types", "files": ["order-types/otypes03.b08", "..."]}
+        {"id": "order-types", "title": "Order types", "files": [
+          {"file": "order-types/otypes03.b08", "links": [{"title": "Order type database", "url": "http://...", "description": "..."}]},
+          "..."
+        ]}
       ]
     }
   ],
@@ -50,11 +52,14 @@ Source files in `composeApp/examples/`: one JSON file per set in a subfolder per
 }
 ```
 
-`id`, `title` and `groups`/`files` are required; `description` and `links` are optional (on
-supergroups, groups and the top level). Supergroup ids are unique, group ids unique within their
+`id`, `title` and `groups`/`files` are required; `description` is optional. Sources (links) belong
+to the sets, not to supergroups or groups: the loader rejects `links` there. A set file has its own
+`links`; an order type file is binary, so its entry in `files` is `{"file": path, "links": [...]}`
+(a plain path is a file without links). The top-level `links` are general links (Links in the dialog).
+Supergroup ids are unique, group ids unique within their
 supergroup; they make the dialog's tree keys (`SG/<id>`, `G/<supergroup id>/<id>`). In a group's
 `files`, `.json` files are single sets, all others are order type files (read with the file formats
-of Open file). The top-level `links` show under Links in the dialog. The sister apps ArrView and
+of Open file). The sister apps ArrView and
 RotSysView use the same tree (supergroup, group).
 
 The `generateExamples` Gradle task embeds `index.json` and every listed file into the generated
@@ -72,7 +77,7 @@ File = the app's JSON point format plus metadata:
   "group": "Holes and convex gons",
   "description": "Set of 13 points minimizing the numbers of convex 3-, 4-, and 5-holes.",
   "reference": "original source (paper, or PoSeZo if unpublished)",
-  "url": "link or null",
+  "links": [{"title": "PoSeZo entry", "url": "https://..."}],
   "source": "where the coordinates were taken from",
   "claim": "optional: what the source states",
   "note": "optional remark",

@@ -109,7 +109,7 @@ class NumberFieldUiTest {
         onNodeWithText("Database").performScrollTo().performClick()
         onNodeWithText("Order types").performScrollTo().performClick()
         onNodeWithText("n = 7 (135)").performScrollTo().performClick()
-        onNodeWithText("Order types of 7 points (Graz order type database)").performScrollTo()
+        onNodeWithText("Order type database").performScrollTo()
         val field = onNodeWithTag("number-order type")
         val minus = onNodeWithTag("number-order type-minus")
         val plus = onNodeWithTag("number-order type-plus")

@@ -12,7 +12,6 @@ class ExamplesTest {
         assertEquals(listOf("database" to "Database", "extremal" to "Extremal point sets"), catalog.supergroups.map { it.id to it.title })
         val (database, extremal) = catalog.supergroups
         assertEquals(listOf("Order types" to 157), database.groups.map { g -> g.title to g.orderTypes.sumOf { it.sets.size } })
-        assertEquals(listOf("Order type database"), database.links.map { it.title })
         assertEquals(
             listOf(
                 "Holes and convex gons" to 9, "Crossing number" to 2, "Bicolored sets" to 6,
@@ -36,6 +35,31 @@ class ExamplesTest {
     }
 
     @Test
+    fun sourcesBelongToTheSets() {
+        val catalog = loadExamples()
+        // every set has a source link (all of them have one)
+        for (e in catalog.examples) assertTrue(e.links.isNotEmpty(), "no link: ${e.name}")
+        val db = "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/"
+        for (f in catalog.orderTypes) assertEquals(listOf("Order type database" to db), f.links.map { it.title to it.url }, f.file)
+        // the database link only on the order type files
+        assertTrue(catalog.examples.none { e -> e.links.any { it.url == db } })
+        // each URL once per set
+        for (e in catalog.examples) assertEquals(e.links.size, e.links.map { it.url }.toSet().size, e.name)
+    }
+
+    @Test
+    fun linksOnGroupsOrSupergroupsAreRejected() {
+        val link = """"links": [{"title": "site", "url": "https://example.org"}]"""
+        val sgLinks = """{"supergroups": [{"id": "s", "title": "S", $link, "groups": []}]}"""
+        val gLinks = """{"supergroups": [{"id": "s", "title": "S", "groups": [{"id": "g", "title": "G", $link, "files": []}]}]}"""
+        for (index in listOf(sgLinks, gLinks)) assertFailsWith<FormatException> { parseIndex(index, emptyMap(), emptyMap()) }
+        // a .json set has its links in its own file, not in its index entry
+        val set = """{"name": "n3-c1-t", "description": "d", "group": "G", "points": [[0, 0], [1, 0], [0, 1]]}"""
+        val jsonEntry = """{"supergroups": [{"id": "s", "title": "S", "groups": [{"id": "g", "title": "G", "files": [{"file": "t.json", $link}]}]}]}"""
+        assertFailsWith<FormatException> { parseIndex(jsonEntry, mapOf("t.json" to set), emptyMap()) }
+    }
+
+    @Test
     fun orderTypeDatabaseIsBundled() {
         val files = loadExamples().orderTypes
         // the numbers of order types of 3..7 points (file size / (n * 2 bytes))
@@ -50,17 +74,17 @@ class ExamplesTest {
     fun indexSchema() {
         val set = """{"name": "n3-c1-t", "description": "d", "group": "G", "points": [[0, 0], [1, 0], [0, 1]]}"""
         val index = """{"supergroups": [{"id": "s", "title": "S", "description": "about S",
-            "links": [{"title": "site", "url": "https://example.org"}],
-            "groups": [{"id": "g", "title": "G", "files": ["a/t.json", "b/otypes03.b08"]}, {"id": "h", "title": "H", "files": []}]}]}"""
+            "groups": [{"id": "g", "title": "G", "files": ["a/t.json", {"file": "b/otypes03.b08", "links": [{"title": "site", "url": "https://example.org"}]}]},
+            {"id": "h", "title": "H", "files": []}]}]}"""
         val c = parseIndex(index, mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff"))
         val sg = c.supergroups.single()
         assertEquals("about S", sg.description)
-        assertEquals(listOf("site"), sg.links.map { it.title })
         assertEquals(emptyList(), c.links)
         val g = sg.groups.first()
         assertEquals(null, g.description)
         assertEquals(listOf("n3-c1-t"), g.examples.map { it.name })
         assertEquals(listOf(3), g.orderTypes.map { it.n })
+        assertEquals(listOf("site"), g.orderTypes.single().links.map { it.title })
         // ids must be unique (they are the tree keys)
         assertFailsWith<FormatException> { parseIndex(index.replace("\"id\": \"h\"", "\"id\": \"g\""), mapOf("a/t.json" to set), mapOf("b/otypes03.b08" to "000080ff00ff")) }
         assertFailsWith<FormatException> { parseIndex(index, emptyMap(), mapOf("b/otypes03.b08" to "000080ff00ff")) }

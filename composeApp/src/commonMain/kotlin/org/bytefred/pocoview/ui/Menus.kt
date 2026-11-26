@@ -552,18 +552,17 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
                 TreeHeader(sg.title, sgKey in open, depth = 0) { ex.toggle(sgKey) }
                 HorizontalDivider()
                 if (sgKey !in open) continue
-                NodeInfo(sg.description, sg.links, depth = 0)
+                NodeInfo(sg.description, depth = 0)
                 for (g in sg.groups) {
                     val key = groupKey(sg, g)
                     TreeHeader(g.title, key in open, depth = 1) { ex.toggle(key) }
                     HorizontalDivider(Modifier.padding(start = 16.dp))
                     if (key !in open) continue
-                    // its own links, unless they are exactly the supergroup's (shown above)
-                    NodeInfo(g.description, if (g.links.map { it.url }.toSet() == sg.links.map { it.url }.toSet()) emptyList() else g.links, depth = 1)
+                    NodeInfo(g.description, depth = 1)
                     for (e in g.examples) {
                         val choice = ExampleChoice.Single(e)
                         TreeLeaf(e.name, depth = 2, selected == choice) { selected = choice }
-                        if (selected == choice) ExampleDetails(e, shownLinks(e, sg, g), depth = 2)
+                        if (selected == choice) ExampleDetails(e, depth = 2)
                     }
                     for (f in g.orderTypes) {
                         val choice = ExampleChoice.OrderTypes(f)
@@ -597,14 +596,11 @@ private fun ExamplesDialog(state: AppState, close: () -> Unit) {
 
 private const val DEFAULT_FAMILY_N = 16
 
-/** The description and links of an expanded supergroup or group, below its header (nothing if it has none). */
+/** The description of an expanded supergroup or group, below its header (nothing if it has none). */
 @Composable
-private fun NodeInfo(description: String?, links: List<ExampleLink>, depth: Int) {
-    if (description == null && links.isEmpty()) return
-    Column(Modifier.padding(start = (depth * 16 + 24).dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        description?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
-    }
+private fun NodeInfo(description: String?, depth: Int) {
+    if (description == null) return
+    Text(description, Modifier.padding(start = (depth * 16 + 24).dp, bottom = 4.dp), style = MaterialTheme.typography.bodySmall)
 }
 
 /**
@@ -668,22 +664,20 @@ private fun TreeLeaf(name: String, depth: Int, selected: Boolean, onSelect: () -
     }
 }
 
-/** The links the selected set [e] shows: those whose URL its group [g] and supergroup [sg] do not show already. */
-internal fun shownLinks(e: Example, sg: ExampleSupergroup, g: ExampleGroup): List<ExampleLink> {
-    val above = (sg.links + g.links).map { it.url }.toSet()
-    return e.links.filter { it.url !in above }
+/** The sources of a selected set, last in its details: one link per line, each URL once. */
+@Composable
+private fun SourceLinks(links: List<ExampleLink>) {
+    for (l in links.distinctBy { it.url }) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
 }
 
-/** The details of the selected bundled set at [depth]: description, note, reference, [links]. */
+/** The details of the selected bundled set at [depth]: description, note, then its sources (reference, links). */
 @Composable
-private fun ExampleDetails(e: Example, links: List<ExampleLink>, depth: Int) {
+private fun ExampleDetails(e: Example, depth: Int) {
     Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
         Text(e.description, style = MaterialTheme.typography.bodySmall)
         e.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         e.reference?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-        if (links.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (l in links) LinkText(l.title, l.url, MaterialTheme.typography.labelSmall)
-        }
+        SourceLinks(e.links)
     }
 }
 
@@ -713,24 +707,28 @@ private fun feedbackMailto(): String {
     return "mailto:$EMAIL?subject=${enc(subject)}&body=${enc(body)}"
 }
 
-/** The details of the selected family at [depth]: its n, description and references. */
+/** The details of the selected family at [depth]: description, its n, then the references (sources). */
 @Composable
 private fun FamilyDetails(state: AppState, f: PointSetFamily, depth: Int, n: Int, error: String?, onN: (Int) -> Unit) {
     Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
+        Text(f.description, style = MaterialTheme.typography.bodySmall)
         NumberField(state, "n", n.toString(), { onN(it.toInt()) }, range = 1L..f.maxN, stepper = true, isError = error != null)
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        Text(f.description, style = MaterialTheme.typography.bodySmall)
         for (r in f.references) Text(r.text + (r.url?.let { " $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
     }
 }
 
-/** The details of a selected order type file at [depth]: which order type to load ("order type: − [17] + of 135"). */
+/**
+ * The details of a selected order type file at [depth]: description, which order type to load
+ * ("order type: − [17] + of 135"), then its sources.
+ */
 @Composable
 private fun OrderTypeDetails(
     state: AppState, f: OrderTypeFile, depth: Int, index: Int, ok: Boolean, onText: (String) -> Unit, onIndex: (Int) -> Unit,
 ) {
     val count = f.sets.size
     Column(Modifier.padding(start = (depth * 16 + 48).dp, bottom = 8.dp)) {
+        Text("Order types of ${f.n} points (Graz order type database)", style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             NumberField(
                 state, "order type", index.toString(), { it.toInt().let { i -> if (i in 1..count) onIndex(i) } },
@@ -739,7 +737,7 @@ private fun OrderTypeDetails(
             Text(" of $count", style = MaterialTheme.typography.bodyMedium)
         }
         if (!ok) Text("1 to $count", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-        Text("Order types of ${f.n} points (Graz order type database)", style = MaterialTheme.typography.bodySmall)
+        SourceLinks(f.links)
     }
 }
 

@@ -251,9 +251,10 @@ abstract class GenerateExamples : DefaultTask() {
         val dir = examplesDir.get().asFile
         val indexText = dir.resolve("index.json").readText(Charsets.UTF_8)
         val index = JsonSlurper().parseText(indexText) as Map<*, *>
-        // every file of every group: point set JSON as text, the order type files (Graz b08) as hex strings
+        // every file of every group: point set JSON as text, the order type files (Graz b08) as hex strings;
+        // an entry is a path or {"file": path, "links": [...]}
         val files = (index["supergroups"] as List<*>).flatMap { (it as Map<*, *>)["groups"] as List<*> }
-            .flatMap { (it as Map<*, *>)["files"] as List<*> }.map { it as String }
+            .flatMap { (it as Map<*, *>)["files"] as List<*> }.map { if (it is Map<*, *>) it["file"] as String else it as String }
         fun embed(file: String, content: (File) -> String): String {
             val f = dir.resolve(file)
             require(f.isFile) { "index.json lists $file, which does not exist in $dir" }

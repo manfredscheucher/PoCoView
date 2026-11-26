@@ -58,13 +58,14 @@ All of these are in the Point Set menu.
 
 **Examples...** is a tree; every node opens and closes with a click:
 
-- Database: all order types of 3 to 7 points (Graz order type database, with a link to its website).
-  Choose the number of the order type ("order type: 17 of 135"; a number out of range disables
+- Database: all order types of 3 to 7 points (Graz order type database). The selected file shows
+  its description, the number of the order type, and last the link to the database website. Choose
+  the number of the order type ("order type: 17 of 135"; a number out of range disables
   Load). The whole file is loaded, so you can step through the other order types with `<` `>`.
 - Extremal point sets: sets from papers and from PoSeZo, in groups (holes and convex gons, crossing
   number, bicolored sets, crossing families, universal point sets, miscellaneous). The selected set
-  shows its description, reference and links.
-- Families: generated sets. Horton set (no empty convex 7-gon; n is rounded up to the next power
+  shows its description and note, then its sources: reference and links.
+- Families: generated sets; the selected family shows its description, n, then its references. Horton set (no empty convex 7-gon; n is rounded up to the next power
   of 2) and Convex position (points on the moment curve). Set n with the number field or `−`/`+`
   (default 16).
 - Links: PoSeZo.

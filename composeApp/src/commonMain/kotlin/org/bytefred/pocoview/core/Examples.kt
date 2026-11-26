@@ -17,34 +17,35 @@ data class Example(
 
 /**
  * A top-level node of the examples tree (composeApp/examples/index.json, "supergroups"): e.g. "Database" or
- * "Extremal point sets". [id] is unique among the supergroups.
+ * "Extremal point sets". [id] is unique among the supergroups. No links: they belong to the sets.
  */
 data class ExampleSupergroup(
     val id: String,
     val title: String,
     val description: String?,
-    val links: List<ExampleLink>,
     val groups: List<ExampleGroup>,
 )
 
 /**
  * A group inside a supergroup: its bundled single sets ([examples], the .json files) and order type files
- * ([orderTypes], the other files). [id] is unique within its supergroup.
+ * ([orderTypes], the other files). [id] is unique within its supergroup. No links: they belong to the sets.
  */
 data class ExampleGroup(
     val id: String,
     val title: String,
     val description: String? = null,
-    val links: List<ExampleLink> = emptyList(),
     val examples: List<Example> = emptyList(),
     val orderTypes: List<OrderTypeFile> = emptyList(),
 )
 
-/** A link shown with the examples (collections, databases). */
+/** A link shown with the examples: a source of a set, or a general link (collections). */
 data class ExampleLink(val title: String, val url: String, val description: String?)
 
-/** One file of the Graz order type database: all order types of [n] points, one set each. */
-data class OrderTypeFile(val n: Int, val file: String, val sets: List<List<Pt>>)
+/**
+ * One file of the Graz order type database: all order types of [n] points, one set each. [links] are its
+ * sources (from its entry in index.json, since the file itself is binary).
+ */
+data class OrderTypeFile(val n: Int, val file: String, val sets: List<List<Pt>>, val links: List<ExampleLink> = emptyList())
 
 /** Everything bundled: the supergroups with their groups, and the general links. */
 data class ExampleCatalog(val supergroups: List<ExampleSupergroup>, val links: List<ExampleLink>) {
@@ -63,40 +64,55 @@ fun loadExamples(): ExampleCatalog = parseIndex(GeneratedExamples.INDEX, Generat
 
 /**
  * Parses index.json ([index]); [files] are the texts of the listed .json files, [binaryFiles] the other
- * listed files (order type files) as hex strings, both by their path in the index.
+ * listed files (order type files) as hex strings, both by their path in the index. A file entry is its
+ * path, or for an order type file {"file": path, "links": [...]} (its sources). Links on supergroups and
+ * groups are rejected: sources belong to the sets.
  */
 fun parseIndex(index: String, files: Map<String, String>, binaryFiles: Map<String, String>): ExampleCatalog {
     val o = parseJson(index).asObject("index.json")
     val supergroups = o.list("supergroups", "index.json").map { s ->
-        val sg = s.asObject("index.json supergroup")
+        val sg = s.asObject("index.json supergroup").noLinks("index.json supergroup")
         val groups = sg.list("groups", "index.json supergroup").map { g ->
-            val gr = g.asObject("index.json group")
-            val paths = gr.list("files", "index.json group").map { f ->
-                f as? String ?: throw FormatException("index.json: file names must be strings")
+            val gr = g.asObject("index.json group").noLinks("index.json group")
+            // path to the links of its entry (only order type files have any)
+            val entries = gr.list("files", "index.json group").map { f ->
+                when (f) {
+                    is String -> f to emptyList()
+                    is Map<*, *> -> {
+                        val fo = f.asObject("index.json file")
+                        val file = fo.string("file", "index.json file")
+                        if (file.endsWith(".json") && "links" in fo) throw FormatException("index.json: the links of $file belong in the file")
+                        file to links(fo, "index.json $file")
+                    }
+                    else -> throw FormatException("index.json: a file entry must be a path or {\"file\": path, \"links\": [...]}")
+                }
             }
             ExampleGroup(
                 id = gr.string("id", "index.json group"),
                 title = gr.string("title", "index.json group"),
                 description = gr.optString("description", "index.json group"),
-                links = links(gr, "index.json group"),
-                examples = paths.filter { it.endsWith(".json") }.map { file ->
+                examples = entries.filter { it.first.endsWith(".json") }.map { (file, _) ->
                     parseExample(files[file] ?: throw FormatException("index.json: $file is not bundled"), file)
                 },
-                orderTypes = paths.filterNot { it.endsWith(".json") }.map { file ->
+                orderTypes = entries.filterNot { it.first.endsWith(".json") }.map { (file, links) ->
                     val hex = binaryFiles[file] ?: throw FormatException("index.json: $file is not bundled")
                     val name = file.substringAfterLast('/')
                     val sets = readPointSets(name, ByteArray(hex.length / 2) { hex.substring(2 * it, 2 * it + 2).toInt(16).toByte() })
-                    OrderTypeFile(sets.first().size, name, sets)
+                    OrderTypeFile(sets.first().size, name, sets, links)
                 },
             )
         }
         val id = sg.string("id", "index.json supergroup")
         groups.groupBy { it.id }.forEach { (gid, l) -> if (l.size > 1) throw FormatException("index.json: group id '$gid' twice in '$id'") }
-        ExampleSupergroup(id, sg.string("title", "index.json supergroup"), sg.optString("description", "index.json supergroup"), links(sg, "index.json supergroup"), groups)
+        ExampleSupergroup(id, sg.string("title", "index.json supergroup"), sg.optString("description", "index.json supergroup"), groups)
     }
     supergroups.groupBy { it.id }.forEach { (id, l) -> if (l.size > 1) throw FormatException("index.json: supergroup id '$id' twice") }
     return ExampleCatalog(supergroups, links(o, "index.json"))
 }
+
+/** [this], if it has no "links" (supergroups and groups: sources belong to the sets). */
+private fun Map<String, Any?>.noLinks(file: String): Map<String, Any?> =
+    if ("links" in this) throw FormatException("$file: no \"links\" here, they belong to the sets") else this
 
 /** The optional "links" array of [o]. */
 private fun links(o: Map<String, Any?>, file: String): List<ExampleLink> =

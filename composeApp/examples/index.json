@@ -4,23 +4,61 @@
       "id": "database",
       "title": "Database",
       "description": "All order types of 3 to 7 points.",
-      "links": [
-        {
-          "title": "Order type database",
-          "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
-          "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
-        }
-      ],
       "groups": [
         {
           "id": "order-types",
           "title": "Order types",
           "files": [
-            "order-types/otypes03.b08",
-            "order-types/otypes04.b08",
-            "order-types/otypes05.b08",
-            "order-types/otypes06.b08",
-            "order-types/otypes07.b08"
+            {
+              "file": "order-types/otypes03.b08",
+              "links": [
+                {
+                  "title": "Order type database",
+                  "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+                  "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+                }
+              ]
+            },
+            {
+              "file": "order-types/otypes04.b08",
+              "links": [
+                {
+                  "title": "Order type database",
+                  "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+                  "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+                }
+              ]
+            },
+            {
+              "file": "order-types/otypes05.b08",
+              "links": [
+                {
+                  "title": "Order type database",
+                  "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+                  "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+                }
+              ]
+            },
+            {
+              "file": "order-types/otypes06.b08",
+              "links": [
+                {
+                  "title": "Order type database",
+                  "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+                  "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+                }
+              ]
+            },
+            {
+              "file": "order-types/otypes07.b08",
+              "links": [
+                {
+                  "title": "Order type database",
+                  "url": "http://www.ist.tugraz.at/staff/aichholzer/research/rp/triangulations/ordertypes/",
+                  "description": "All order types of small point sets: online up to n = 10, n = 11 on demand. O. Aichholzer, F. Aurenhammer, H. Krasser"
+                }
+              ]
+            }
           ]
         }
       ]

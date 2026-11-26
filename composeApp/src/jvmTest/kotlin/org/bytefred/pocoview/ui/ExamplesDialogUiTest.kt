@@ -1,10 +1,12 @@
 package org.bytefred.pocoview.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -13,15 +15,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.bytefred.pocoview.core.EXAMPLES
-import org.bytefred.pocoview.core.Example
-import org.bytefred.pocoview.core.ExampleGroup
-import org.bytefred.pocoview.core.ExampleLink
-import org.bytefred.pocoview.core.ExampleSupergroup
 import org.bytefred.pocoview.core.FAMILIES
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** Examples dialog: supergroups and groups expand and collapse; collapsing the node that holds the selection clears it, so Load is off. */
 @OptIn(ExperimentalTestApi::class)
@@ -82,13 +81,16 @@ class ExamplesDialogUiTest {
         load.assertIsNotEnabled()
         onNodeWithText("Bicolored sets").performClick()
         onNodeWithText("n8-c2-no-monochromatic-3-hole").performScrollTo().performClick()
-        // the database: description, its link, one group with the order type files
+        // the database: description (no link: the order type files have it), one group with the order type files
         onNodeWithText("Database").performScrollTo().performClick()
         onNodeWithText("All order types of 3 to 7 points.").assertExists()
-        onNodeWithText("Order type database").assertExists()
         load.assertIsEnabled()
         onNodeWithText("Order types").performScrollTo().performClick()
+        onNodeWithText("Order type database").assertDoesNotExist()
         onNodeWithText("n = 5 (3)").performScrollTo().performClick()
+        // the selected file: description, chooser, then its source
+        assertAbove(onNodeWithText("Order types of 5 points (Graz order type database)"), onNodeWithTag("number-order type"))
+        assertAbove(onNodeWithTag("number-order type"), onNodeWithText("Order type database"))
         load.performClick()
         waitForIdle()
         assertEquals(3, s.sets.size)
@@ -109,16 +111,33 @@ class ExamplesDialogUiTest {
     }
 
     @Test
-    fun aSetLeavesOutLinksItsGroupOrSupergroupShowsByUrl() {
-        fun link(title: String, url: String) = ExampleLink(title, url, null)
-        val sg = ExampleSupergroup("s", "S", null, listOf(link("Database", "https://example.org/db")), emptyList())
-        val g = ExampleGroup("g", "G", links = listOf(link("Paper", "https://example.org/paper")))
-        val own = link("PoSeZo", "https://example.org/own")
-        val e = Example(
-            "n3-c1-t", "d", "G", null,
-            listOf(link("Order type database", "https://example.org/db"), link("The paper", "https://example.org/paper"), own),
-            emptyList(),
-        )
-        assertEquals(listOf(own), shownLinks(e, sg, g))
+    fun aSetShowsItsSourcesLast() = runComposeUiTest {
+        setContent { App(state(), DialogKind.EXAMPLES) }
+        onNodeWithText("Extremal point sets").performClick()
+        onNodeWithText("Holes and convex gons").performScrollTo().performClick()
+        // groups show no links
+        onNodeWithText("PoSeZo entry").assertDoesNotExist()
+        onNodeWithText("n13-c1-min-convex-3-4-5-holes").performScrollTo().performClick()
+        val e = EXAMPLES.examples.first { it.name == "n13-c1-min-convex-3-4-5-holes" }
+        // description, note, reference, then the links in file order
+        val order = listOf(e.description, e.note!!, e.reference!!) + e.links.map { it.title }
+        for ((a, b) in order.zipWithNext()) assertAbove(onNodeWithText(a), onNodeWithText(b))
+    }
+
+    @Test
+    fun aFamilyShowsItsReferencesLast() = runComposeUiTest {
+        setContent { App(state(), DialogKind.EXAMPLES) }
+        onNodeWithText("Families").performClick()
+        val f = FAMILIES.first { it.references.isNotEmpty() }
+        onNodeWithText(f.name).performClick()
+        assertAbove(onNodeWithText(f.description), onNodeWithTag("number-n"))
+        assertAbove(onNodeWithTag("number-n"), onNodeWithText(f.references.first().text, substring = true))
+    }
+
+    /** [a] is drawn above [b]. */
+    private fun assertAbove(a: SemanticsNodeInteraction, b: SemanticsNodeInteraction) {
+        val ta = a.fetchSemanticsNode().boundsInRoot.top
+        val tb = b.fetchSemanticsNode().boundsInRoot.top
+        assertTrue(ta < tb, "expected above: $ta < $tb")
     }
 }

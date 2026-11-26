@@ -2,6 +2,30 @@
 
 Requests and decisions about the GUI. Newest first.
 
+## 2026-11-26: Sources belong to the sets, shown last
+
+Request (Manfred, relayed, ArrView as the model, "auch bei pocoview bitte"): keep the grouping of the
+examples dialog. Sources (links) belong to the individual sets, not to groups or supergroups; several
+per set are fine, and a link goes only onto sets it really is a source for. In the details of a
+selected set, description and parameters come first and the sources last ("wenn ich zuerst lese wer
+es gemacht hat und dann sehe dass mich die eigenschaft nicht interessiert ist gatsch").
+
+Decisions:
+- The only group/supergroup link was the order type database link on Database. It moved to the five
+  order type files (n = 3..7), which come from that database. Since b08 files are binary, their
+  `files` entry in index.json is `{"file": path, "links": [...]}`. All single sets already had their own
+  links (PoSeZo entry, arXiv, paper, thesis); nothing else moved.
+- The loader rejects `links` on supergroups and groups, and on the index entry of a .json set (its
+  links belong in its file). Supergroups and groups show only their description. The URL dedup
+  against group/supergroup links (`shownLinks`) is gone; a set shows each URL once.
+- Details order: set = description, note, reference, links (the reference counts as source, so it
+  stays with the links at the end); order type file = description, order type chooser, link; family =
+  description, n, references (description moved above n, as RotSysView).
+- The Links node (general links, PoSeZo) stays.
+- No "Data:" line as in RotSysView: the `source` field of the set files is not shown (not asked).
+- Superseded: "attach a natural website to a supergroup" and "a set shows only the links its group
+  and supergroup do not show" (2026-11-24).
+
 ## 2026-11-24: Terms & privacy note (web)
 
 Request (Manfred, relayed by turingmachine-ef): every GitHub Pages site gets the approved "Terms &
